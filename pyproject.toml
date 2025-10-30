@@ -1,0 +1,18 @@
+[project]
+name = "supershell"
+version = "0.1.0"
+description = "An immersive educational game where you learn real-world command-line and networking basics by completing thrilling quests. Master the terminal with the guidance of your mentor, Cypher, and prove your skills in the digital realm."
+authors = [
+    {name = "J. Alex Long",email = "johnalexanderlong@gmail.com"}
+]
+license = "MIT"
+license-files = ["LICENSE"]
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "rich (>=14.2.0,<15.0.0)"
+]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
