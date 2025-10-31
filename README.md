@@ -52,7 +52,7 @@ poetry install
 
 Activate the virtual environment:
 ```bash
-poetry shell
+poetry env activate
 ```
 
 Run the game:
