@@ -1,17 +1,19 @@
-[project]
+[tool.poetry]
 name = "supershell"
 version = "0.1.0"
-description = "An immersive educational game where you learn real-world command-line and networking basics by completing thrilling quests. Master the terminal with the guidance of your mentor, Cypher, and prove your skills in the digital realm."
-authors = [
-    {name = "J. Alex Long",email = "johnalexanderlong@gmail.com"}
-]
+description = "An interactive, story-driven Bash tutorial game using the actual shell."
+authors = ["J. Alex Long <jalexlong@proton.me>"]
 license = "MIT"
-license-files = ["LICENSE"]
 readme = "README.md"
-requires-python = ">=3.13"
-dependencies = [
-    "rich (>=14.2.0,<15.0.0)"
-]
+
+[tool.poetry.dependencies]
+python = "^3.13"
+rich = "^13.0"
+pyyaml = "^6.0"
+prompt-toolkit = "^3.0.52"
+
+[tool.poetry.scripts]
+supershell = "supershell.cli:main"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
