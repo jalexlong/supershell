@@ -31,7 +31,7 @@ def main_loop():
     # --- Print first quest info ---
     first_quest = quest_manager.get_current_quest()
     if first_quest:
-        cypher.say(f"[bold cyan]{first_quest.title}[/bold cyan]\n\n{first_quest.description}", title="New Mission")
+        cypher.say(f"[bold cyan]{first_quest.title}[/bold cyan]\n\n{first_quest.description}", title="[bold]New Mission[/bold]")
     # ---
 
     home_dir = os.path.expanduser("~")

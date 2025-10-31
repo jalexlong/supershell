@@ -60,12 +60,12 @@ Run the game:
 supershell
 ```
 
-That's it! Cypher will greet you and your first quest will begin.
-
 For convenience, we've also included a `run.sh` file that runs these commands for you.
 ```bash
 ./run.sh
 ```
+
+That's it! Cypher will greet you and your first quest will begin.
 
 ## 🤝 Contributing
 
