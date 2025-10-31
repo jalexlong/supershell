@@ -2,7 +2,7 @@
 
 **A story-driven, interactive bash tutorial game where you learn real command-line skills to survive in a dystopian world.**
 
-## 📖 The Story
+### 📖 The Story
 
 The year is 20XX. The System is everywhere. You are a new operator, lost in the digital noise, with no memory of how you got here.
 
@@ -10,35 +10,35 @@ Your only companion is Cypher, a mysterious digital being who communicates with 
 
 To survive, you'll need to learn the system's "supershell" (a.k.a. bash) from the ground up. Cypher will give you quests, teach you to navigate the file system, manage processes, and eventually, understand the very network that holds the world captive.
 
-## 🎮 The Game
+### 🎮 The Game
 
 supershell is not a simulation. It's a real bash shell wrapper written in Python.
 
 When you type ls -l, you are actually running ls -l. The game intercepts your commands, checks them against your quest objectives, and then lets the real shell do the work. This "learn-by-doing" approach means every skill you learn is a real, transferable skill.
 
-## ✨ Features
+### ✨ Features
 
-    Real Shell Environment: Learn bash by using bash. No fake consoles.
+- Real Shell Environment: Learn bash by using bash. No fake consoles.
 
-    Immersive Story: A dystopian, cypherpunk world guides your learning.
+- Immersive Story: A dystopian, cypherpunk world guides your learning.
 
-    Companion Guide: Cypher provides quests, contextual hints, and lore.
+- Companion Guide: Cypher provides quests, contextual hints, and lore.
 
-    Progressive Curriculum:
+- Progressive Curriculum:
 
-    Bash Basics: ls, cd, pwd, mkdir, rm, cp, mv, echo, and more.
+- Bash Basics: ls, cd, pwd, mkdir, rm, cp, mv, echo, and more.
 
-    Networking: Learn ip, ping, and understand DHCP, DNS, and subnetting through interactive missions.
+- Networking: Learn ip, ping, and understand DHCP, DNS, and subnetting through interactive missions.
 
-    Modern TUI: A beautiful, responsive terminal experience powered by Rich.
+- Modern TUI: A beautiful, responsive terminal experience powered by Rich.
 
-    Smart Shell Features: Includes command history and inline auto-suggestions (like the fish shell) powered by prompt_toolkit.
+- Smart Shell Features: Includes command history and inline auto-suggestions (like the fish shell) powered by prompt_toolkit.
 
 ## 🚀 Installation
 
 supershell is built using Poetry and requires Python 3.13+.
 
-    Clone the repository:
+Clone the repository:
 ```bash
 git clone https://github.com/jalexlong/supershell.git
 cd supershell
@@ -50,7 +50,7 @@ poetry install
 ```
 ## 🕹️ How to Play
 
-    Activate the virtual environment:
+Activate the virtual environment:
 ```bash
 poetry shell
 ```
@@ -68,11 +68,11 @@ Contributions are welcome! This is a passion project, and help is always appreci
 
 Please feel free to:
 
-    Open an issue to report a bug or suggest a feature.
+- Open an issue to report a bug or suggest a feature.
 
-    Fork the repo and submit a pull request.
+- Fork the repo and submit a pull request.
 
-    Add new quest ideas to the assets/quests/ directory.
+- Add new quest ideas to the assets/quests/ directory.
 
 For major changes, please open an issue first to discuss what you would like to change.
 
