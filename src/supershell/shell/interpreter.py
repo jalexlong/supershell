@@ -68,7 +68,7 @@ class AutoSuggestFromCompleter(AutoSuggest):
 _pt_style = Style.from_dict({
     # This 'prompt' class name is arbitrary, we'll use it below.
     'auto-suggestion': '#666666',  # A faded, dark grey
-    'cwd': '#007bff',  # Cyan for the CWD
+    'cwd': '#007bff',  # Blue for the CWD
     'userhost': 'bold #00ff00',  # Bold Green
 })
 

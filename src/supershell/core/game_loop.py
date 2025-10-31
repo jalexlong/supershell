@@ -31,7 +31,7 @@ def main_loop():
     # --- Print first quest info ---
     first_quest = quest_manager.get_current_quest()
     if first_quest:
-        cypher.say(f"[bold]{first_quest.title}[/bold]\n\n{first_quest.description}", title="New Mission")
+        cypher.say(f"[bold cyan]{first_quest.title}[/bold cyan]\n\n{first_quest.description}", title="New Mission")
     # ---
 
     home_dir = os.path.expanduser("~")
@@ -59,8 +59,9 @@ def main_loop():
         # prompt_toolkit expects a list of (style, text) tuples
         prompt = [
                 ('class:userhost', user_host_str),
-                ('class:cwd', f" {cwd}"),  # Note the leading space
-                ('', " $ "),               # Empty class = default terminal color (white)
+                ('', ":"),                # Empty class = default terminal color (white)
+                ('class:cwd', f"{cwd}"),
+                ('', "$ "),
         ]
 
         command_str = interpreter.get_command(prompt)

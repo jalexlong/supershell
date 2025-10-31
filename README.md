@@ -62,6 +62,11 @@ supershell
 
 That's it! Cypher will greet you and your first quest will begin.
 
+For convenience, we've also included a `run.sh` file that runs these commands for you.
+```bash
+./run.sh
+```
+
 ## 🤝 Contributing
 
 Contributions are welcome! This is a passion project, and help is always appreciated.

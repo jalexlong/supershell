@@ -18,7 +18,7 @@ def say(message: str, title: str = "Cypher"):
     # We wrap the *entire line* in the 'cypher' style tag.
     # Rich will apply the style and also parse any
     # formatting tags (like [bold]) inside the message.
-    console.print(f"[{title}]: {message}", style="cypher")
+    console.print(f"{title}: {message}", style="cypher")
 
 def ask(prompt: str) -> str:
     """
