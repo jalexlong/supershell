@@ -67,8 +67,9 @@ class AutoSuggestFromCompleter(AutoSuggest):
 # The 'prompt' style in Rich is 'bold green'.
 _pt_style = Style.from_dict({
     # This 'prompt' class name is arbitrary, we'll use it below.
-    'prompt': 'bold #00ff00',  # Bold Green
     'auto-suggestion': '#666666',  # A faded, dark grey
+    'cwd': '#007bff',  # Cyan for the CWD
+    'userhost': 'bold #00ff00',  # Bold Green
 })
 
 # We create a single, shared session at the module level.
@@ -80,23 +81,16 @@ _session = PromptSession(
 )
 
 
-def get_command(prompt: str = "supershell$ ") -> str:
+def get_command(prompt_parts: list[tuple[str, str]]) -> str:
     """
     Gets a line of input from the user using prompt_toolkit.
 
     Args:
-        prompt: The plain text string to use as the prompt.
+        prompt: A list of (style_class, text) tuples for the prompt.
     """
     console = get_console()
     
     try:
-        # We build the prompt text for prompt_toolkit.
-        # This format is a list of (style_class, text) tuples.
-        # It applies the 'prompt' style (bold green) to our prompt string.
-        prompt_parts = [
-            ('class:prompt', prompt)
-        ]
-
         # Use the session's prompt method instead of console.input
         command = _session.prompt(
             prompt_parts,

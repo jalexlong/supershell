@@ -1,4 +1,7 @@
+import os
 import logging
+import socket
+
 from supershell.tui.console import get_console
 from supershell.shell import interpreter, executor, parser
 from supershell.tui import cypher
@@ -30,10 +33,35 @@ def main_loop():
     if first_quest:
         cypher.say(f"[bold]{first_quest.title}[/bold]\n\n{first_quest.description}", title="New Mission")
     # ---
+
+    home_dir = os.path.expanduser("~")
+
+    # Get user and host info
+    try:
+        user = os.getlogin()
+    except OSError:
+        user = "operator"  # Fallback for environments where getlogin fails
+
+    try:
+        host = socket.gethostname()
+    except Exception:
+        host = "supershell"  # Fallback
+
+    user_host_str = f"{user}@{host}"
     
     while True:
         # 1. READ
-        prompt = "supershell$ "
+        cwd = os.getcwd()
+        if cwd.startswith(home_dir):
+            # Replace the home path with '~' for a cleaner look
+            cwd = cwd.replace(home_dir, "~", 1)
+
+        # prompt_toolkit expects a list of (style, text) tuples
+        prompt = [
+                ('class:userhost', user_host_str),
+                ('class:cwd', f" {cwd}"),  # Note the leading space
+                ('', " $ "),               # Empty class = default terminal color (white)
+        ]
 
         command_str = interpreter.get_command(prompt)
 
