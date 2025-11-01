@@ -24,8 +24,6 @@ When you type ls -l, you are actually running ls -l. The game intercepts your co
 
 - Companion Guide: Cypher provides quests, contextual hints, and lore.
 
-- Progressive Curriculum:
-
 - Bash Basics: ls, cd, pwd, mkdir, rm, cp, mv, echo, and more.
 
 - Networking: Learn ip, ping, and understand DHCP, DNS, and subnetting through interactive missions.
