@@ -1,7 +1,13 @@
 #!/bin/bash
 
-# Install the project if it isn't already installed
-poetry install &> /dev/null
+echo "Starting supershell..."
+
+# Install or update the project
+if [[ ! -e "./poetry.lock" ]]; then
+    poetry install &> /dev/null
+else
+    poetry update &> /dev/null
+fi
 
 # Activate the virtual environment
 eval "$(poetry env activate)"
