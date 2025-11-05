@@ -1,125 +1,231 @@
 """
-Loads all quests from assets and manages the game's state.
+Loads and manages the game's quest state
 """
 
-import yaml
 import logging
+import importlib
+import json
+import os
+
 from pathlib import Path
 from typing import Optional, OrderedDict
-from supershell.game.models import Quest, Objective
-from supershell.tui import cypher, console as rich_console
+from supershell.game.models import Objective
+from supershell.game.base_quest import BaseQuest 
+from supershell.tui import dialogue, console as rich_console
 from rich.panel import Panel
 
 # --- Module-Level State ---
-# We use an OrderedDict to keep quests in the order they were loaded
-_quests: OrderedDict[str, Quest] = OrderedDict()
+# This now holds the *instance* of the quest class
+_quests: OrderedDict[str, BaseQuest] = OrderedDict()
 _current_quest_id: Optional[str] = None
+_active_quest_obj: Optional[BaseQuest] = None
 # -------------------------
 
-# Setup logging
+_SAVE_FILE_PATH = os.path.expanduser("~/.local/share/supershell/save.json")
+
 log = logging.getLogger(__name__)
+
+def _save_progress():
+    """Saves the current quest state to the JSON file."""
+    # Collect all completed objective IDs
+    completed_ids = []
+    for quest in _quests.values():
+        for obj in quest.objectives:
+            if obj.completed:
+                completed_ids.append(obj.id)
+
+    save_data = {
+            "current_quest_id": _current_quest_id,
+            "completed_objectives": completed_ids
+    }
+
+    try:
+        # Get the *directory* part of the path
+        save_dir = os.path.dirname(_SAVE_FILE_PATH)
+
+        # Create the directory if it doesn't exist (e.g., ~/.local/share/supershell)
+        os.makedirs(save_dir, exist_ok=True)
+
+        # Save the data to file
+        with open(_SAVE_FILE_PATH, 'w') as f:
+            json.dump(save_data, f, indent=2)
+        log.info(f"Progress saved to {_SAVE_FILE_PATH}")
+    except (IOError, OSError) as e:
+        log.error(f"Failed to save progress: {e}")
+
+def _load_progress():
+    """Loads quest state from the JSON file and applies it."""
+    global _current_quest_id, _active_quest_obj
+
+    completed_ids = set()
+
+    if not os.path.exists(_SAVE_FILE_PATH):
+        log.info("No save file found. Starting fresh.")
+        return completed_ids
+
+    try:
+        with open(_SAVE_FILE_PATH, 'r') as f:
+            save_data = json.load(f)
+
+        # Apply the saved state to our loaded quests
+        saved_completed_ids = save_data.get("completed_objectives", [])
+        completed_ids = set(saved_completed_ids)
+
+        for quest in _quests.values():
+            for obj in quest.objectives:
+                if obj.id in completed_ids:
+                    obj.completed = True
+
+        # Set the current quest
+        saved_quest_id = save_data.get("current_quest_id")
+        if saved_quest_id and saved_quest_id in _quests:
+            _current_quest_id = saved_quest_id
+            _active_quest_obj = _quests[_current_quest_id]
+            log.info(f"Loaded progress. Current quest: {_current_quest_id}")
+        else:
+            log.info("Save file was present, but quest ID was invalid. Starting fresh.")
+            # Fallback to the first quest
+            _current_quest_id = list(_quests.keys())[0]
+            _active_quest_obj = _quests[_current_quest_id]
+
+    except (IOError, json.JSONDecodeError) as e:
+        log.error(f"Failed to load progress from {_SAVE_FILE_PATH}: {e}")
+
+    return completed_ids
 
 def load_quests():
     """
-    Loads all .yml quest files from the assets/quests directory.
-    This should be called once at game startup.
+    Loads all quest *modules* from the quests directory.
     """
-    global _current_quest_id
+    global _current_quest_id, _active_quest_obj
     console = rich_console.get_console()
     
-    # Find the assets directory relative to this file
-    # src/supershell/game -> src/supershell -> src -> root -> assets
-    quest_dir = Path(__file__).parent.parent.parent.parent / "assets" / "quests"
+    # This path now points to our new quest scripts folder
+    quest_dir = Path(__file__).parent / "quests"
     
     if not quest_dir.exists():
-        log.error(f"Quest directory not found at: {quest_dir}")
-        console.print(f"[danger]CRITICAL: Quest directory not found.[/danger]")
+        log.error(f"Quest script directory not found at: {quest_dir}")
         return
 
-    quest_files = sorted(list(quest_dir.glob("*.yml"))) # Sort to get 01, 02, etc.
-    
+    # Find all quest files (e.g., quest_00_...py, quest_01_...py)
+    # We sort them to ensure "00" loads first.
+    quest_files = sorted(list(quest_dir.glob("quest_*.py")))
+
     for quest_file in quest_files:
+        # e.g., "supershell.game.quests.quest_00_orphan_chase"
+        module_name = f"supershell.game.quests.{quest_file.stem}"
         try:
-            with open(quest_file, 'r') as f:
-                quest_data = yaml.safe_load(f)
-                quest = Quest.from_dict(quest_data)
-                _quests[quest.id] = quest
-        except Exception as e:
-            log.error(f"Failed to load quest {quest_file}: {e}")
+            # 1. Import the file as a module
+            module = importlib.import_module(module_name)
             
+            # 2. Get the 'BaseQuest' class from inside the file
+            QuestClass = getattr(module, "Quest")
+            
+            # 3. Create an *instance* of the class
+            quest_instance = QuestClass()
+            
+            # 4. Store the instance, keyed by its ID
+            _quests[quest_instance.id] = quest_instance
+            log.info(f"Loaded quest script: {quest_instance.title}")
+            
+        except Exception as e:
+            log.error(f"Failed to load quest module {module_name}: {e}", exc_info=True)
+
     if _quests:
         # Set the first quest as the active one
         _current_quest_id = list(_quests.keys())[0]
+        _active_quest_obj = _quests[_current_quest_id]
+
+        # Load progress and get the list of completed IDs
+        completed_ids = _load_progress()
+        
+        # Tell *all* quests to sync their state
+        log.info("Syncing world state for all loaded quests...")
+        for quest in _quests.values():
+            quest.sync_world_state(completed_ids)
+
         log.info(f"Loaded {len(_quests)} quests. Current quest: {_current_quest_id}")
     else:
         log.warning("No quests were loaded.")
 
-def get_current_quest() -> Optional[Quest]:
-    """Returns the full Quest object for the active quest."""
-    if _current_quest_id:
-        return _quests.get(_current_quest_id)
-    return None
+def get_current_quest() -> Optional[BaseQuest]:
+    """Returns the full Quest *instance* for the active quest."""
+    return _active_quest_obj
 
 def get_active_objective() -> Optional[Objective]:
-    """
-    Finds the first non-completed objective in the current quest.
-    """
+    """Finds the first non-completed objective in the current quest."""
     quest = get_current_quest()
-    if not quest:
-        return None
+    if not quest: return None
         
     for obj in quest.objectives:
         if not obj.completed:
             return obj
-    return None # All objectives for this quest are done
+    return None
+
+def get_completed_objective(objective_id: str) -> Optional[Objective]:
+    """Finds a specific objective by its ID."""
+    quest = get_current_quest()
+    if not quest: return None
+    for obj in quest.objectives:
+        if obj.id == objective_id:
+            return obj
+    return None
 
 def mark_objective_complete(objective_id: str):
     """Marks a specific objective as complete."""
+    obj = get_completed_objective(objective_id)
+    if obj:
+        obj.completed = True
+        log.info(f"Objective complete: {objective_id}")
+        _save_progress()
+
+def advance_to_next_objective() -> str | None:
+    """
+    Checks if the current quest is finished and returns 
+    the description of the *next* objective, or None.
+    """
+    global _current_quest_id, _active_quest_obj
     quest = get_current_quest()
-    if not quest:
-        return
+    if not quest: return None
 
-    for obj in quest.objectives:
-        if obj.id == objective_id:
-            obj.completed = True
-            log.info(f"Objective complete: {objective_id}")
-            return
-            
-def advance_quest():
-    """
-    Marks the current quest complete and moves to the next one.
-    """
-    global _current_quest_id
-    current_quest = get_current_quest()
-    if not current_quest:
-        return
-
-    current_quest.completed = True
-    
-    # Find the next quest in our ordered list
-    quest_ids = list(_quests.keys())
-    try:
-        current_index = quest_ids.index(current_quest.id)
-        if current_index + 1 < len(quest_ids):
-            _current_quest_id = quest_ids[current_index + 1]
-            new_quest = get_current_quest()
-            cypher.say(f"Quest Complete: [bold]{current_quest.title}[/bold]\n\nNew Quest: [bold]{new_quest.title}[/bold]\n{new_quest.description}", title="Mission Log Updated")
-        else:
-            # No more quests!
-            _current_quest_id = None
-            cypher.say("Signal... strong. You... did it. All objectives complete. I am... stable. Thank you, operator.", title="SYSTEM STABLE")
-    except ValueError:
-        _current_quest_id = None # Should not happen
+    # Check if all objectives are now complete
+    if all(obj.completed for obj in quest.objectives):
+        # --- This quest is done, advance to the next one ---
+        quest_ids = list(_quests.keys())
+        try:
+            current_index = quest_ids.index(quest.id)
+            if current_index + 1 < len(quest_ids):
+                # We have a new quest!
+                _current_quest_id = quest_ids[current_index + 1]
+                _active_quest_obj = _quests[_current_quest_id]
+                
+                dialogue.say(f"Quest Complete: [bold]{quest.title}[/bold]", actor="mission")
+                
+                # Return the *first* description of the *new* quest
+                return f"[bold]{_active_quest_obj.title}[/bold]\n\n{_active_quest_obj.description}"
+            else:
+                # No more quests!
+                _current_quest_id = None
+                _active_quest_obj = None
+                dialogue.say("All objectives complete. System stable.", actor="system")
+                return None
+        except ValueError:
+            _current_quest_id = None; _active_quest_obj = None
+            return None
+    else:
+        # --- Not done, just get the next objective in *this* quest ---
+        next_obj = get_active_objective()
+        if next_obj:
+            return next_obj.description
+        return None
 
 def get_quest_display():
-    """
-    (Used by command_parser)
-    Returns a Rich Panel for the 'quest' command.
-    """
+    """Returns a Rich Panel for the 'quest' command."""
     quest = get_current_quest()
     if not quest:
-        return Panel("[info]No active quest.[/info]", title="Mission Log")
-    
+        return Panel("[info]No active quest.[/info]", title="[bold]Mission Log[/bold]", border_style="system")
+
+    # We read the data directly from the class instance
     output = [f"[bold]{quest.title}[/bold]\n", f"{quest.description}\n"]
     output.append("[bold]Objectives:[/bold]")
     
@@ -127,16 +233,12 @@ def get_quest_display():
         if obj.completed:
             output.append(f"  [dim]• {obj.description} (Done)[/dim]")
         else:
-            output.append(f"  [cyan]• {obj.description}[/cyan]")
+            output.append(f"  [white]• {obj.description}[/white]")
             
-    return Panel("\n".join(output), title="Mission Log", border_style="info")
+    return Panel("\n".join(output), title="[bold]Mission Log[/bold]", border_style="system")
 
 def get_contextual_hint() -> str:
-    """
-    (Used by command_parser)
-    Gets the hint for the current active objective.
-    """
+    """Gets the hint for the current active objective."""
     obj = get_active_objective()
-    if obj:
-        return obj.hint
+    if obj: return obj.hint
     return "I don't have a specific hint right now. Check your `quest` log."

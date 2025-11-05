@@ -4,7 +4,7 @@ Parses user input to differentiate game commands from bash commands.
 This is the main "router" for the game loop.
 """
 
-from supershell.tui import cypher
+from supershell.tui import dialogue
 from supershell.tui.console import get_console
 from supershell.game import quest_manager
 
@@ -14,7 +14,6 @@ GAME_COMMANDS = {
     "quest",
     "log",
     "cypher",
-    "scan", # A good one for networking
 }
 
 def parse_and_handle(command_str: str) -> bool:
@@ -46,8 +45,6 @@ def parse_and_handle(command_str: str) -> bool:
                 _handle_quest(args)
             elif verb == "cypher":
                 _handle_cypher(args)
-            elif verb == "scan":
-                _handle_scan(args)
             
             return True  # We handled it!
             
@@ -55,7 +52,7 @@ def parse_and_handle(command_str: str) -> bool:
             # Gracefully handle errors in our game commands
             console = get_console()
             console.log(f"[danger]Error in game command '{verb}': {e}[/danger]")
-            cypher.say(f"My apologies, operator. My '{verb}' function seems to be corrupted.")
+            dialogue.say(f"My apologies, Operator. My '{verb}' function seems to be corrupted.", actor="cypher")
             return True # Still "handled," just with an error
 
     # If it's not in GAME_COMMANDS, it's a bash command
@@ -67,23 +64,23 @@ def parse_and_handle(command_str: str) -> bool:
 def _handle_help(args: list[str]):
     """Handler for the 'help' command."""
     if not args:
-        cypher.say(
+        dialogue.say(
             "I'm here to help!\n\n"
             "This is `supershell`, an interactive terminal. "
-            "You can type any **bash command** (like `ls`, `pwd`, `cd`) "
+            "You can type any bash command (like `ls`, `pwd`, `cd`) "
             "and it will run just like a real terminal.\n\n"
             "I also have special **game commands**:\n"
             "  * [bold cyan]quest[/bold cyan]:   Show your current objectives.\n"
             "  * [bold cyan]cypher[/bold cyan]:  Talk to me directly (try `cypher hint`).\n"
-            "  * [bold cyan]help[/bold cyan]:    You are here.\n"
-            "  * [bold cyan]scan[/bold cyan]:    Run a network scan (when you get there)."
+            "  * [bold cyan]help[/bold cyan]:    You are here.\n",
+            actor="cypher"
         )
-    elif args[0] == "quest":
-        cypher.say("The `quest` or `log` command shows your mission objectives. It's your 'to-do' list.")
+    elif args[0] == "quest" or args[0] == "log":
+        dialogue.say("The `quest` or `log` command shows your mission objectives. It's your 'to-do' list.", actor="cypher")
     elif args[0] == "cd":
-        cypher.say("`cd` stands for 'change directory'. You use it to move. For example: `cd /var/log`")
+        dialogue.say("`cd` stands for 'change directory'. You use it to move. For example: `cd /var/log`", actor="cypher")
     else:
-        cypher.say(f"I don't have a specific help file for `{args[0]}`. Try running it!")
+        dialogue.say(f"I don't have a specific help file for `{args[0]}`. Try asking the `man` with `man {args[0]}`", actor="cypher")
 
 def _handle_quest(args: list[str]):
     """Handler for the 'quest' or 'log' command."""
@@ -94,22 +91,12 @@ def _handle_quest(args: list[str]):
 def _handle_cypher(args: list[str]):
     """Handler for the 'cypher' command."""
     if not args:
-        cypher.say("I'm here, operator. Did you need something? You can ask me for a `hint`.")
+        dialogue.say(message="I'm here, operator. Did you need something? You can ask me for a `hint`.", actor="cypher")
     elif args[0] == "hint":
         hint = quest_manager.get_contextual_hint()
-        cypher.say(hint)
+        dialogue.say(hint, actor="cypher")
     elif args[0] in ("status", "lore"):
-        cypher.say("My origins? They're... complicated. I'm just a fragment, really. Trying to keep the signal alive.")
+        dialogue.say("My origins? They're... complicated. I'm just a fragment, really. Trying to keep the signal alive.", actor="cypher")
     else:
-        cypher.say(f"I don't understand `{args[0]}`. Try `cypher hint` or `cypher status`.")
-
-def _handle_scan(args: list[str]):
-    """Handler for the 'scan' command."""
-    # (Placeholder) This will be a key part of your networking tutorial
-    if not args:
-        cypher.say("Scan what? The local network? A specific port? Try `scan local`.")
-    elif args[0] == "local":
-        cypher.say("Pinging local subnet... I'll need you to configure the `eth0` port first.")
-    else:
-         cypher.say(f"I don't have a scan module for `{args[0]}` yet.")
+        dialogue.say(f"I don't understand `{args[0]}`. Try `cypher hint` or `cypher status`.", actor="cypher")
 

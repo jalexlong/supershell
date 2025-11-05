@@ -16,8 +16,6 @@ from prompt_toolkit.document import Document
 BASH_COMMANDS = [
     'ls', 'cd', 'pwd', 'mkdir', 'rm', 'rmdir',
     'cp', 'mv', 'cat', 'echo', 'grep', 'clear',
-    # Eventually add networking commands from networking quests
-    # 'ip', 'ping', 'dhclient', 'ifconfig',
 ]
 
 all_commands_to_suggest = list(GAME_COMMANDS) + BASH_COMMANDS
