@@ -1,7 +1,8 @@
 """
 Handles all TUI output for in-game characters.
+This is the async version with skippable typewriter.
 """
-
+import asyncio
 from supershell.tui import effects
 from supershell.tui.console import get_console
 
@@ -42,18 +43,35 @@ CHARACTER_PROPERTIES = {
 def say(message: str, character: str = "cypher"):
     """
     Prints a message to the console from a specific character.
+    This is a SYNCHRONOUS Function that *calls* an ASYNC task.
     """
     # Look up the character's properties
     props = CHARACTER_PROPERTIES.get(character, CHARACTER_PROPERTIES["system"])
+    
+    char_delay = props['delay']
+    prefix = props['name'] + ":"
+    prefix_style = props['style']
 
-    # Call the typewriter tool with the character's properties
-    effects.typewriter_print(
-        message=message,
-        prefix=f"{props['name']}:",
-        prefix_style=props['style'],
-        message_style="stdout",
-        char_delay=props['delay']
-    )
+    # Handle typing effect
+    if char_delay <= 0:
+        # If no delay, print instantly and return
+        console = get_console()
+        console.print(prefix, style=prefix_style, end=" ")
+        console.print(message)
+        return
+
+    # This will take over the terminal, run the typewriter,
+    # and listen for 'Enter' to skip.
+    try:
+        asyncio.run(effects.typewriter_effect(
+            message=message,
+            prefix=prefix,
+            char_delay=char_delay
+        ))
+    except (KeyboardInterrupt, EOFError):
+        # If asyncio.run() is interrupted, print the rest
+        console = get_console()
+        console.print(f"\r{prefix} {message}")
 
 def ask(prompt: str, character: str = "cypher") -> str:
     """

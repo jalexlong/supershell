@@ -7,7 +7,7 @@ import random
 from rich.text import Text
 from supershell.tui.console import get_console
 
-def typewriter_print(
+def typewriter_effect(
     message: str,
     prefix: str = "",
     prefix_style: str = "default",
