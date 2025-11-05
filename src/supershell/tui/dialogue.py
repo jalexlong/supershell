@@ -1,81 +1,72 @@
 """
-Handles all TUI output for in-game actors.
-Includes a controllable typewriter effect
-that pauses at punctuation.
+Handles all TUI output for in-game characters.
 """
 
-import time
-import random
-from rich.text import Text
+from supershell.tui import effects
 from supershell.tui.console import get_console
 
-ACTOR_STYLES = {
-    # Actor ID: ("Name", "Style from console.py", "Typing Speed")
-    "glitch": ("Glitch", "glitch"),
-    "cypher": ("Cypher", "cypher"),
-    "hunter": ("Hunter", "hunter"),
-    "system": ("System", "system"),
-    "mission": ("New Quest", "system"),
-    "log": ("[bold]Quest Log[/bold]", "system"),
+CHARACTER_PROPERTIES = {
+    # Actor ID: {display_name, style_string, char_delay}
+    "system": {
+        "name": "System",
+        "style": "bold white",
+        "delay": 0
+    },
+    "quest": {
+        "name": "Quest Log",
+        "style": "bold white",
+        "delay": 0.01
+    },
+    "log": {
+        "name": "[bold]Quest Log[/bold]",
+        "style": "bold white",
+        "delay": 0
+    },
+    "cypher": {
+        "name": "Cypher",
+        "style": "yellow",
+        "delay": 0.05
+    },
+    "glitch": {
+        "name": "Glitch",
+        "style": "bold bright_black",
+        "delay": 0.02
+    },
+    "hunter": {
+        "name": "The Hunter",
+        "style": "bold red",
+        "delay": 0
+    },
 }
 
-# (0.04 = ~25 chars/sec).
-DEFAULT_CHAR_DELAY = 0.04
-
-def say(message: str, actor: str = "cypher", char_delay: float | None = None):
+def say(message: str, character: str = "cypher"):
     """
-    Prints a message to the console as if the actor is saying it.
-    
-    Args:
-        actor: The ID of the actor (e.g., "glitch", "system").
-               This ID is also used as the theme style.
-        message: The text to print.
+    Prints a message to the console from a specific character.
     """
-    console = get_console()
-    
-    # Get the (Title, Style) from our dictionary.
-    title, style = ACTOR_STYLES.get(actor, (actor, "system"))
+    # Look up the character's properties
+    props = CHARACTER_PROPERTIES.get(character, CHARACTER_PROPERTIES["system"])
 
-    # Print the "Speaker" part instantly
-    console.print(f"[{style}]{title}:[/{style}] ", end="")
+    # Call the typewriter tool with the character's properties
+    effects.typewriter_print(
+        message=message,
+        prefix=f"{props['name']}:",
+        prefix_style=props['style'],
+        message_style="stdout",
+        char_delay=props['delay']
+    )
 
-    # Determine the speed
-    if char_delay is None:
-        delay = DEFAULT_CHAR_DELAY
-    else:
-        delay = char_delay
-
-    # If delay is 0, print it instantly
-    if delay <= 0:
-        console.print(message)
-        return
-
-    # Else, handle the typewriter effect
-    text = Text.from_markup(message)
-
-    for char in text:
-        console.print(char, end="")
-        console.file.flush()
-
-        # Pause before printing next character,
-        #   and longer for punctuation
-        base_sleep = delay * random.uniform(0.7, 1.4)
-        if char.plain in (',', '...'):
-            time.sleep(base_sleep + 0.3)
-        elif char.plain in ('.', '!', '?'):
-            time.sleep(base_sleep + 0.6)
-        else:
-            time.sleep(base_sleep)
-    # Print newline for the terminal prompt
-    console.print()
-
-def ask(prompt: str, actor: str = "cypher") -> str:
+def ask(prompt: str, character: str = "cypher") -> str:
     """
-    Asks the user a question *as an actor*.
+    Asks the user a question *as an character*.
     """
     console = get_console()
     
-    title, style = ACTOR_STYLES.get(actor, (actor.capitalize(), "system"))
+    props = CHARACTER_PROPERTIES.get(character, CHARACTER_PROPERTIES["system"])
+    style = props['style']
+    name = props['name']
 
-    rich_prompt = f"  [{style}]{title}: {prompt}[/{style}] [prompt]> [/prompt]"
+    # Print character's name as colored text (if necessary) and
+    # text as normal stdout style
+    rich_prompt = f"  [{style}]{name}: {prompt}[/{style}] [prompt]> [/prompt]"
     return console.input(rich_prompt)
+

@@ -52,7 +52,7 @@ def parse_and_handle(command_str: str) -> bool:
             # Gracefully handle errors in our game commands
             console = get_console()
             console.log(f"[danger]Error in game command '{verb}': {e}[/danger]")
-            dialogue.say(f"My apologies, Operator. My '{verb}' function seems to be corrupted.", actor="cypher")
+            dialogue.say(f"My apologies, Operator. My '{verb}' function seems to be corrupted.", character="cypher")
             return True # Still "handled," just with an error
 
     # If it's not in GAME_COMMANDS, it's a bash command
@@ -73,14 +73,14 @@ def _handle_help(args: list[str]):
             "  * [bold cyan]quest[/bold cyan]:   Show your current objectives.\n"
             "  * [bold cyan]cypher[/bold cyan]:  Talk to me directly (try `cypher hint`).\n"
             "  * [bold cyan]help[/bold cyan]:    You are here.\n",
-            actor="cypher"
+            character="cypher"
         )
     elif args[0] == "quest" or args[0] == "log":
-        dialogue.say("The `quest` or `log` command shows your mission objectives. It's your 'to-do' list.", actor="cypher")
+        dialogue.say("The `quest` or `log` command shows your quest objectives. It's your 'to-do' list.", character="cypher")
     elif args[0] == "cd":
-        dialogue.say("`cd` stands for 'change directory'. You use it to move. For example: `cd /var/log`", actor="cypher")
+        dialogue.say("`cd` stands for 'change directory'. You use it to move. For example: `cd /var/log`", character="cypher")
     else:
-        dialogue.say(f"I don't have a specific help file for `{args[0]}`. Try asking the `man` with `man {args[0]}`", actor="cypher")
+        dialogue.say(f"I don't have a specific help file for `{args[0]}`. Try asking the `man` with `man {args[0]}`", character="cypher")
 
 def _handle_quest(args: list[str]):
     """Handler for the 'quest' or 'log' command."""
@@ -91,12 +91,12 @@ def _handle_quest(args: list[str]):
 def _handle_cypher(args: list[str]):
     """Handler for the 'cypher' command."""
     if not args:
-        dialogue.say(message="I'm here, operator. Did you need something? You can ask me for a `hint`.", actor="cypher")
+        dialogue.say(message="I'm here, operator. Did you need something? You can ask me for a `hint`.", character="cypher")
     elif args[0] == "hint":
         hint = quest_manager.get_contextual_hint()
-        dialogue.say(hint, actor="cypher")
+        dialogue.say(hint, character="cypher")
     elif args[0] in ("status", "lore"):
-        dialogue.say("My origins? They're... complicated. I'm just a fragment, really. Trying to keep the signal alive.", actor="cypher")
+        dialogue.say("My origins? They're... complicated. I'm just a fragment, really. Trying to keep the signal alive.", character="cypher")
     else:
-        dialogue.say(f"I don't understand `{args[0]}`. Try `cypher hint` or `cypher status`.", actor="cypher")
+        dialogue.say(f"I don't understand `{args[0]}`. Try `cypher hint` or `cypher status`.", character="cypher")
 

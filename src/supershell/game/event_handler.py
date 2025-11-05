@@ -13,14 +13,14 @@ def handle_game_start(user: str, host: str):
     """
     Runs once at the very beginning of the game.
     """
-    dialogue.say(f"System online. You are {user}@{host}.", actor="system")
-    dialogue.say(f"Welcome to supershell. Your first objective is loaded.", actor="system")
+    dialogue.say(f"System online. You are {user}@{host}.", character="system")
+    dialogue.say(f"Welcome to supershell. Your first objective is loaded.", character="system")
     
     first_quest = quest_manager.get_current_quest()
     if first_quest:
-        dialogue.say(f"[bold]{first_quest.title}[/bold]\n\n{first_quest.description}", actor="mission")
+        dialogue.say(f"[bold]{first_quest.title}[/bold]\n\n{first_quest.description}", character="quest")
     else:
-        dialogue.say("No quests loaded. System idle.", actor="system")
+        dialogue.say("No quests loaded. System idle.", character="system")
 
 def handle_objective_completion(completed_id: str):
     """

@@ -78,10 +78,10 @@ class Quest(BaseQuest):
             self._spawn_file("~/test_file.txt", "This is just a test.\n")
 
         elif completed_id == "00_obj_e_mv_file":
-            dialogue.say("Okay... now that you have the basics, we need to talk.", actor="cypher")
-            dialogue.say("You know how you're not... *supposed* to exist? Well, the system's janitor, the **Hunter**, *really* doesn't like things that aren't supposed to exist.", actor="cypher")
+            dialogue.say("Okay... now that you have the basics, we need to talk.", character="cypher")
+            dialogue.say("You know how you're not... *supposed* to exist? Well, the system's janitor, the **Hunter**, *really* doesn't like things that aren't supposed to exist.", character="cypher")
             self._spawn_file("~/CORE_SIGNATURE.dat", "PROCESS_MANIFEST::ANOMALY_0x8A3F\n")
-            dialogue.say("This `CORE_SIGNATURE.dat` file the Hunter just made? That's your 'ankle bracelet.'... If the Hunter finds it here, you're going to go *poof*.", actor="cypher")
+            dialogue.say("This `CORE_SIGNATURE.dat` file the Hunter just made? That's your 'ankle bracelet.'... If the Hunter finds it here, you're going to go *poof*.", character="cypher")
 
     def sync_world_state(self, completed_ids: set[str]):
         """

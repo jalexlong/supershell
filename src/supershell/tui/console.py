@@ -9,18 +9,17 @@ from rich.console import Console
 from rich.theme import Theme
 
 supershell_theme = Theme({
+    # UI Styles
+    "stdout": "grey74",
+    "stderr": "bold bright_red",
+    "system": "bold white",
+    "prompt": "white",
+
+    # Log Styles
     "info": "dim cyan",
     "warning": "bold yellow",
     "danger": "bold red",
 
-    "system": "bold green",
-    "hunter": "bold red",
-    "glitch": "bright_black",  # This is the terminal's "dark grey"
-    "cypher": "yellow",
-
-    "stdout": "grey74",
-    "stderr": "bold bright_red",
-    "prompt": "white",
 })
 
 # Create the single, shared console instance

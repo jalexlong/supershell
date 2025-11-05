@@ -35,12 +35,12 @@ class BaseQuest:
         """
         if obj and obj.success_message:
             # The default speaker for all quests will be Cypher
-            dialogue.say(obj.success_message, actor="cypher")
+            dialogue.say(obj.success_message, character="cypher")
         
         # Advance to the next objective
         next_objective_text = quest_manager.advance_to_next_objective()
         if next_objective_text:
-            dialogue.say(f"{next_objective_text}", actor="cypher")
+            dialogue.say(f"{next_objective_text}", character="cypher")
 
     def sync_world_state(self, completed_ids: set[str]):
         """

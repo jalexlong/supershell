@@ -199,7 +199,7 @@ def advance_to_next_objective() -> str | None:
                 _current_quest_id = quest_ids[current_index + 1]
                 _active_quest_obj = _quests[_current_quest_id]
                 
-                dialogue.say(f"Quest Complete: [bold]{quest.title}[/bold]", actor="mission")
+                dialogue.say(f"Quest Complete: [bold]{quest.title}[/bold]", character="quest")
                 
                 # Return the *first* description of the *new* quest
                 return f"[bold]{_active_quest_obj.title}[/bold]\n\n{_active_quest_obj.description}"
@@ -207,7 +207,7 @@ def advance_to_next_objective() -> str | None:
                 # No more quests!
                 _current_quest_id = None
                 _active_quest_obj = None
-                dialogue.say("All objectives complete.", actor="system")
+                dialogue.say("All objectives complete.", character="system")
                 return None
         except ValueError:
             _current_quest_id = None; _active_quest_obj = None
@@ -223,7 +223,7 @@ def get_quest_display():
     """Returns a Rich Panel for the 'quest' command."""
     quest = get_current_quest()
     if not quest:
-        return Panel("[info]No active quest.[/info]", title="[bold]Mission Log[/bold]", border_style="system")
+        return Panel("[info]No active quest.[/info]", title="[bold]Quest Log[/bold]", border_style="system")
 
     # We read the data directly from the class instance
     output = [f"[bold]{quest.title}[/bold]\n", f"{quest.description}\n"]
@@ -235,7 +235,7 @@ def get_quest_display():
         else:
             output.append(f"  [white]• {obj.description}[/white]")
             
-    return Panel("\n".join(output), title="[bold]Mission Log[/bold]", border_style="system")
+    return Panel("\n".join(output), title="[bold]Quest Log[/bold]", border_style="system")
 
 def get_contextual_hint() -> str:
     """Gets the hint for the current active objective."""

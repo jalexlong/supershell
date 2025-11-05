@@ -40,10 +40,10 @@ def main_loop():
     if first_quest:
         # This will print Cypher's "Whoa... a new process?"
         # text from the quest description.
-        dialogue.say(f"[bold]{first_quest.title}[/bold]\n\n{first_quest.description}", actor="cypher")
+        dialogue.say(f"[bold]{first_quest.title}[/bold]\n\n{first_quest.description}", character="cypher")
     else:
         # Fallback if no quests are found
-        dialogue.say("No quests loaded. System idle.", actor="cypher")
+        dialogue.say("No quests loaded. System idle.", character="cypher")
         event_handler.handle_game_start(user, host)
 
     
@@ -73,5 +73,5 @@ def main_loop():
             event_handler.handle_objective_completion(completed_id)
 
     quest_manager.cleanup_all_quest_files()
-    dialogue.say("Goodbye", actor="cypher")
+    dialogue.say("Goodbye", character="cypher")
 
