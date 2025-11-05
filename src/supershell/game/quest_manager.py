@@ -207,7 +207,7 @@ def advance_to_next_objective() -> str | None:
                 # No more quests!
                 _current_quest_id = None
                 _active_quest_obj = None
-                dialogue.say("All objectives complete. System stable.", actor="system")
+                dialogue.say("All objectives complete.", actor="system")
                 return None
         except ValueError:
             _current_quest_id = None; _active_quest_obj = None
@@ -242,3 +242,16 @@ def get_contextual_hint() -> str:
     obj = get_active_objective()
     if obj: return obj.hint
     return "I don't have a specific hint right now. Check your `quest` log."
+
+def cleanup_all_quest_files():
+    """
+    Tells all loaded quests to run their _cleanup_quest_files() method.
+    """
+    log.info("Running cleanup for all quests...")
+    if not _quests:
+        return
+
+    for quest in _quests.values():
+        # We call the helper function you defined in BaseQuest
+        quest._cleanup_quest_files()
+

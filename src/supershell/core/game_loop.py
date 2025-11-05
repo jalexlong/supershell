@@ -47,7 +47,7 @@ def main_loop():
         event_handler.handle_game_start(user, host)
 
     
-    # --- 3. THE SIMPLE, BLOCKING LOOP ---
+    # --- 3. THE MAINLOOP ---
     while True:
         cwd = os.getcwd(); cwd = cwd.replace(home_dir, "~", 1) if cwd.startswith(home_dir) else cwd
         prompt_parts = [
@@ -71,8 +71,7 @@ def main_loop():
         completed_id = objective_checker.check(result)
         if completed_id:
             event_handler.handle_objective_completion(completed_id)
-        # --- END EVENT HANDLER ---
 
-    # --- END OF WHILE LOOP ---
-    dialogue.say("Goodbye...", actor="system")
+    quest_manager.cleanup_all_quest_files()
+    dialogue.say("Goodbye", actor="cypher")
 

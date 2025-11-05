@@ -28,53 +28,6 @@ class BaseQuest:
         for obj in self.objectives:
             obj.completed = False
 
-    def _spawn_file(self, path: str, content: str = ""):
-        """
-        Creates a file AND tracks it for cleanup.
-        """
-        full_path = os.path.expanduser(path)
-        try:
-            with open(full_path, 'w') as f:
-                f.write(content)
-            log.info(f"Spawned file: {full_path}")
-            self._tracked_files.add(full_path)
-        except (IOError, OSError) as e:
-            log.error(f"Could not create file {full_path}: {e}")
-    
-    def _spawn_dir(self, path: str):
-        """
-        Creates a directory AND tracks it for cleanup.
-        """
-        full_path = os.path.expanduser(path)
-        try:
-            os.mkdir(full_path)
-            log.info(f"Spawned tracked directory: {full_path}")
-            self._tracked_dirs.add(full_path)
-        except FileExistsError:
-            log.warning(f"Tracked directory {full_path} already exists.")
-        except (IOError, OSError) as e:
-            log.error(f"Could not create directory {full_path}: {e}")
-
-    def _cleaup_quest_files(self):
-        """
-        Removes all files and dirs created by this quest.
-        """
-        log.info(f"Cleaning up files for quest: {self.id}")
-        for f_path in self._tracked_files:
-            try:
-                os.remove(f_path)
-            except FileNotFoundError:
-                pass
-
-        for d_path in self._tracked_dirs:
-            try:
-                shutil.rmtree(d_path)
-            except FileNotFoundError:
-                pass
-
-        self._tracked_files.clear()
-        self._tracked_dirs.clear()
-
     def handle_event(self, completed_id: str, obj: Objective):
         """
         This is the "brain" for the quest.
@@ -102,3 +55,49 @@ class BaseQuest:
         # Child quests will override this.
         pass
 
+    def _spawn_file(self, path: str, content: str = ""):
+        """
+        Creates a file AND tracks it for cleanup.
+        """
+        full_path = os.path.expanduser(path)
+        try:
+            with open(full_path, 'w') as f:
+                f.write(content)
+            log.info(f"Spawned file: {full_path}")
+            self._tracked_files.add(full_path)
+        except (IOError, OSError) as e:
+            log.error(f"Could not create file {full_path}: {e}")
+    
+    def _spawn_dir(self, path: str):
+        """
+        Creates a directory AND tracks it for cleanup.
+        """
+        full_path = os.path.expanduser(path)
+        try:
+            os.mkdir(full_path)
+            log.info(f"Spawned tracked directory: {full_path}")
+            self._tracked_dirs.add(full_path)
+        except FileExistsError:
+            log.warning(f"Tracked directory {full_path} already exists.")
+        except (IOError, OSError) as e:
+            log.error(f"Could not create directory {full_path}: {e}")
+
+    def _cleanup_quest_files(self):
+        """
+        Removes all files and dirs created by this quest.
+        """
+        log.info(f"Cleaning up files for quest: {self.id}")
+        for f_path in self._tracked_files:
+            try:
+                os.remove(f_path)
+            except FileNotFoundError:
+                pass
+
+        for d_path in self._tracked_dirs:
+            try:
+                shutil.rmtree(d_path)
+            except FileNotFoundError:
+                pass
+
+        self._tracked_files.clear()
+        self._tracked_dirs.clear()
