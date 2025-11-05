@@ -234,6 +234,7 @@ def get_quest_display():
             output.append(f"  [dim]• {obj.description} (Done)[/dim]")
         else:
             output.append(f"  [white]• {obj.description}[/white]")
+            break
             
     return Panel("\n".join(output), title="[bold]Quest Log[/bold]", border_style="system")
 

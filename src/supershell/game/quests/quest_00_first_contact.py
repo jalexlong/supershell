@@ -75,6 +75,9 @@ class Quest(BaseQuest):
         
         # --- Handle our custom "action" events ---
         if completed_id == "00_obj_c_mkdir":
+            # Manually add the player-created dir to our tracking list
+            self._tracked_dirs.add(os.path.expanduser("~/safehouse"))
+            # Spawn the quest file
             self._spawn_file("~/test_file.txt", "This is just a test.\n")
 
         elif completed_id == "00_obj_e_mv_file":
@@ -85,8 +88,8 @@ class Quest(BaseQuest):
 
     def sync_world_state(self, completed_ids: set[str]):
         """
-        Re-spawns files for the "First Contact" quest
-        based on the player's saved progress.
+        Re-spawns files for the quest based on the 
+        player's saved progress.
         """
         log.info(f"Syncing world state for {self.id}...")
 
