@@ -1,1 +1,0 @@
-A major guiding NPC with a taste for refined ideas and expressing them in elegant ways. Often times the purity of the idea is more important to them than the effectiveness of the implementation. Helps [[The_Anomaly_(Player).md]] to learn how to write their first Spell.

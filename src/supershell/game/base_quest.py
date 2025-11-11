@@ -1,14 +1,17 @@
 """
 This is the "template" (Base Class) for all quests.
 """
-import os
+
 import logging
+import os
 import shutil
+
+from supershell.game import quest_manager
 from supershell.game.models import Objective
 from supershell.tui import dialogue
-from supershell.game import quest_manager
 
 log = logging.getLogger(__name__)
+
 
 class BaseQuest:
     id: str = "base_quest"
@@ -28,19 +31,36 @@ class BaseQuest:
         for obj in self.objectives:
             obj.completed = False
 
+    def on_quest_start(self):
+        """
+        A "cutscene" function that runs ONCE when this
+        quest is first loaded.
+        """
+        # The base version does nothing.
+        # Child quests will override this.
+        pass
+
+    def on_objective_complete(self, completed_id: str, obj: Objective):
+        """
+        Runs when an objective is finished.
+        Quests override this to add custom dialogue and events.
+        """
+        # The base version just prints the default success message.
+        pass
+
     def handle_event(self, completed_id: str, obj: Objective):
         """
-        This is the "brain" for the quest.
-        This base version just prints the success message and advances.
+        Advances the quest to the next objective or starts the next quest.
         """
-        if obj and obj.success_message:
-            # The default speaker for all quests will be Cypher
-            dialogue.say(obj.success_message, character="cypher")
-        
-        # Advance to the next objective
-        next_objective_text = quest_manager.advance_to_next_objective()
-        if next_objective_text:
-            dialogue.say(f"{next_objective_text}", character="cypher")
+        self.on_objective_complete(completed_id, obj)
+
+        is_quest_still_active = quest_manager.advance_to_next_objective()
+        if not is_quest_still_active:
+            new_quest_was_loaded = quest_manager.advance_quest()
+            if new_quest_was_loaded:
+                dialogue.say(
+                    f"Quest Complete: [bold]{self.title}[/bold]", character="mission"
+                )
 
     def sync_world_state(self, completed_ids: set[str]):
         """
@@ -61,13 +81,13 @@ class BaseQuest:
         """
         full_path = os.path.expanduser(path)
         try:
-            with open(full_path, 'w') as f:
+            with open(full_path, "w") as f:
                 f.write(content)
             log.info(f"Spawned file: {full_path}")
             self._tracked_files.add(full_path)
         except (IOError, OSError) as e:
             log.error(f"Could not create file {full_path}: {e}")
-    
+
     def _spawn_dir(self, path: str):
         """
         Creates a directory AND tracks it for cleanup.

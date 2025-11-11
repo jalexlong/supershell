@@ -2,21 +2,24 @@
 This file provides TUI presentation effects, like a typewriter
 """
 
-import time
 import random
+import time
+
 from rich.text import Text
+
 from supershell.tui.console import get_console
+
 
 def typewriter_print(
     message: str,
     prefix: str = "",
     prefix_style: str = "default",
     message_style: str = "default",
-    char_delay: float = 0.04
+    char_delay: float = 0.04,
 ):
     """
     A generic, "dumb" typewriter function.
-    
+
     Args:
         message: The text to print (can include Rich markup).
         prefix: A string to print instantly before the message.
@@ -25,7 +28,7 @@ def typewriter_print(
         char_delay: Time in seconds between chars.
     """
     console = get_console()
-    
+
     # Print the "Speaker" prefix instantly
     if prefix:
         console.print(f"[{prefix_style}]{prefix}[/{prefix_style}] ", end="")
@@ -37,19 +40,19 @@ def typewriter_print(
         return
 
     text = Text.from_markup(message, style=message_style)
-    
+
     for char in text:
         console.print(char, end="")
         console.file.flush()
-        
+
         # Add the punctuation-pause logic
-        base_sleep = char_delay * random.uniform(0.7, 1.4)
-        if char.plain in (',', '...'):
-            time.sleep(base_sleep + 0.3)
-        elif char.plain in ('.', '!', '?'):
-            time.sleep(base_sleep + 0.6)
+        base_sleep = char_delay * random.uniform(0.5, 1.2)
+        if char.plain in (",", "..."):
+            time.sleep(base_sleep + 0.2)
+        elif char.plain in (".", "!", "?"):
+            time.sleep(base_sleep + 0.4)
         else:
             time.sleep(base_sleep)
-    
+
     # Print the final newline
     console.print()

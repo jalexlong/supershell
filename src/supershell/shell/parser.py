@@ -4,9 +4,9 @@ Parses user input to differentiate game commands from bash commands.
 This is the main "router" for the game loop.
 """
 
+from supershell.game import event_handler, quest_manager
 from supershell.tui import dialogue
 from supershell.tui.console import get_console
-from supershell.game import quest_manager
 
 # The set of "verbs" that are specific to the game
 GAME_COMMANDS = {
@@ -14,7 +14,10 @@ GAME_COMMANDS = {
     "quest",
     "log",
     "cypher",
+    "ready",
+    "foundit",
 }
+
 
 def parse_and_handle(command_str: str) -> bool:
     """
@@ -28,7 +31,7 @@ def parse_and_handle(command_str: str) -> bool:
         False if it is a bash command (and should be passed to the executor).
     """
     parts = command_str.strip().lower().split()
-    
+
     if not parts:
         return False  # Empty input is not a game command
 
@@ -45,21 +48,30 @@ def parse_and_handle(command_str: str) -> bool:
                 _handle_quest(args)
             elif verb == "cypher":
                 _handle_cypher(args)
-            
+            elif verb == "ready":
+                _handle_ready(args)
+            elif verb == "foundit":
+                _handle_foundit(args)
+
             return True  # We handled it!
-            
+
         except Exception as e:
             # Gracefully handle errors in our game commands
             console = get_console()
             console.log(f"[danger]Error in game command '{verb}': {e}[/danger]")
-            dialogue.say(f"My apologies, Operator. My '{verb}' function seems to be corrupted.", character="cypher")
-            return True # Still "handled," just with an error
+            dialogue.say(
+                f"My apologies, Operator. My '{verb}' function seems to be corrupted.",
+                character="cypher",
+            )
+            return True  # Still "handled," just with an error
 
     # If it's not in GAME_COMMANDS, it's a bash command
     return False
 
+
 # --- Private Handler Functions ---
 # These functions do the actual work for each game command.
+
 
 def _handle_help(args: list[str]):
     """Handler for the 'help' command."""
@@ -73,14 +85,24 @@ def _handle_help(args: list[str]):
             "  * [bold cyan]quest[/bold cyan]:   Show your current objectives.\n"
             "  * [bold cyan]cypher[/bold cyan]:  Talk to me directly (try `cypher hint`).\n"
             "  * [bold cyan]help[/bold cyan]:    You are here.\n",
-            character="cypher"
+            character="cypher",
         )
     elif args[0] == "quest" or args[0] == "log":
-        dialogue.say("The `quest` or `log` command shows your quest objectives. It's your 'to-do' list.", character="cypher")
+        dialogue.say(
+            "The `quest` or `log` command shows your quest objectives. It's your 'to-do' list.",
+            character="cypher",
+        )
     elif args[0] == "cd":
-        dialogue.say("`cd` stands for 'change directory'. You use it to move. For example: `cd /var/log`", character="cypher")
+        dialogue.say(
+            "`cd` stands for 'change directory'. You use it to move. For example: `cd /var/log`",
+            character="cypher",
+        )
     else:
-        dialogue.say(f"I don't have a specific help file for `{args[0]}`. Try asking the `man` with `man {args[0]}`", character="cypher")
+        dialogue.say(
+            f"I don't have a specific help file for `{args[0]}`. Try asking the `man` with `man {args[0]}`",
+            character="cypher",
+        )
+
 
 def _handle_quest(args: list[str]):
     """Handler for the 'quest' or 'log' command."""
@@ -88,15 +110,64 @@ def _handle_quest(args: list[str]):
     quest_panel = quest_manager.get_quest_display()
     console.print(quest_panel)
 
+
 def _handle_cypher(args: list[str]):
     """Handler for the 'cypher' command."""
     if not args:
-        dialogue.say(message="I'm here, operator. Did you need something? You can ask me for a `hint`.", character="cypher")
+        dialogue.say(
+            message="I'm here, operator. Did you need something? You can ask me for a `hint`.",
+            character="cypher",
+        )
     elif args[0] == "hint":
         hint = quest_manager.get_contextual_hint()
         dialogue.say(hint, character="cypher")
     elif args[0] in ("status", "lore"):
-        dialogue.say("My origins? They're... complicated. I'm just a fragment, really. Trying to keep the signal alive.", character="cypher")
+        dialogue.say(
+            "My origins? They're... complicated. I'm just a fragment, really. Trying to keep the signal alive.",
+            character="cypher",
+        )
     else:
-        dialogue.say(f"I don't understand `{args[0]}`. Try `cypher hint` or `cypher status`.", character="cypher")
+        dialogue.say(
+            f"I don't understand `{args[0]}`. Try `cypher hint` or `cypher status`.",
+            character="cypher",
+        )
 
+
+def _handle_ready(args: list[str]):
+    """Handler for the 'ready' command."""
+    active_obj = quest_manager.get_active_objective()
+    if active_obj and active_obj.id == "02_d_build":
+        # Mark it complete
+        quest_manager.mark_objective_complete(active_obj.id)
+        # Manually call the event handler!
+        event_handler.handle_objective_completion(active_obj.id)
+    else:
+        dialogue.say(
+            "I'm not waiting for a 'ready' signal right now.", character="cypher"
+        )
+
+
+def _handle_foundit(args: list[str]):
+    """Handler for the 'foundit' command."""
+    active_obj = quest_manager.get_active_objective()
+    if not (active_obj and active_obj.id == "03_a_find_secret"):
+        dialogue.say("You haven't been assigned that mission yet.", character="cypher")
+        return
+
+    # This is SYNCHRONOUS
+    guess = dialogue.ask(
+        "You found it? Great! What was the secret password?", character="cypher"
+    )
+
+    # Load *our* save file to find *our* password
+    save_data = quest_manager.get_save_data()
+    my_secret = save_data.get("secret_password")
+
+    if guess == my_secret:
+        quest_manager.mark_objective_complete(active_obj.id)
+        event_handler.handle_objective_completion(active_obj.id)
+    else:
+        dialogue.say(
+            f"'{guess}'? Hmm. That's not what I have. Are you sure you're on the right computer?",
+            character="cypher",
+        )

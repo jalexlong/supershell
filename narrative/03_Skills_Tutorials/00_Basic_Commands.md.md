@@ -1,1 +1,0 @@
-mv, ls, cd, mkdir, rmdir, touch
