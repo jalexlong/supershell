@@ -186,32 +186,31 @@ class Quest(BaseQuest):
                 os.path.expanduser("~/bootcamp/test_renamed.txt")
             )
 
+    def sync_world_state(self, completed_ids: set[str]):
+        """
+        Re-spawns files for this quest based on saved progress.
+        """
+        log.info(f"Syncing world state for {self.id}...")
 
-def sync_world_state(self, completed_ids: set[str]):
-    """
-    Re-spawns files for this quest based on saved progress.
-    """
-    log.info(f"Syncing world state for {self.id}...")
+        # If 'mkdir' is done, the 'safehouse' should exist.
+        if "01_c_mkdir" in completed_ids:
+            self._spawn_dir("~/bootcamp")
 
-    # If 'mkdir' is done, the 'safehouse' should exist.
-    if "01_c_mkdir" in completed_ids:
-        self._spawn_dir("~/bootcamp")
+        # If 'touch' is done...
+        if "01_e_touch" in completed_ids:
+            # ...but 'mv' is NOT...
+            if "01_f_mv" not in completed_ids:
+                # ...then 'test.txt' should be in the bootcamp dir.
+                self._spawn_file("~/bootcamp/test.txt")
 
-    # If 'touch' is done...
-    if "01_e_touch" in completed_ids:
-        # ...but 'mv' is NOT...
-        if "01_f_mv" not in completed_ids:
-            # ...then 'test.txt' should be in the bootcamp dir.
-            self._spawn_file("~/bootcamp/test.txt")
+        # If 'mv' is done...
+        if "01_f_mv" in completed_ids:
+            # ...but 'rm' is NOT...
+            if "01_h_rm" not in completed_ids:
+                # ...then 'test_renamed.txt' should be there.
+                self._spawn_file("~/bootcamp/test_renamed.txt")
 
-    # If 'mv' is done...
-    if "01_f_mv" in completed_ids:
-        # ...but 'rm' is NOT...
-        if "01_h_rm" not in completed_ids:
-            # ...then 'test_renamed.txt' should be there.
-            self._spawn_file("~/bootcamp/test_renamed.txt")
-
-    # If 'cp' is done...
-    if "01_g_cp" in completed_ids:
-        # ...then 'test_copy.txt' should be there.
-        self._spawn_file("~/bootcamp/test_copy.txt")
+        # If 'cp' is done...
+        if "01_g_cp" in completed_ids:
+            # ...then 'test_copy.txt' should be there.
+            self._spawn_file("~/bootcamp/test_copy.txt")
