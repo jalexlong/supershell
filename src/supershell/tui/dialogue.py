@@ -8,8 +8,7 @@ from supershell.tui.console import get_console
 CHARACTER_PROPERTIES = {
     # Actor ID: {display_name, style_string, char_delay}
     "system": {"name": "System", "style": "bold white", "delay": 0},
-    "quest": {"name": "Quest Log", "style": "bold white", "delay": 0.01},
-    "log": {"name": "[bold]Quest Log[/bold]", "style": "bold white", "delay": 0},
+    "quest": {"name": "[bold]Quest Log[/bold]", "style": "bold white", "delay": 0},
     "cypher": {"name": "Cypher", "style": "yellow", "delay": 0.04},
     "glitch": {"name": "Glitch", "style": "bold bright_black", "delay": 0.02},
     "hunter": {"name": "The Hunter", "style": "bold red", "delay": 0},

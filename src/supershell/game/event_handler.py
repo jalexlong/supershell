@@ -16,7 +16,9 @@ def handle_game_start(user: str, host: str):
     Runs once at the very beginning of the game.
     """
     current_quest = quest_manager.get_current_quest()
-    if not current_quest:
+    if current_quest:
+        current_quest.on_quest_start()
+    else:
         dialogue.say("No quests loaded. System idle.", character="cypher")
 
 

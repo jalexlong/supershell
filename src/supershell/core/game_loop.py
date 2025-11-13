@@ -44,9 +44,6 @@ def main_loop():
     user_host_str = f"{user}@{host}"
 
     # --- 2. START THE GAME ---
-    quest_pane = quest_manager.get_quest_display()
-    console.print(quest_pane)
-
     event_handler.handle_game_start(user, host)
 
     # --- 3. THE MAINLOOP ---
