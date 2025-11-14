@@ -2,7 +2,7 @@ import logging
 import os
 import socket
 
-from supershell.game import event_handler, objective_checker, quest_manager
+from supershell.game import event_handler, quest_manager, quest_validator
 from supershell.shell import executor, interpreter, parser
 from supershell.tui.console import get_console
 
@@ -75,7 +75,7 @@ def main_loop():
             console.print(f"[stderr]{result.stderr}[/stderr]")
 
         # 4. CHECK & HANDLE EVENTS
-        completed_id = objective_checker.check(result)
+        completed_id = quest_validator.check(result)
         # log.info(f"Objective Check returned: {completed_id}")
 
         if completed_id:

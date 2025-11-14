@@ -1,0 +1,185 @@
+id: "quest_01_boot_camp"
+title: "Boot Camp"
+description: "Time for your first lesson. We'll learn the basics: how to look, move, and build."
+
+# This script runs ONCE when the quest starts
+on_quest_start:
+  - action: "say"
+    character: "cypher"
+    message: "Oh, hi there! I've never seen you around here before. You must be new to this system..."
+  - action: "say"
+    character: "cypher"
+    message: "Well, welcome to Bash! This is the command line, where you have [italic]complete[/italic] control over your system."
+  - action: "say"
+    character: "cypher"
+    message: "You type in 'commands' to perform actions on the command line."
+  - action: "say"
+    character: "cypher"
+    message: "In fact, to let you get some hands on experience now, let's run through a Bash Bootcamp!"
+  - action: "say"
+    character: "cypher"
+    message: "Let's start with who you are. To see who you're logged in as, you can use the 'whoami' command. Try it now!"
+  - action: "advance_objective" # This is the "tick" that moves to the first objective
+
+objectives:
+  - id: "01_a_whoami"
+    description: "Learn who you're logged in as."
+    type: "command_run"
+    criteria: { command: "whoami" }
+    hint: "Type `whoami` to see your user."
+    on_complete_script:
+      - action: "say"
+        character: "cypher"
+        message: "That's you! Sometimes it helps to just know who you're logged in as..."
+      - action: "say"
+        character: "cypher"
+        message: "Now it's time to find out [italic]where[/italic] we are..."
+      - action: "say"
+        character: "cypher"
+        message: "Try running the 'pwd' command now."
+      - action: "advance_objective"
+
+  - id: "01_b_pwd"
+    description: "Find your 'Present Working Directory.'"
+    type: "command_run"
+    criteria: { command: "pwd" }
+    hint: "Type `pwd` to see your 'present working directory'."
+    on_complete_script:
+      - action: "say"
+        character: "cypher"
+        message: "Good. `~`. That's your home directory. Our little corner of the system."
+      - action: "say"
+        character: "cypher"
+        message: "Its nickname is `~`, btw... Now, let's make our own directory to play around in."
+      - action: "say"
+        character: "cypher"
+        message: "Try using 'mkdir' now to make a directory named 'bootcamp'."
+      - action: "advance_objective"
+
+  - id: "01_c_mkdir"
+    description: "Make a directory named 'bootcamp'."
+    type: "path_exists"
+    criteria: { path: "~/bootcamp", type: "dir" }
+    hint: "Make a practice folder: `mkdir bootcamp`"
+    on_complete_script:
+      - action: "track_dir" # <-- This is our custom logic action
+        path: "~/bootcamp"
+      - action: "say"
+        character: "cypher"
+        message: "Nice. A little sandbox for us to play in."
+      - action: "say"
+        character: "cypher"
+        message: "To 'change directory', use the `cd` command. Try it: `cd bootcamp`"
+      - action: "advance_objective"
+
+  - id: "01_d_cd"
+    description: "Change directories into 'bootcamp'."
+    type: "cwd_is"
+    criteria: { path: "~/bootcamp" }
+    hint: "Now, 'change directory' into it: `cd bootcamp`"
+    on_complete_script:
+      - action: "say"
+        character: "cypher"
+        message: "You're in the directory now. See? The prompt changed."
+      - action: "say"
+        character: "cypher"
+        message: "Alright, let's make our very first file. Try `touch test.txt`."
+      - action: "advance_objective"
+
+  - id: "01_e_touch"
+    description: "Make a new file named 'test.txt'."
+    type: "path_exists"
+    criteria: { path: "~/bootcamp/test.txt", type: "file" }
+    hint: "Create an empty file: `touch test.txt`"
+    on_complete_script:
+      - action: "track_file" # <-- Custom action
+        path: "~/bootcamp/test.txt"
+      - action: "say"
+        character: "cypher"
+        message: "Perfect. You've created a file. Files made with 'touch' are empty."
+      - action: "say"
+        character: "cypher"
+        message: "But let's say we accidentally gave it the wrong name. We need to rename it!"
+      - action: "say"
+        character: "cypher"
+        message: "In Bash, you `mv` (move) files to rename them. Try to rename 'test.txt' to 'test_renamed.txt'."
+      - action: "advance_objective"
+
+  - id: "01_f_mv"
+    description: "Rename 'test.txt' to 'test_renamed.txt'."
+    type: "path_exists"
+    criteria: { path: "~/bootcamp/test_renamed.txt", type: "file" }
+    hint: "Let's rename it: `mv test.txt test_renamed.txt`"
+    on_complete_script:
+      - action: "untrack_file" # <-- Custom action
+        path: "~/bootcamp/test.txt"
+      - action: "track_file" # <-- Custom action
+        path: "~/bootcamp/test_renamed.txt"
+      - action: "say"
+        character: "cypher"
+        message: "See? `mv` is a 2-for-1. Now, let's make a backup."
+      - action: "say"
+        character: "cypher"
+        message: "Copy 'test_renamed.txt' and name it 'test_copy.txt'. Try it now!"
+      - action: "advance_objective"
+
+  - id: "01_g_cp"
+    description: "Copy 'test_renamed.txt' to 'test_copy.txt'."
+    type: "path_exists"
+    criteria: { path: "~/bootcamp/test_copy.txt", type: "file" }
+    hint: "Use `cp` to 'copy' the file: `cp test_renamed.txt test_copy.txt`"
+    on_complete_script:
+      - action: "track_file" # <-- Custom action
+        path: "~/bootcamp/test_copy.txt"
+      - action: "say"
+        character: "cypher"
+        message: "Great. Now you have two files. Let's take a look at them with `ls`."
+      - action: "advance_objective"
+
+  - id: "01_h_ls"
+    description: "List the contents of the directory."
+    type: "command_run"
+    criteria: { command: "ls" }
+    hint: "Use `ls` to 'list' the contents of the directory: `ls`"
+    on_complete_script:
+      - action: "say"
+        character: "cypher"
+        message: "Fantastic! You're starting to get better at this."
+      - action: "say"
+        character: "cypher"
+        message: "Let's clean up. `rm` will 'remove' the original file. Be careful, there's no undo!"
+      - action: "say"
+        character: "cypher"
+        message: "Run `rm test_renamed.txt`"
+      - action: "advance_objective"
+
+  - id: "01_i_rm"
+    description: "Remove 'test_renamed.txt'."
+    type: "path_not_exists"
+    criteria: { path: "~/bootcamp/test_renamed.txt" }
+    hint: "Let's clean up: `rm test_renamed.txt`"
+    on_complete_script:
+      - action: "untrack_file" # <-- Custom action
+        path: "~/bootcamp/test_renamed.txt"
+      - action: "say"
+        character: "cypher"
+        message: "And it's gone. *Poof*... See? Permanent."
+      - action: "advance_objective"
+
+# This logic is now separate. The `quest_manager` will call this
+# on load to re-spawn files from a save.
+on_load_sync:
+  - id: "01_c_mkdir"
+    action: "spawn_tracked_dir"
+    path: "~/bootcamp"
+  - id: "01_e_touch"
+    not_completed: "01_f_mv"
+    action: "spawn_tracked_file"
+    path: "~/bootcamp/test.txt"
+  - id: "01_f_mv"
+    not_completed: "01_i_rm"
+    action: "spawn_tracked_file"
+    path: "~/bootcamp/test_renamed.txt"
+  - id: "01_g_cp"
+    action: "spawn_tracked_file"
+    path: "~/bootcamp/test_copy.txt"

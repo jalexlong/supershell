@@ -6,10 +6,12 @@ from supershell.tui import effects
 from supershell.tui.console import get_console
 
 CHARACTER_PROPERTIES = {
-    # Actor ID: {display_name, style_string, char_delay}
+    # Character ID: {display_name, style_string, char_delay}
+    # UI Styles
     "system": {"name": "System", "style": "bold white", "delay": 0},
-    "quest": {"name": "[bold]Quest Log[/bold]", "style": "bold white", "delay": 0},
-    "cypher": {"name": "Cypher", "style": "yellow", "delay": 0.04},
+    "quest": {"name": "Quest Log", "style": "bold white", "delay": 0},
+    # Character Styles
+    "cypher": {"name": "Cypher", "style": "bold yellow", "delay": 0.04},
     "glitch": {"name": "Glitch", "style": "bold bright_black", "delay": 0.02},
     "hunter": {"name": "The Hunter", "style": "bold red", "delay": 0},
 }
