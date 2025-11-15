@@ -11,9 +11,10 @@ from typing import Any, Optional, OrderedDict
 import yaml
 from rich.panel import Panel
 
-# --- Import YAML-based Quest and Objective models ---
+from supershell.game import actions
+
+# --- Import our new YAML-based Quest and Objective models ---
 from supershell.game.models import Objective, Quest
-from supershell.tui import console as rich_console
 
 # --- Module-Level State ---
 _quests: OrderedDict[str, Quest] = OrderedDict()
@@ -24,7 +25,7 @@ _active_quest_obj: Optional[Quest] = None
 _SAVE_FILE_PATH = os.path.expanduser("~/.local/share/supershell/save.json")
 log = logging.getLogger(__name__)
 
-# --- Save/Load Functions (Unchanged from your file) ---
+# --- Save/Load Functions (Unchanged) ---
 
 
 def get_save_data() -> dict:
@@ -69,15 +70,16 @@ def _load_progress():
         completed_ids = set(saved_completed_ids)
         for quest in _quests.values():
             for obj in quest.objectives:
-                if obj.id in completed_ids:
-                    obj.completed = True
+                # Only mark complete if it was in the saved state
+                obj.completed = obj.id in completed_ids
+
         saved_quest_id = save_data.get("current_quest_id")
         if saved_quest_id and saved_quest_id in _quests:
             _current_quest_id = saved_quest_id
             if _current_quest_id:
                 _active_quest_obj = _quests[_current_quest_id]
         else:
-            if _quests:  # Fallback to first quest
+            if _quests:
                 _current_quest_id = list(_quests.keys())[0]
                 _active_quest_obj = _quests[_current_quest_id]
     except (IOError, json.JSONDecodeError) as e:
@@ -102,10 +104,8 @@ def get_quest_by_id(quest_id: str) -> Optional[Quest]:
     return _quests.get(quest_id)
 
 
-# --- THIS IS THE NEW YAML LOADER ---
 def load_quests():
     global _current_quest_id, _active_quest_obj
-    _console = rich_console.get_console()
 
     # We load quests from outside the 'src' folder
     quest_dir = Path("assets/quests")
@@ -113,7 +113,6 @@ def load_quests():
         log.error(f"Quest directory not found at: {quest_dir}")
         return
 
-    # Find all .yml files
     quest_files = sorted(list(quest_dir.glob("*.yml")))
     log.info(f"Found {len(quest_files)} quest files.")
 
@@ -122,7 +121,6 @@ def load_quests():
             with open(quest_file, "r") as f:
                 data = yaml.safe_load(f)
 
-            # Create a Quest object from the YAML data
             quest_instance = Quest.from_yaml(data)
             _quests[quest_instance.id] = quest_instance
             log.info(f"Loaded quest: {quest_instance.title}")
@@ -134,17 +132,28 @@ def load_quests():
         _current_quest_id = list(_quests.keys())[0]
         _active_quest_obj = _quests[_current_quest_id]
 
-        _load_progress()  # Load save file
+        completed_ids = _load_progress()
 
-        # We no longer sync world state here, we
-        # let the quest scripts do it via actions.
+        log.info("Syncing world state for all loaded quests...")
+        for quest in _quests.values():
+            for action_data in quest.on_load_sync:
+                not_completed = action_data.get("not_completed")
+                if not_completed and not_completed in completed_ids:
+                    continue
+
+                is_completed = action_data.get("id")
+                if is_completed and is_completed not in completed_ids:
+                    continue
+
+                # Remove conditional keys which are not arguments for the action function
+                run_params = action_data.copy()
+                run_params.pop("id", None)
+                run_params.pop("not_completed", None)
+                actions.run_action(run_params)
 
         log.info(f"Loaded {len(_quests)} quests. Current quest: {_current_quest_id}")
     else:
         log.warning("No quests were loaded.")
-
-
-# --- (The rest of your functions are almost perfect) ---
 
 
 def get_current_quest() -> Optional[Quest]:
@@ -180,33 +189,21 @@ def mark_objective_complete(objective_id: str):
 
 
 def advance_to_next_objective() -> Optional[Objective]:
-    """
-    Checks if the current quest is finished.
-    - If it is, returns None.
-    - If it's not, it finds the next active objective and returns it.
-    """
     quest = get_current_quest()
     if not quest:
         return None
 
-    # Find the *next* uncompleted objective
     next_obj = get_active_objective()
     if next_obj:
         return next_obj
-
-    # If we return None, it means the quest is finished
     return None
 
 
-def advance_quest() -> bool:
-    """
-    Marks the current quest complete, advances to the next one.
-    Returns True if a new quest was loaded.
-    """
+def advance_quest() -> Optional[Quest]:
     global _current_quest_id, _active_quest_obj
     quest = get_current_quest()
     if not quest:
-        return False
+        return None
 
     quest_ids = list(_quests.keys())
     try:
@@ -215,16 +212,16 @@ def advance_quest() -> bool:
             _current_quest_id = quest_ids[current_index + 1]
             _active_quest_obj = _quests[_current_quest_id]
             _save_progress()
-            return True  # A new quest was started
+            return _active_quest_obj
         else:
             _current_quest_id = None
             _active_quest_obj = None
             _save_progress()
-            return False
+            return None
     except ValueError:
         _current_quest_id = None
         _active_quest_obj = None
-        return False
+        return None
 
 
 def get_quest_display():
@@ -264,3 +261,40 @@ def cleanup_all_quest_files():
         return
     for quest in _quests.values():
         quest._cleanup_quest_files()
+
+
+def reset_current_quest_to_start():
+    """Resets the current quest to its first objective and clears progress."""
+    global _current_quest_id, _active_quest_obj
+    current_quest = get_current_quest()
+
+    if not current_quest:
+        log.warning("No active quest to reset.")
+        return
+
+    log.info(f"Resetting quest '{current_quest.id}' to start.")
+
+    # 1. Mark all objectives as incomplete
+    for obj in current_quest.objectives:
+        obj.completed = False
+
+    # 2. Reset to the first objective
+    _current_quest_id = current_quest.id
+    _active_quest_obj = (
+        current_quest  # Ensure the quest object itself is correctly referenced
+    )
+
+    # 3. Clean up and re-spawn initial world state for the quest
+    current_quest._cleanup_quest_files()  # Remove existing tracked files/dirs
+    # Re-run on_load_sync for the current quest to recreate necessary files
+    log.info(f"Re-syncing world state for quest '{current_quest.id}'.")
+    for action_data in current_quest.on_load_sync:
+        run_params = action_data.copy()
+        run_params.pop("id", None)
+        run_params.pop("not_completed", None)
+        actions.run_action(run_params)
+
+    # 4. Save progress (which will now reflect the reset state)
+    _save_progress()
+
+    log.info(f"Quest '{current_quest.id}' reset successfully.")

@@ -11,7 +11,7 @@ from supershell.shell.executor import CommandResult
 log = logging.getLogger(__name__)
 
 
-def check(command_result: CommandResult) -> str | None:
+def check(command_str: str, command_result: CommandResult) -> str | None:
     """
     Checks the command result against the active objective.
     If complete, returns the objective's ID.

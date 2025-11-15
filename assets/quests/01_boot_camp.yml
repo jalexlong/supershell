@@ -21,12 +21,25 @@ on_quest_start:
     message: "Let's start with who you are. To see who you're logged in as, you can use the 'whoami' command. Try it now!"
   - action: "advance_objective" # This is the "tick" that moves to the first objective
 
+on_hard_fail_script:
+  - action: "say"
+    character: "system"
+    message: "[bold red]CRITICAL FAILURE:[/bold red] You've made a mistake that requires a full quest restart."
+  - action: "say"
+    character: "cypher"
+    message: "Whoops! Looks like that was a major screw-up. Don't worry, we'll just start this lesson over. Try to be more careful next time, okay?"
+  - action: "reset_current_quest"
+
 objectives:
   - id: "01_a_whoami"
     description: "Learn who you're logged in as."
     type: "command_run"
     criteria: { command: "whoami" }
     hint: "Type `whoami` to see your user."
+    on_command_fail_script:
+      - action: "say"
+        character: "cypher"
+        message: "Not quite. Remember, we're trying to figure out who you are. Try the `whoami` command!"
     on_complete_script:
       - action: "say"
         character: "cypher"
@@ -158,6 +171,15 @@ objectives:
     type: "path_not_exists"
     criteria: { path: "~/bootcamp/test_renamed.txt" }
     hint: "Let's clean up: `rm test_renamed.txt`"
+    on_command_fail_script:
+      - action: "conditional_say_on_fail"
+        character: "cypher"
+        message: "Whoa there, Operator! That's the *copy*! We need to remove `test_renamed.txt`. Be careful with `rm`, it's permanent!"
+        if_command: "rm"
+        if_args_contain: "test_copy.txt"
+      - action: "say"
+        character: "cypher"
+        message: "Remember, the goal is to remove `test_renamed.txt`."
     on_complete_script:
       - action: "untrack_file" # <-- Custom action
         path: "~/bootcamp/test_renamed.txt"
@@ -169,17 +191,11 @@ objectives:
 # This logic is now separate. The `quest_manager` will call this
 # on load to re-spawn files from a save.
 on_load_sync:
-  - id: "01_c_mkdir"
-    action: "spawn_tracked_dir"
+  - action: "spawn_tracked_dir"
     path: "~/bootcamp"
-  - id: "01_e_touch"
-    not_completed: "01_f_mv"
-    action: "spawn_tracked_file"
+  - action: "spawn_tracked_file"
     path: "~/bootcamp/test.txt"
-  - id: "01_f_mv"
-    not_completed: "01_i_rm"
-    action: "spawn_tracked_file"
+  - action: "spawn_tracked_file"
     path: "~/bootcamp/test_renamed.txt"
-  - id: "01_g_cp"
-    action: "spawn_tracked_file"
+  - action: "spawn_tracked_file"
     path: "~/bootcamp/test_copy.txt"

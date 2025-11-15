@@ -1,11 +1,14 @@
 """
 This is the "Smart" Event Handler. It's a "script executor"
-that runs the 'on_complete_script' from an objective.
+that runs the YAML-based 'on_complete_script'.
 """
 
 import logging
 
-from supershell.game import actions, quest_manager
+from supershell.game import (
+    actions,  # <-- IMPORT THE NEW TOOLS
+    quest_manager,
+)
 from supershell.tui import dialogue
 
 log = logging.getLogger(__name__)
@@ -17,7 +20,7 @@ def handle_game_start(user: str, host: str):
     """
     dialogue.say(f"System online. You are {user}@{host}.", character="system")
     dialogue.say(
-        "Welcome to supershell. Your next objective is loaded.", character="system"
+        "Welcome to supershell. Your first objective is loaded.", character="system"
     )
 
     current_quest = quest_manager.get_current_quest()

@@ -4,16 +4,17 @@ It maps action strings (from YAML) to the Python functions
 that perform them.
 """
 
+import inspect
 import logging
 import os
 
 from supershell.game import quest_manager
+from supershell.shell import executor
 from supershell.tui import dialogue
 
 log = logging.getLogger(__name__)
 
 # --- 1. Define all "verbs" as simple functions ---
-# These are the "tools" the engine can use.
 
 
 def _action_say(character: str, message: str):
@@ -23,14 +24,13 @@ def _action_say(character: str, message: str):
 
 def _action_advance_objective():
     """Tells the quest manager to advance."""
-    _quest = quest_manager.get_current_quest()
+    quest = quest_manager.get_current_quest()
     next_obj = quest_manager.advance_to_next_objective()
 
     if next_obj:
-        # If there's a new objective, print its intro
-        dialogue.say(f"New Objective: {next_obj.description}", character="mission")
+        if next_obj.description:  # Only print if description exists
+            dialogue.say(f"New Objective: {next_obj.description}", character="mission")
     else:
-        # This was the last objective, so advance the *quest*
         _action_advance_quest()
 
 
@@ -41,9 +41,9 @@ def _action_advance_quest():
         dialogue.say("All objectives complete.", character="system")
         return
 
-    new_quest_was_loaded = quest_manager.advance_quest()
+    new_quest = quest_manager.advance_quest()  # This returns the *new* quest
 
-    if new_quest_was_loaded:
+    if new_quest:
         dialogue.say(
             f"Quest Complete: [bold]{active_quest.title}[/bold]", character="mission"
         )
@@ -67,6 +67,90 @@ def _action_track_file(path: str):
         log.info(f"Now tracking file: {path}")
 
 
+def _action_untrack_file(path: str):
+    """Stops tracking a file (e.g., after 'rm' or 'mv')."""
+    active_quest = quest_manager.get_current_quest()
+    if active_quest:
+        active_quest._tracked_files.discard(os.path.expanduser(path))
+        log.info(f"Stopped tracking file: {path}")
+
+
+def _action_spawn_file(path: str, content: str = ""):
+    """Spawns a file (used by sync_world_state)."""
+    active_quest = quest_manager.get_current_quest()
+    if active_quest:
+        active_quest._spawn_file(path, content)
+
+
+def _action_spawn_dir(path: str):
+    """Spawns a dir (used by sync_world_state)."""
+    active_quest = quest_manager.get_current_quest()
+    if active_quest:
+        active_quest._spawn_dir(path)
+
+
+def _action_conditional_say_on_fail(
+    character: str,
+    message: str,
+    command_result: executor.CommandResult,
+    if_command: str | None = None,
+    if_args_contain: str | None = None,
+):
+    """Conditionally says a message if the command failed matches criteria."""
+    should_say = True
+
+    if if_command:
+        if not command_result.command.strip().lower().startswith(if_command.lower()):
+            should_say = False
+
+    if if_args_contain and should_say:
+        if if_args_contain not in command_result.command:
+            should_say = False
+
+    if should_say:
+        dialogue.say(message, character=character)
+
+
+def _action_reset_current_quest():
+    """Resets the current quest to its starting state."""
+    log.warning("Initiating quest reset.")
+    quest_manager.reset_current_quest_to_start()
+
+
+def _action_conditional_hard_fail(
+    command_result: executor.CommandResult,
+    if_command: str | None = None,
+    if_args_contain: str | None = None,
+    if_return_code: int | None = None,
+):
+    """Triggers a hard fail if the command matches criteria."""
+    should_fail = True
+
+    if if_command:
+        if not command_result.command.strip().lower().startswith(if_command.lower()):
+            should_fail = False
+
+    if if_args_contain and should_fail:
+        if if_args_contain not in command_result.command:
+            should_fail = False
+
+    if if_return_code is not None and should_fail:
+        if command_result.return_code != if_return_code:
+            should_fail = False
+
+    if should_fail:
+        log.error(f"HARD FAIL triggered by command: {command_result.command}")
+        current_quest = quest_manager.get_current_quest()
+        if current_quest and current_quest.on_hard_fail_script:
+            for action_data in current_quest.on_hard_fail_script:
+                # Pass command_result if action expects it
+                run_params = action_data.copy()
+                # The 'command_result' might not be expected by all actions in on_hard_fail_script
+                # It will be filtered by run_action if not in the signature.
+                run_params["command_result"] = command_result
+                run_action(run_params)
+
+
 # --- 2. Create the "Dispatch Map" ---
 ACTION_REGISTRY = {
     "say": _action_say,
@@ -74,7 +158,12 @@ ACTION_REGISTRY = {
     "advance_quest": _action_advance_quest,
     "track_dir": _action_track_dir,
     "track_file": _action_track_file,
-    # (You will add more actions here, like "spawn_file")
+    "untrack_file": _action_untrack_file,
+    "spawn_tracked_file": _action_spawn_file,
+    "spawn_tracked_dir": _action_spawn_dir,
+    "conditional_say_on_fail": _action_conditional_say_on_fail,
+    "reset_current_quest": _action_reset_current_quest,
+    "conditional_hard_fail": _action_conditional_hard_fail,
 }
 
 
@@ -87,19 +176,30 @@ def run_action(action_data: dict):
     if not action_name:
         return
 
-    # Get the correct function from our map
     func = ACTION_REGISTRY.get(action_name)
     if not func:
         log.warning(f"Unknown action in quest script: {action_name}")
         return
 
-    # Prepare the arguments by removing 'action'
-    params = action_data.copy()
-    del params["action"]
+    # The 'action_data' dictionary should already be a copy from quest_manager
+    # and have 'id' and 'not_completed' removed.
+    # We extract the 'action' key for the lookup, then remove it from the dictionary
+    # so the remaining items can be passed as keyword arguments to the action function.
+    action_data.pop("action", None)  # Remove 'action' key from the dictionary
 
-    # Run the function with the parameters
+    # Check if the function expects 'command_result'
+    if "command_result" in action_data:
+        sig = inspect.signature(func)
+        if "command_result" not in sig.parameters:
+            log.debug(
+                f"Removing 'command_result' from params for action '{action_name}' as it's not expected."
+            )
+            action_data.pop("command_result", None)
+
     try:
-        func(**params)
+        func(
+            **action_data
+        )  # Pass the remaining items in action_data as keyword arguments
     except TypeError as e:
         log.error(f"Action '{action_name}' called with wrong arguments: {e}")
     except Exception as e:

@@ -1,13 +1,14 @@
 """
-Data models for Quests and Objectives.
+Data models for Quests and Objectives, loaded from YAML.
 """
 
 import logging
 import os
+import shutil
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -18,13 +19,9 @@ class Objective:
     type: str
     criteria: dict[str, Any]
     hint: str
-    # This is the "script" of actions to run on completion
     on_complete_script: List[Dict[str, Any]] = field(default_factory=list)
-
-    # This is what the quest log will show
+    on_command_fail_script: List[Dict[str, Any]] = field(default_factory=list)
     description: str = ""
-
-    # This is managed by the quest_manager
     completed: bool = False
 
     @classmethod
@@ -36,6 +33,7 @@ class Objective:
             criteria=data.get("criteria", {}),
             hint=data.get("hint", "No hint available for this task."),
             on_complete_script=data.get("on_complete_script", []),
+            on_command_fail_script=data.get("on_command_fail_script", []),
             description=data.get("description", ""),
         )
 
@@ -47,10 +45,11 @@ class Quest:
     id: str
     title: str
     description: str
-    on_quest_start: List[Dict[str, Any]]  # The intro "cutscene" script
+    on_quest_start: List[Dict[str, Any]]
     objectives: list[Objective]
+    on_load_sync: List[Dict[str, Any]]
+    on_hard_fail_script: List[Dict[str, Any]] = field(default_factory=list)
 
-    # These are for the file cleanup system
     _tracked_files: set = field(default_factory=set)
     _tracked_dirs: set = field(default_factory=set)
 
@@ -63,16 +62,37 @@ class Quest:
             description=data.get("description", ""),
             on_quest_start=data.get("on_quest_start", []),
             objectives=[Objective.from_dict(obj) for obj in data.get("objectives", [])],
+            on_load_sync=data.get("on_load_sync", []),
+            on_hard_fail_script=data.get("on_hard_fail_script", []),
         )
+
+    # --- File Tracking & Cleanup Logic ---
+
+    def _spawn_file(self, path: str, content: str = ""):
+        """Creates a file AND tracks it for cleanup."""
+        full_path = os.path.expanduser(path)
+        try:
+            os.makedirs(os.path.dirname(full_path), exist_ok=True)
+            with open(full_path, "w") as f:
+                f.write(content)
+            log.info(f"Spawned file: {full_path}")
+            self._tracked_files.add(full_path)
+        except (IOError, OSError) as e:
+            log.error(f"Could not create file {full_path}: {e}")
+
+    def _spawn_dir(self, path: str):
+        """Creates a directory AND tracks it for cleanup."""
+        full_path = os.path.expanduser(path)
+        try:
+            os.makedirs(full_path, exist_ok=True)
+            log.info(f"Spawned tracked directory: {full_path}")
+            self._tracked_dirs.add(full_path)
+        except (IOError, OSError) as e:
+            log.error(f"Could not create directory {full_path}: {e}")
 
     def _cleanup_quest_files(self):
         """Removes all files and dirs created by this quest."""
-        log = logging.getLogger(__name__)
         log.info(f"Cleaning up files for quest: {self.id}")
-
-        # We need to import shutil here, inside the method
-        import shutil
-
         for f_path in self._tracked_files:
             try:
                 os.remove(f_path)
