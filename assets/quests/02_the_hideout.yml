@@ -98,8 +98,9 @@ objectives:
   - id: "02_e_file_contains_password"
     description: "Hide the secret password within your hideout."
     type: "file_contains"
-    criteria: { path: "~/Desktop/b1/MyHideout", content_from_save: "secret_password" }
-    hint: "Use `echo \"{{secret_password}}\" >> path/to/your/file.txt` to hide it."
+    criteria:
+      { path: "~/Desktop/b1/MyHideout", content_from_save: "secret_password" }
+    hint: 'Use `echo "{{secret_password}}" >> path/to/your/file.txt` to hide it.'
     on_command_fail_script:
       - action: "say"
         character: "cypher"
@@ -111,9 +112,18 @@ objectives:
       - action: "advance_quest"
 
 on_load_sync:
-  - action: "spawn_tracked_dir"
+  - id: "02_a_desktop" # This assumes Desktop exists from base system.
+    not_completed: "02_b_mkdir_b1" # If b1 is not yet created, ensure Desktop exists.
+    action: "spawn_tracked_dir"
     path: "~/Desktop"
-  - action: "spawn_tracked_dir"
+  - id: "02_b_mkdir_b1"
+    not_completed: "02_c_mkdir_hideout" # If MyHideout is not yet created, ensure b1 exists.
+    action: "spawn_tracked_dir"
     path: "~/Desktop/b1"
-  - action: "spawn_tracked_dir"
+  - id: "02_c_mkdir_hideout"
+    not_completed: "02_d_manual_complete_ready" # If ready is not yet completed, ensure MyHideout exists.
+    action: "spawn_tracked_dir"
     path: "~/Desktop/b1/MyHideout"
+  # After 02_d_manual_complete_ready, the player might have created custom files/dirs inside MyHideout.
+  # We track these with explicit track_dir/track_file actions in on_complete_script of objectives
+  # in this quest. If the player hard-fails and resets, _cleanup_quest_files will remove them.

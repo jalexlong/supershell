@@ -20,7 +20,8 @@ on_hard_fail_script:
     message: "[bold red]CRITICAL FAILURE:[/bold red] You've made a mistake that requires a full quest restart."
   - action: "say"
     character: "cypher"
-    message: "Whoops! Looks like that was a major screw-up. Dont worry, we'll just start this lesson over. Try to be more careful next time, okay?\"\n  - action: \"reset_current_quest\""
+    message: "Whoops! Looks like that was a major screw-up. Don't worry, we'll just start this lesson over. Try to be more careful next time, okay?"
+  - action: "reset_current_quest"
 
 objectives:
   - id: "04_a_remove_hideout"
@@ -36,6 +37,9 @@ objectives:
         if_command: "rm"
         if_args_contain: "-rf /"
         if_return_code: 1
+      - action: "say" # General hint if conditional_hard_fail doesn't trigger
+        character: "cypher"
+        message: "Make sure you're targeting the `b1` directory."
     on_complete_script:
       - action: "say"
         character: "cypher"
@@ -55,6 +59,9 @@ objectives:
         if_command: "rm"
         if_args_contain: "-rf /"
         if_return_code: 1
+      - action: "say" # General hint
+        character: "cypher"
+        message: "Focus on removing the `bootcamp` directory."
     on_complete_script:
       - action: "say"
         character: "cypher"
@@ -77,6 +84,9 @@ objectives:
         if_command: "rm"
         if_args_contain: "-rf /"
         if_return_code: 1
+      - action: "say" # General hint
+        character: "cypher"
+        message: "The target is `~/CORE_SIGNATURE.dat`."
     on_complete_script:
       - action: "say"
         character: "cypher"
@@ -84,4 +94,23 @@ objectives:
       - action: "cleanup_all_tracked_files" # This will be our new action
       - action: "advance_quest"
 
-on_load_sync: []
+on_load_sync:
+  # Ensure the hideout directories exist if not yet removed by the player
+  - id: "02_c_mkdir_hideout" # If quest 2 hideout creation was completed
+    not_completed: "04_a_remove_hideout" # And this objective is NOT completed yet
+    action: "spawn_tracked_dir"
+    path: "~/Desktop/b1/MyHideout"
+  - id: "02_b_mkdir_b1" # If quest 2 b1 creation was completed
+    not_completed: "04_a_remove_hideout" # And this objective is NOT completed yet
+    action: "spawn_tracked_dir"
+    path: "~/Desktop/b1"
+  # Ensure bootcamp directory exists if not yet removed
+  - id: "01_c_mkdir" # If quest 1 bootcamp creation was completed
+    not_completed: "04_b_remove_bootcamp" # And this objective is NOT completed yet
+    action: "spawn_tracked_dir"
+    path: "~/bootcamp"
+  # Ensure CORE_SIGNATURE.dat exists if not yet removed
+  - not_completed: "04_c_remove_core_signature" # This objective is NOT completed yet
+    action: "spawn_tracked_file"
+    path: "~/CORE_SIGNATURE.dat"
+    content: "CORE_SIGNATURE_DATA" # Provide some dummy content

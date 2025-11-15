@@ -6,10 +6,10 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any, Optional, OrderedDict
+from typing import Any, Optional, OrderedDict  # Keep OrderedDict here for _quests
 
-import yaml
-from rich.panel import Panel
+import yaml  # Used for yaml.safe_load
+from rich.panel import Panel  # Used for Panel in get_quest_display
 
 # Reverted to module import to break circular dependency with run_action
 from supershell.game import actions
@@ -117,9 +117,7 @@ def load_quests():
         log.error(f"Quest directory not found at: {quest_dir}")
         return
 
-    quest_files = sorted(
-        list(quest_dir.glob("*.yml"))
-    )  # Corrected line: removed stray backslash
+    quest_files = sorted(list(quest_dir.glob("*.yml")))
     log.info(f"Found {len(quest_files)} quest files.")
 
     for quest_file in quest_files:
@@ -155,7 +153,7 @@ def load_quests():
                 run_params = action_data.copy()
                 run_params.pop("id", None)
                 run_params.pop("not_completed", None)
-                actions.run_action(run_params)  # Changed call
+                actions.run_action(run_params)
 
         log.info(f"Loaded {len(_quests)} quests. Current quest: {_current_quest_id}")
     else:
@@ -239,7 +237,7 @@ def get_quest_display():
             border_style="system",
         )
 
-    output = [f"[bold]{quest.title}[/bold]\\n", f"{quest.description}\\n"]
+    output = [f"[bold]{quest.title}[/bold]\n", f"{quest.description}\n"]
     output.append("[bold]Objectives:[/bold]")
 
     for obj in quest.objectives:
@@ -257,7 +255,18 @@ def get_quest_display():
 def get_contextual_hint() -> str:
     obj = get_active_objective()
     if obj:
-        return obj.hint
+        # NEW LOGIC FOR GENERAL DIRECTORY-AWARE HINTS
+        if obj.required_cwd:  # Check if the objective explicitly states a required CWD
+            full_required_path = os.path.expanduser(obj.required_cwd)
+            current_path = os.getcwd()
+
+            if current_path != full_required_path:
+                # Provide a specific hint to change directory
+                display_path = obj.required_cwd.replace(os.path.expanduser("~"), "~", 1)
+                return f"You need to be in the `{display_path}` directory to complete this task. Try `cd {display_path}`."
+        # END NEW LOGIC
+
+        return obj.hint  # Default to the objective's hint
     return "I don't have a specific hint right now. Check your `quest` log."
 
 

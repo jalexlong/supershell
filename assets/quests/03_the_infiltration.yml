@@ -18,7 +18,6 @@ on_quest_start:
   - action: "say"
     character: "cypher"
     message: "When you have *their* password, come back to your *own* computer and type the game command `foundit`."
-  - action: "advance_objective"
 
 on_hard_fail_script:
   - action: "say"

@@ -6,7 +6,7 @@ import logging
 import os
 import shutil
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Union
 
 log = logging.getLogger(__name__)
 
@@ -17,24 +17,35 @@ class Objective:
 
     id: str
     type: str
-    criteria: dict[str, Any]
+    criteria: Union[
+        Dict[str, Any], List[Dict[str, Any]]
+    ]  # Modified to accept Dict OR List[Dict]
     hint: str
     on_complete_script: List[Dict[str, Any]] = field(default_factory=list)
     on_command_fail_script: List[Dict[str, Any]] = field(default_factory=list)
     description: str = ""
     completed: bool = False
+    required_cwd: Optional[str] = None  # Optional required current working directory
 
     @classmethod
     def from_dict(cls, data: dict):
         """Creates an Objective from a dictionary (from YAML)."""
+        criteria_data = data.get("criteria", {})
+        # Check if criteria is a list (for multi_path_exists)
+        if isinstance(criteria_data, list):
+            criteria = criteria_data
+        else:
+            criteria = criteria_data  # Keep original logic if it's a single dict
+
         return cls(
             id=data.get("id", "MISSING_ID"),
             type=data.get("type", "any_command"),
-            criteria=data.get("criteria", {}),
+            criteria=criteria,
             hint=data.get("hint", "No hint available for this task."),
             on_complete_script=data.get("on_complete_script", []),
             on_command_fail_script=data.get("on_command_fail_script", []),
             description=data.get("description", ""),
+            required_cwd=data.get("required_cwd"),  # New: Load the required_cwd
         )
 
 

@@ -19,7 +19,6 @@ on_quest_start:
   - action: "say"
     character: "cypher"
     message: "Let's start with who you are. To see who you're logged in as, you can use the 'whoami' command. Try it now!"
-  - action: "advance_objective" # This is the "tick" that moves to the first objective
 
 on_hard_fail_script:
   - action: "say"
@@ -36,10 +35,16 @@ objectives:
     type: "command_run"
     criteria: { command: "whoami" }
     hint: "Type `whoami` to see your user."
+    required_cwd: "~" # New: Requires player to be in home directory
     on_command_fail_script:
-      - action: "say"
+      - action: "conditional_say_on_fail"
         character: "cypher"
         message: "Not quite. Remember, we're trying to figure out who you are. Try the `whoami` command!"
+        if_command: "ls" # Example of a common wrong command
+        if_return_code: 0 # Only if ls itself succeeds, otherwise system error
+      - action: "say"
+        character: "cypher"
+        message: "Remember, we're trying to figure out who you are. Try the `whoami` command!"
     on_complete_script:
       - action: "say"
         character: "cypher"
@@ -57,6 +62,11 @@ objectives:
     type: "command_run"
     criteria: { command: "pwd" }
     hint: "Type `pwd` to see your 'present working directory'."
+    required_cwd: "~" # New: Requires player to be in home directory
+    on_command_fail_script:
+      - action: "say"
+        character: "cypher"
+        message: "Not quite. We need to find your current location. Type `pwd`."
     on_complete_script:
       - action: "say"
         character: "cypher"
@@ -74,6 +84,11 @@ objectives:
     type: "path_exists"
     criteria: { path: "~/bootcamp", type: "dir" }
     hint: "Make a practice folder: `mkdir bootcamp`"
+    required_cwd: "~" # New: Requires player to be in home directory
+    on_command_fail_script:
+      - action: "say"
+        character: "cypher"
+        message: "Remember, `mkdir` creates a new directory. We need one named `bootcamp`."
     on_complete_script:
       - action: "track_dir" # <-- This is our custom logic action
         path: "~/bootcamp"
@@ -90,6 +105,11 @@ objectives:
     type: "cwd_is"
     criteria: { path: "~/bootcamp" }
     hint: "Now, 'change directory' into it: `cd bootcamp`"
+    required_cwd: "~" # New: Player should be in home dir *before* this command
+    on_command_fail_script:
+      - action: "say"
+        character: "cypher"
+        message: "You need to change your current directory. Use `cd bootcamp`."
     on_complete_script:
       - action: "say"
         character: "cypher"
@@ -104,6 +124,11 @@ objectives:
     type: "path_exists"
     criteria: { path: "~/bootcamp/test.txt", type: "file" }
     hint: "Create an empty file: `touch test.txt`"
+    required_cwd: "~/bootcamp" # New: Requires player to be in bootcamp directory
+    on_command_fail_script:
+      - action: "say"
+        character: "cypher"
+        message: "We need an empty file named `test.txt` in your current directory. Try `touch test.txt`."
     on_complete_script:
       - action: "track_file" # <-- Custom action
         path: "~/bootcamp/test.txt"
@@ -123,6 +148,11 @@ objectives:
     type: "path_exists"
     criteria: { path: "~/bootcamp/test_renamed.txt", type: "file" }
     hint: "Let's rename it: `mv test.txt test_renamed.txt`"
+    required_cwd: "~/bootcamp" # New: Requires player to be in bootcamp directory
+    on_command_fail_script:
+      - action: "say"
+        character: "cypher"
+        message: "You need to rename `test.txt` to `test_renamed.txt`. The command is `mv test.txt test_renamed.txt`."
     on_complete_script:
       - action: "untrack_file" # <-- Custom action
         path: "~/bootcamp/test.txt"
@@ -138,11 +168,22 @@ objectives:
 
   - id: "01_g_cp"
     description: "Copy 'test_renamed.txt' to 'test_copy.txt'."
-    type: "path_exists"
-    criteria: { path: "~/bootcamp/test_copy.txt", type: "file" }
+    type: "multi_path_exists"
+    criteria:
+      - { path: "~/bootcamp/test_copy.txt", type: "file", exist: true }
+      - { path: "~/bootcamp/test_renamed.txt", type: "file", exist: true }
     hint: "Use `cp` to 'copy' the file: `cp test_renamed.txt test_copy.txt`"
+    required_cwd: "~/bootcamp" # New: Requires player to be in bootcamp directory
+    on_command_fail_script:
+      - action: "conditional_say_on_fail"
+        character: "cypher"
+        message: "It looks like you moved the file, not copied it. We need BOTH `test_renamed.txt` AND `test_copy.txt`."
+        if_command: "mv"
+      - action: "say"
+        character: "cypher"
+        message: "Use `cp` to make a *copy*, leaving the original file untouched."
     on_complete_script:
-      - action: "track_file" # <-- Custom action
+      - action: "track_file"
         path: "~/bootcamp/test_copy.txt"
       - action: "say"
         character: "cypher"
@@ -154,6 +195,11 @@ objectives:
     type: "command_run"
     criteria: { command: "ls" }
     hint: "Use `ls` to 'list' the contents of the directory: `ls`"
+    required_cwd: "~/bootcamp" # New: Requires player to be in bootcamp directory
+    on_command_fail_script:
+      - action: "say"
+        character: "cypher"
+        message: "Just use the simple `ls` command to list the files in this directory."
     on_complete_script:
       - action: "say"
         character: "cypher"
@@ -171,12 +217,17 @@ objectives:
     type: "path_not_exists"
     criteria: { path: "~/bootcamp/test_renamed.txt" }
     hint: "Let's clean up: `rm test_renamed.txt`"
+    required_cwd: "~/bootcamp" # New: Requires player to be in bootcamp directory
     on_command_fail_script:
       - action: "conditional_say_on_fail"
         character: "cypher"
         message: "Whoa there, Operator! That's the *copy*! We need to remove `test_renamed.txt`. Be careful with `rm`, it's permanent!"
         if_command: "rm"
         if_args_contain: "test_copy.txt"
+      - action: "conditional_hard_fail"
+        if_command: "rm"
+        if_args_contain: "-rf /"
+        if_return_code: 1
       - action: "say"
         character: "cypher"
         message: "Remember, the goal is to remove `test_renamed.txt`."
@@ -186,16 +237,23 @@ objectives:
       - action: "say"
         character: "cypher"
         message: "And it's gone. *Poof*... See? Permanent."
-      - action: "advance_objective"
+      - action: "advance_quest" # Advance to the next quest after final objective of this quest is complete.
 
 # This logic is now separate. The `quest_manager` will call this
 # on load to re-spawn files from a save.
 on_load_sync:
-  - action: "spawn_tracked_dir"
+  - id: "01_c_mkdir"
+    not_completed: "01_d_cd" # Only spawn if the player hasn't 'cd' into it (as then it's assumed they made it already.)
+    action: "spawn_tracked_dir"
     path: "~/bootcamp"
-  - action: "spawn_tracked_file"
+  - id: "01_e_touch"
+    not_completed: "01_f_mv" # If test.txt hasn't been renamed, ensure it spawns on game reload
+    action: "spawn_tracked_file"
     path: "~/bootcamp/test.txt"
-  - action: "spawn_tracked_file"
+  - id: "01_f_mv"
+    not_completed: "01_i_rm" # If test_renamed.txt hasn't been deleted, ensure it spawns
+    action: "spawn_tracked_file"
     path: "~/bootcamp/test_renamed.txt"
-  - action: "spawn_tracked_file"
+  - id: "01_g_cp"
+    action: "spawn_tracked_file"
     path: "~/bootcamp/test_copy.txt"

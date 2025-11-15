@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "supershell"
-version = "0.1.3"
+version = "0.1.4"
 description = "An interactive, story-driven Bash tutorial game using the actual shell."
 authors = ["J. Alex Long <jalexlong@proton.me>"]
 license = "MIT"
