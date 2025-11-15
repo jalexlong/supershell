@@ -11,6 +11,7 @@ from typing import Any, Optional, OrderedDict
 import yaml
 from rich.panel import Panel
 
+# Reverted to module import to break circular dependency with run_action
 from supershell.game import actions
 
 # --- Import our new YAML-based Quest and Objective models ---
@@ -20,6 +21,9 @@ from supershell.game.models import Objective, Quest
 _quests: OrderedDict[str, Quest] = OrderedDict()
 _current_quest_id: Optional[str] = None
 _active_quest_obj: Optional[Quest] = None
+_last_generated_secret_password: Optional[str] = (
+    None  # New: To hold the last generated password
+)
 # -------------------------
 
 _SAVE_FILE_PATH = os.path.expanduser("~/.local/share/supershell/save.json")
@@ -113,7 +117,9 @@ def load_quests():
         log.error(f"Quest directory not found at: {quest_dir}")
         return
 
-    quest_files = sorted(list(quest_dir.glob("*.yml")))
+    quest_files = sorted(
+        list(quest_dir.glob("*.yml"))
+    )  # Corrected line: removed stray backslash
     log.info(f"Found {len(quest_files)} quest files.")
 
     for quest_file in quest_files:
@@ -149,7 +155,7 @@ def load_quests():
                 run_params = action_data.copy()
                 run_params.pop("id", None)
                 run_params.pop("not_completed", None)
-                actions.run_action(run_params)
+                actions.run_action(run_params)  # Changed call
 
         log.info(f"Loaded {len(_quests)} quests. Current quest: {_current_quest_id}")
     else:
@@ -233,7 +239,7 @@ def get_quest_display():
             border_style="system",
         )
 
-    output = [f"[bold]{quest.title}[/bold]\n", f"{quest.description}\n"]
+    output = [f"[bold]{quest.title}[/bold]\\n", f"{quest.description}\\n"]
     output.append("[bold]Objectives:[/bold]")
 
     for obj in quest.objectives:

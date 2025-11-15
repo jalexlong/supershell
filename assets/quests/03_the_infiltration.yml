@@ -1,0 +1,52 @@
+id: "quest_03_the_infiltration"
+title: "The Infiltration"
+description: "It's time for a social mission. Infiltrate another's system and retrieve their secret."
+
+on_quest_start:
+  - action: "say"
+    character: "cypher"
+    message: "Okay, agent. Boot camp taught you the basics. Your hideout taught you to be creative."
+  - action: "say"
+    character: "cypher"
+    message: "Now, for your most challenging mission yet: **social infiltration.**"
+  - action: "say"
+    character: "cypher"
+    message: "I need you to **switch computers with a classmate**. Your mission is to find *their* secret password."
+  - action: "say"
+    character: "cypher"
+    message: "[bold yellow]WARNING:[/bold yellow] **No `grep` or `find`!** That's cheating and will trigger a hard fail. Use your `ls`, `cd`, and `cat` skills like a true operative."
+  - action: "say"
+    character: "cypher"
+    message: "When you have *their* password, come back to your *own* computer and type the game command `foundit`."
+  - action: "advance_objective"
+
+on_hard_fail_script:
+  - action: "say"
+    character: "system"
+    message: "[bold red]CRITICAL FAILURE:[/bold red] Your infiltration attempt failed catastrophically. Restarting Quest 03."
+  - action: "say"
+    character: "cypher"
+    message: "That was... less than subtle, Agent. Let's reset and try for a cleaner approach. Remember the rules of infiltration!"
+  - action: "reset_current_quest"
+
+objectives:
+  - id: "03_a_manual_complete_foundit"
+    description: "Infiltrate a classmate's system and retrieve their secret password. Type `foundit` to report back."
+    type: "manual_complete"
+    criteria: {}
+    hint: "Switch computers! Look for files in their home directory, especially in places like `Desktop/b1/MyHideout`. Use `ls`, `cd`, `cat`. When you have it, type `foundit` on *your* computer."
+    on_command_fail_script:
+      - action: "conditional_hard_fail"
+        if_command: "grep" # Trigger hard fail if player tries to cheat
+      - action: "conditional_hard_fail"
+        if_command: "find" # Trigger hard fail if player tries to cheat
+      - action: "say"
+        character: "cypher"
+        message: "Remember the mission, Agent. Find *their* password, then report back by typing `foundit` on *your* system."
+    on_complete_script:
+      - action: "say"
+        character: "cypher"
+        message: "...Password accepted. Wait, that's... the *same* as yours. How is that possible...?"
+      - action: "advance_quest"
+
+on_load_sync: []

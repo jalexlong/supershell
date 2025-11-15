@@ -1,0 +1,87 @@
+id: "quest_04_the_cleanup"
+title: "The Cleanup"
+description: "Time to remove your tracks and become a true part of the system."
+
+on_quest_start:
+  - action: "say"
+    character: "cypher"
+    message: "Alright, Operator. Your missions are complete, but there's one last task: cleanup."
+  - action: "say"
+    character: "cypher"
+    message: "[bold red]BIG WARNING:[/bold red] The `rm` (remove) and `rmdir` (remove directory) commands are **permanent**. There is no 'undo.' There is no 'Recycle Bin.' Be *very* careful."
+  - action: "say"
+    character: "cypher"
+    message: "Now, let's start by cleaning up your Hideout. Remove the `b1` folder from your `Desktop`."
+  - action: "advance_objective"
+
+on_hard_fail_script:
+  - action: "say"
+    character: "system"
+    message: "[bold red]CRITICAL FAILURE:[/bold red] You've made a mistake that requires a full quest restart."
+  - action: "say"
+    character: "cypher"
+    message: "Whoops! Looks like that was a major screw-up. Dont worry, we'll just start this lesson over. Try to be more careful next time, okay?\"\n  - action: \"reset_current_quest\""
+
+objectives:
+  - id: "04_a_remove_hideout"
+    description: "Remove your Hideout folder (`~/Desktop/b1`)."
+    type: "path_not_exists"
+    criteria: { path: "~/Desktop/b1" }
+    hint: "Use `rm -r ~/Desktop/b1` to remove the directory and its contents."
+    on_command_fail_script:
+      - action: "say"
+        character: "cypher"
+        message: "You need to remove the entire `b1` folder from your Desktop. Remember `rm -r` for directories."
+      - action: "conditional_hard_fail"
+        if_command: "rm"
+        if_args_contain: "-rf /"
+        if_return_code: 1
+    on_complete_script:
+      - action: "say"
+        character: "cypher"
+        message: "Hideout removed. Good. Now for your Boot Camp files. Remove `~/bootcamp`."
+      - action: "advance_objective"
+
+  - id: "04_b_remove_bootcamp"
+    description: "Remove your Boot Camp folder (`~/bootcamp`)."
+    type: "path_not_exists"
+    criteria: { path: "~/bootcamp" }
+    hint: "Use `rm -r ~/bootcamp` to remove the directory and its contents."
+    on_command_fail_script:
+      - action: "say"
+        character: "cypher"
+        message: "You need to remove the `bootcamp` folder. Remember `rm -r`."
+      - action: "conditional_hard_fail"
+        if_command: "rm"
+        if_args_contain: "-rf /"
+        if_return_code: 1
+    on_complete_script:
+      - action: "say"
+        character: "cypher"
+        message: "Bootcamp folder removed. One last file to erase your temporary manifest..."
+      - action: "say"
+        character: "cypher"
+        message: "Remove `~/CORE_SIGNATURE.dat`."
+      - action: "advance_objective"
+
+  - id: "04_c_remove_core_signature"
+    description: "Remove the temporary manifest file (`~/CORE_SIGNATURE.dat`)."
+    type: "path_not_exists"
+    criteria: { path: "~/CORE_SIGNATURE.dat" }
+    hint: "Use `rm ~/CORE_SIGNATURE.dat`."
+    on_command_fail_script:
+      - action: "say"
+        character: "cypher"
+        message: "You need to remove the `CORE_SIGNATURE.dat` file. Use `rm`."
+      - action: "conditional_hard_fail"
+        if_command: "rm"
+        if_args_contain: "-rf /"
+        if_return_code: 1
+    on_complete_script:
+      - action: "say"
+        character: "cypher"
+        message: "...Manifest deleted. You're not an anomaly anymore. You're a user. Welcome to the system."
+      - action: "cleanup_all_tracked_files" # This will be our new action
+      - action: "advance_quest"
+
+on_load_sync: []

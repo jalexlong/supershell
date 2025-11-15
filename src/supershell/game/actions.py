@@ -7,6 +7,7 @@ that perform them.
 import inspect
 import logging
 import os
+import random  # Added for password generation
 
 from supershell.game import quest_manager
 from supershell.shell import executor
@@ -151,6 +152,23 @@ def _action_conditional_hard_fail(
                 run_action(run_params)
 
 
+def _action_generate_and_save_password():
+    """Generates a random password, saves it, and makes it available for dialogue."""
+    words = ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta"]
+    password = f"{random.choice(words)}-{random.choice(words)}"
+    quest_manager.set_save_data("secret_password", password)
+    quest_manager._last_generated_secret_password = (
+        password  # Make available for dialogue
+    )
+    log.info(f"Generated and saved secret password: {password}")
+
+
+def _action_cleanup_all_tracked_files():
+    """Calls quest_manager to clean up all tracked files across all quests."""
+    quest_manager.cleanup_all_quest_files()
+    log.info("Triggered cleanup of all tracked quest files.")
+
+
 # --- 2. Create the "Dispatch Map" ---
 ACTION_REGISTRY = {
     "say": _action_say,
@@ -164,6 +182,8 @@ ACTION_REGISTRY = {
     "conditional_say_on_fail": _action_conditional_say_on_fail,
     "reset_current_quest": _action_reset_current_quest,
     "conditional_hard_fail": _action_conditional_hard_fail,
+    "generate_and_save_password": _action_generate_and_save_password,
+    "cleanup_all_tracked_files": _action_cleanup_all_tracked_files,
 }
 
 
@@ -172,7 +192,7 @@ def run_action(action_data: dict):
     """
     Looks up an action from the registry and runs it.
     """
-    action_name = action_data.get("action")
+    action_name = action_data.pop("action", None)
     if not action_name:
         return
 
@@ -180,12 +200,6 @@ def run_action(action_data: dict):
     if not func:
         log.warning(f"Unknown action in quest script: {action_name}")
         return
-
-    # The 'action_data' dictionary should already be a copy from quest_manager
-    # and have 'id' and 'not_completed' removed.
-    # We extract the 'action' key for the lookup, then remove it from the dictionary
-    # so the remaining items can be passed as keyword arguments to the action function.
-    action_data.pop("action", None)  # Remove 'action' key from the dictionary
 
     # Check if the function expects 'command_result'
     if "command_result" in action_data:

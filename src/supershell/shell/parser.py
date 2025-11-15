@@ -136,7 +136,7 @@ def _handle_cypher(args: list[str]):
 def _handle_ready(args: list[str]):
     """Handler for the 'ready' command."""
     active_obj = quest_manager.get_active_objective()
-    if active_obj and active_obj.id == "02_d_build":
+    if active_obj and active_obj.id == "02_d_manual_complete_ready":
         # Mark it complete
         quest_manager.mark_objective_complete(active_obj.id)
         # Manually call the event handler!

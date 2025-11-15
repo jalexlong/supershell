@@ -110,8 +110,15 @@ def _check_path_not_exists(obj: quest_manager.Objective, res: CommandResult) -> 
 
 def _check_file_contains(obj: quest_manager.Objective, res: CommandResult) -> bool:
     """Checks if a file (or any file in a dir) contains text."""
-    path_to_check = os.path.expanduser(str(obj.criteria.get("path")))
+    path_to_check = os.path.expanduser(str(obj.criteria.get("path", "")))
+
     content_to_find = obj.criteria.get("content")
+    content_from_save_key = obj.criteria.get("content_from_save")
+
+    if content_from_save_key:
+        save_data = quest_manager.get_save_data()
+        content_to_find = save_data.get(content_from_save_key)
+
     if not path_to_check or not content_to_find:
         return False
 
