@@ -13,9 +13,9 @@ CHARACTER_PROPERTIES = {
     "system": {"name": "System", "style": "bold white", "delay": 0},
     "quest": {"name": "Quest Log", "style": "bold white", "delay": 0},
     # Character Styles
-    "cypher": {"name": "Cypher", "style": "bold yellow", "delay": 0.04},
+    "cypher": {"name": "Cypher", "style": "bold #CCCC33", "delay": 0.04},
     "glitch": {"name": "Glitch", "style": "bold bright_black", "delay": 0.02},
-    "hunter": {"name": "The Hunter", "style": "bold red", "delay": 0},
+    "hunter": {"name": "The Hunter", "style": "bold #CC3333", "delay": 0},
 }
 
 

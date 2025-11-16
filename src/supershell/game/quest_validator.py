@@ -6,6 +6,7 @@ import logging
 import os
 from typing import (  # Re-add Dict and List for clarity in type hints
     Any,
+    Callable,
     Dict,
     List,
     Optional,
@@ -38,30 +39,14 @@ def check(command_str: str, command_result: CommandResult) -> str | None:
     try:
         is_complete = False
 
-        # --- Route to the correct checker function ---
-        if active_obj.type == "command_run":
-            is_complete = _check_command_run(active_obj, command_result)
-
-        elif active_obj.type == "path_exists":
-            is_complete = _check_path_exists(active_obj, command_result)
-
-        elif active_obj.type == "file_contains":
-            is_complete = _check_file_contains(active_obj, command_result)
-
-        elif active_obj.type == "any_command":
-            is_complete = _check_any_command(active_obj, command_result)
-
-        elif active_obj.type == "cwd_is":
-            is_complete = _check_cwd_is(active_obj, command_result)
-
-        elif active_obj.type == "path_not_exists":
-            is_complete = _check_path_not_exists(active_obj, command_result)
-
-        elif active_obj.type == "manual_complete":
-            is_complete = _check_manual_complete(active_obj, command_result)
-
-        elif active_obj.type == "multi_path_exists":  # NEW OBJECTIVE TYPE
-            is_complete = _check_multi_path_exists(active_obj, command_result)
+        # --- Route to the correct checker function using the dispatch map ---
+        checker_func = _CHECKER_MAP.get(active_obj.type)
+        if checker_func:
+            is_complete = checker_func(active_obj, command_result)
+        else:
+            log.warning(
+                f"No checker function found for objective type: {active_obj.type}"
+            )
 
         # --- Return the ID if complete ---
         if is_complete:
@@ -232,3 +217,15 @@ def _check_multi_path_exists(obj: quest_manager.Objective, res: CommandResult) -
 
     # All criteria passed
     return True
+
+
+_CHECKER_MAP: Dict[str, Callable[[quest_manager.Objective, CommandResult], bool]] = {
+    "command_run": _check_command_run,
+    "path_exists": _check_path_exists,
+    "file_contains": _check_file_contains,
+    "any_command": _check_any_command,
+    "cwd_is": _check_cwd_is,
+    "path_not_exists": _check_path_not_exists,
+    "manual_complete": _check_manual_complete,
+    "multi_path_exists": _check_multi_path_exists,
+}

@@ -35,7 +35,7 @@ objectives:
     type: "command_run"
     criteria: { command: "whoami" }
     hint: "Type `whoami` to see your user."
-    required_cwd: "~" # New: Requires player to be in home directory
+    required_cwd: "~" # Requires player to be in home directory
     on_command_fail_script:
       - action: "conditional_say_on_fail"
         character: "cypher"
@@ -62,7 +62,7 @@ objectives:
     type: "command_run"
     criteria: { command: "pwd" }
     hint: "Type `pwd` to see your 'present working directory'."
-    required_cwd: "~" # New: Requires player to be in home directory
+    required_cwd: "~" # Requires player to be in home directory
     on_command_fail_script:
       - action: "say"
         character: "cypher"
@@ -84,7 +84,7 @@ objectives:
     type: "path_exists"
     criteria: { path: "~/bootcamp", type: "dir" }
     hint: "Make a practice folder: `mkdir bootcamp`"
-    required_cwd: "~" # New: Requires player to be in home directory
+    required_cwd: "~" # Requires player to be in home directory
     on_command_fail_script:
       - action: "say"
         character: "cypher"
@@ -105,7 +105,7 @@ objectives:
     type: "cwd_is"
     criteria: { path: "~/bootcamp" }
     hint: "Now, 'change directory' into it: `cd bootcamp`"
-    required_cwd: "~" # New: Player should be in home dir *before* this command
+    required_cwd: "~" # Player should be in home dir *before* this command
     on_command_fail_script:
       - action: "say"
         character: "cypher"
@@ -124,7 +124,7 @@ objectives:
     type: "path_exists"
     criteria: { path: "~/bootcamp/test.txt", type: "file" }
     hint: "Create an empty file: `touch test.txt`"
-    required_cwd: "~/bootcamp" # New: Requires player to be in bootcamp directory
+    required_cwd: "~/bootcamp" # Requires player to be in bootcamp directory
     on_command_fail_script:
       - action: "say"
         character: "cypher"
@@ -148,7 +148,7 @@ objectives:
     type: "path_exists"
     criteria: { path: "~/bootcamp/test_renamed.txt", type: "file" }
     hint: "Let's rename it: `mv test.txt test_renamed.txt`"
-    required_cwd: "~/bootcamp" # New: Requires player to be in bootcamp directory
+    required_cwd: "~/bootcamp" # Requires player to be in bootcamp directory
     on_command_fail_script:
       - action: "say"
         character: "cypher"
@@ -173,7 +173,7 @@ objectives:
       - { path: "~/bootcamp/test_copy.txt", type: "file", exist: true }
       - { path: "~/bootcamp/test_renamed.txt", type: "file", exist: true }
     hint: "Use `cp` to 'copy' the file: `cp test_renamed.txt test_copy.txt`"
-    required_cwd: "~/bootcamp" # New: Requires player to be in bootcamp directory
+    required_cwd: "~/bootcamp" # Requires player to be in bootcamp directory
     on_command_fail_script:
       - action: "conditional_say_on_fail"
         character: "cypher"
@@ -195,7 +195,7 @@ objectives:
     type: "command_run"
     criteria: { command: "ls" }
     hint: "Use `ls` to 'list' the contents of the directory: `ls`"
-    required_cwd: "~/bootcamp" # New: Requires player to be in bootcamp directory
+    required_cwd: "~/bootcamp" # Requires player to be in bootcamp directory
     on_command_fail_script:
       - action: "say"
         character: "cypher"
@@ -217,7 +217,7 @@ objectives:
     type: "path_not_exists"
     criteria: { path: "~/bootcamp/test_renamed.txt" }
     hint: "Let's clean up: `rm test_renamed.txt`"
-    required_cwd: "~/bootcamp" # New: Requires player to be in bootcamp directory
+    required_cwd: "~/bootcamp" # Requires player to be in bootcamp directory
     on_command_fail_script:
       - action: "conditional_say_on_fail"
         character: "cypher"

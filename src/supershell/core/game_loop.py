@@ -38,7 +38,7 @@ def main_loop():
     except OSError:
         user = "anomaly"
     try:
-        host = socket.gethostname()
+        host = socket.gethostname().split(".")[0]
     except Exception:
         host = "localhost"
     user_host_str = f"{user}@{host}"

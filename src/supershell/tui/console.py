@@ -12,13 +12,13 @@ supershell_theme = Theme(
     {
         # UI Styles
         "stdout": "grey74",
-        "stderr": "bold bright_red",
-        "system": "bold white",
-        "prompt": "white",
+        "stderr": "bold #CC3333",
+        "system": "bold grey82",
+        "prompt": "grey82",
         # Log Styles
         "info": "dim cyan",
-        "warning": "bold yellow",
-        "danger": "bold red",
+        "warning": "bold #CCCC33",
+        "danger": "bold #CC3333",
     }
 )
 
