@@ -1,232 +1,203 @@
---- Quest Template Generator ---
-This script helps you create YAML templates for your quests.
-Copy the output below into a .yml file in your assets/quests/ directory.
-
-
---- Example Full Quest Template ---
+# --- Example Full Quest Template ---
 id: new_quest_001
 title: My First Custom Quest
-description: This is an example quest to guide you through the process of creating
+description:
+  This is an example quest to guide you through the process of creating
   a new adventure.
 on_quest_start:
-- action: say
-  character: cypher
-  message: This is a dialogue message from the character.
-- action: say
-  character: cypher
-  message: 'Welcome to the quest: [bold]My First Custom Quest[/bold]!'
-- action: advance_objective
-objectives:
-- id: new_quest_001_obj_1
-  type: any_command
-  description: Run any command to start the quest.
-  hint: Just type 'ls' or 'pwd' to get started!
-  criteria: {}
-  on_complete_script:
+  - action: say
+    character: cypher
+    message: This is a dialogue message from the character.
+  - action: say
+    character: cypher
+    message: "Welcome to the quest: [bold]My First Custom Quest[/bold]!"
   - action: advance_objective
-  on_command_fail_script:
+objectives:
+  - id: new_quest_001_obj_1
+    type: any_command
+    description: Run any command to start the quest.
+    hint: Just type 'ls' or 'pwd' to get started!
+    criteria: {}
+    on_complete_script:
+      - action: advance_objective
+    on_command_fail_script:
+      - action: conditional_say_on_fail
+        character: glitch
+        message: It seems your command failed! Try something else.
+        if_command: rm
+        if_args_contain: -rf
+  - id: new_quest_001_obj_2
+    type: path_exists
+    description: Create a file named 'report.txt' in your home directory.
+    hint: Use 'touch' to create a file.
+    criteria:
+      path: ~/some/directory/or/file
+      type: file
+    on_complete_script: []
+    on_command_fail_script: []
+    required_cwd: "~"
+  - id: new_quest_001_obj_3
+    type: file_contains
+    description: Add the text 'mission critical' to 'report.txt'.
+    hint: You might need to use 'echo' and redirection (>) or (>>).
+    criteria:
+      path: ~/some/file.txt
+      content: expected_text_inside_file
+    on_complete_script: []
+    on_command_fail_script: []
+    required_cwd: "~"
+on_load_sync:
+  - action: spawn_tracked_dir
+    path: ~/data
+  - action: spawn_tracked_file
+    path: ~/data/secret.md
+    content: The password is {{secret_password}}.
+  - action: generate_and_save_password
+on_hard_fail_script:
+  - action: say
+    character: hunter
+    message: You made a critical error. Restarting quest.
+  - action: reset_current_quest
+
+  # --- Example Objective Templates (by type) ---
+
+  # Objective Type: command_run
+  - id: example_command_run
+    type: command_run
+    description: Complete this task using a 'command_run' objective.
+    hint: Hint for 'command_run' objective.
+    criteria:
+      command: expected_command_name
+    on_complete_script: []
+    on_command_fail_script: []
+
+  # Objective Type: path_exists
+  - id: example_path_exists
+    type: path_exists
+    description: Complete this task using a 'path_exists' objective.
+    hint: Hint for 'path_exists' objective.
+    criteria:
+      path: ~/some/directory/or/file
+      type: file
+    on_complete_script: []
+    on_command_fail_script: []
+
+  # Objective Type: file_contains
+  - id: example_file_contains
+    type: file_contains
+    description: Complete this task using a 'file_contains' objective.
+    hint: Hint for 'file_contains' objective.
+    criteria:
+      path: ~/some/file.txt
+      content: expected_text_inside_file
+    on_complete_script: []
+    on_command_fail_script: []
+
+  # Objective Type: any_command
+  - id: example_any_command
+    type: any_command
+    description: Complete this task using a 'any_command' objective.
+    hint: Hint for 'any_command' objective.
+    criteria: {}
+    on_complete_script: []
+    on_command_fail_script: []
+
+  # Objective Type: cwd_is
+  - id: example_cwd_is
+    type: cwd_is
+    description: Complete this task using a 'cwd_is' objective.
+    hint: Hint for 'cwd_is' objective.
+    criteria:
+      path: ~/expected/current/directory
+    on_complete_script: []
+    on_command_fail_script: []
+
+  # Objective Type: path_not_exists
+  - id: example_path_not_exists
+    type: path_not_exists
+    description: Complete this task using a 'path_not_exists' objective.
+    hint: Hint for 'path_not_exists' objective.
+    criteria:
+      path: ~/path/that/should/not/exist
+    on_complete_script: []
+    on_command_fail_script: []
+
+  # Objective Type: manual_complete
+  - id: example_manual_complete
+    type: manual_complete
+    description: Complete this task using a 'manual_complete' objective.
+    hint: Hint for 'manual_complete' objective.
+    criteria: {}
+    on_complete_script: []
+    on_command_fail_script: []
+
+  # Objective Type: multi_path_exists
+  - id: example_multi_path_exists
+    type: multi_path_exists
+    description: Complete this task using a 'multi_path_exists' objective.
+    hint: Hint for 'multi_path_exists' objective.
+    criteria:
+      - path: ~/path/to/file1
+        type: file
+        exist: true
+      - path: ~/path/to/dir2
+        type: dir
+        exist: false
+    on_complete_script: []
+    on_command_fail_script: []
+
+  # --- Example Action Templates (by name) ---
+
+  # Action: say
+  - action: say
+    character: cypher
+    message: This is a dialogue message from the character.
+
+  # Action: advance_objective
+  - action: advance_objective
+
+  # Action: advance_quest
+  - action: advance_quest
+
+  # Action: track_dir
+  - action: track_dir
+    path: ~/path/to/directory/to/track
+
+  # Action: track_file
+  - action: track_file
+    path: ~/path/to/file/to/track
+
+  # Action: untrack_file
+  - action: untrack_file
+    path: ~/path/to/file/to/untrack
+
+  # Action: spawn_tracked_file
+  - action: spawn_tracked_file
+    path: ~/path/to/new_file.txt
+    content: This is the content of the new file.
+
+  # Action: spawn_tracked_dir
+  - action: spawn_tracked_dir
+    path: ~/path/to/new_directory
+
+  # Action: conditional_say_on_fail
   - action: conditional_say_on_fail
     character: glitch
     message: It seems your command failed! Try something else.
     if_command: rm
     if_args_contain: -rf
-- id: new_quest_001_obj_2
-  type: path_exists
-  description: Create a file named 'report.txt' in your home directory.
-  hint: Use 'touch' to create a file.
-  criteria:
-    path: ~/some/directory/or/file
-    type: file
-  on_complete_script: []
-  on_command_fail_script: []
-  required_cwd: '~'
-- id: new_quest_001_obj_3
-  type: file_contains
-  description: Add the text 'mission critical' to 'report.txt'.
-  hint: You might need to use 'echo' and redirection (>) or (>>).
-  criteria:
-    path: ~/some/file.txt
-    content: expected_text_inside_file
-  on_complete_script: []
-  on_command_fail_script: []
-  required_cwd: '~'
-on_load_sync:
-- action: spawn_tracked_dir
-  path: ~/data
-- action: spawn_tracked_file
-  path: ~/data/secret.md
-  content: The password is {{secret_password}}.
-- action: generate_and_save_password
-on_hard_fail_script:
-- action: say
-  character: hunter
-  message: You made a critical error. Restarting quest.
-- action: reset_current_quest
 
+  # Action: reset_current_quest
+  - action: reset_current_quest
 
---- Example Objective Templates (by type) ---
+  # Action: conditional_hard_fail
+  - action: conditional_hard_fail
+    if_command: rm
+    if_args_contain: -rf
+    if_return_code: 1
 
-# Objective Type: command_run
-id: example_command_run
-type: command_run
-description: Complete this task using a 'command_run' objective.
-hint: Hint for 'command_run' objective.
-criteria:
-  command: expected_command_name
-on_complete_script: []
-on_command_fail_script: []
+  # Action: generate_and_save_password
+  - action: generate_and_save_password
 
-
-# Objective Type: path_exists
-id: example_path_exists
-type: path_exists
-description: Complete this task using a 'path_exists' objective.
-hint: Hint for 'path_exists' objective.
-criteria:
-  path: ~/some/directory/or/file
-  type: file
-on_complete_script: []
-on_command_fail_script: []
-
-
-# Objective Type: file_contains
-id: example_file_contains
-type: file_contains
-description: Complete this task using a 'file_contains' objective.
-hint: Hint for 'file_contains' objective.
-criteria:
-  path: ~/some/file.txt
-  content: expected_text_inside_file
-on_complete_script: []
-on_command_fail_script: []
-
-
-# Objective Type: any_command
-id: example_any_command
-type: any_command
-description: Complete this task using a 'any_command' objective.
-hint: Hint for 'any_command' objective.
-criteria: {}
-on_complete_script: []
-on_command_fail_script: []
-
-
-# Objective Type: cwd_is
-id: example_cwd_is
-type: cwd_is
-description: Complete this task using a 'cwd_is' objective.
-hint: Hint for 'cwd_is' objective.
-criteria:
-  path: ~/expected/current/directory
-on_complete_script: []
-on_command_fail_script: []
-
-
-# Objective Type: path_not_exists
-id: example_path_not_exists
-type: path_not_exists
-description: Complete this task using a 'path_not_exists' objective.
-hint: Hint for 'path_not_exists' objective.
-criteria:
-  path: ~/path/that/should/not/exist
-on_complete_script: []
-on_command_fail_script: []
-
-
-# Objective Type: manual_complete
-id: example_manual_complete
-type: manual_complete
-description: Complete this task using a 'manual_complete' objective.
-hint: Hint for 'manual_complete' objective.
-criteria: {}
-on_complete_script: []
-on_command_fail_script: []
-
-
-# Objective Type: multi_path_exists
-id: example_multi_path_exists
-type: multi_path_exists
-description: Complete this task using a 'multi_path_exists' objective.
-hint: Hint for 'multi_path_exists' objective.
-criteria:
-- path: ~/path/to/file1
-  type: file
-  exist: true
-- path: ~/path/to/dir2
-  type: dir
-  exist: false
-on_complete_script: []
-on_command_fail_script: []
-
-
---- Example Action Templates (by name) ---
-
-# Action: say
-action: say
-character: cypher
-message: This is a dialogue message from the character.
-
-
-# Action: advance_objective
-action: advance_objective
-
-
-# Action: advance_quest
-action: advance_quest
-
-
-# Action: track_dir
-action: track_dir
-path: ~/path/to/directory/to/track
-
-
-# Action: track_file
-action: track_file
-path: ~/path/to/file/to/track
-
-
-# Action: untrack_file
-action: untrack_file
-path: ~/path/to/file/to/untrack
-
-
-# Action: spawn_tracked_file
-action: spawn_tracked_file
-path: ~/path/to/new_file.txt
-content: This is the content of the new file.
-
-
-# Action: spawn_tracked_dir
-action: spawn_tracked_dir
-path: ~/path/to/new_directory
-
-
-# Action: conditional_say_on_fail
-action: conditional_say_on_fail
-character: glitch
-message: It seems your command failed! Try something else.
-if_command: rm
-if_args_contain: -rf
-
-
-# Action: reset_current_quest
-action: reset_current_quest
-
-
-# Action: conditional_hard_fail
-action: conditional_hard_fail
-if_command: rm
-if_args_contain: -rf
-if_return_code: 1
-
-
-# Action: generate_and_save_password
-action: generate_and_save_password
-
-
-# Action: cleanup_all_tracked_files
-action: cleanup_all_tracked_files
-
-
---- End of Templates ---
-Remember to adjust IDs, descriptions, criteria, and scripts to your quest's needs.
+  # Action: cleanup_all_tracked_files
+  - action: cleanup_all_tracked_files
