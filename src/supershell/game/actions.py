@@ -28,6 +28,59 @@ def _action_say_speech(character: str, messages: list[str]):
     dialogue.say_speech(speech=messages, character=character)
 
 
+def _action_conditional_say_speech(
+    character: str,
+    messages: list[str],
+    condition: dict,
+):
+    """
+    Conditionally displays a list of speech messages based on various criteria.
+    Current conditions supported:
+    - objective_not_completed: Checks if a specific objective is NOT yet completed.
+    """
+    should_say = False
+    objective_id_not_completed = condition.get("objective_not_completed")
+
+    if objective_id_not_completed:
+        obj = quest_manager.get_completed_objective(objective_id_not_completed)
+        if obj and not obj.completed:  # Objective exists and is NOT completed
+            should_say = True
+        elif not obj:  # Objective doesn't exist, assume it's not completed
+            should_say = True
+        else:
+            log.debug(
+                f"Objective '{objective_id_not_completed}' is already completed. Skipping conditional speech."
+            )
+
+    if should_say:
+        dialogue.say_speech(speech=messages, character=character)
+    else:
+        log.debug(f"Conditional say speech skipped due to unmet condition: {condition}")
+
+
+def _action_conditional_say(
+    character: str,
+    message: str,
+    condition: dict,
+):
+    """
+    Conditionally displays a single message based on various criteria.
+    This is a general-purpose conditional 'say' and its conditions
+    need to be explicitly defined based on use-cases.
+
+    Example:
+    - always_true: A simple condition that always evaluates to true (for testing/placeholding).
+    """
+    should_say = False
+    if condition.get("always_true"):
+        should_say = True
+
+    if should_say:
+        dialogue.say(message, character=character)
+    else:
+        log.debug(f"Conditional say skipped due to unmet condition: {condition}")
+
+
 def _action_advance_objective():
     """Tells the quest manager to advance."""
     quest = quest_manager.get_current_quest()
@@ -178,6 +231,8 @@ def _action_cleanup_all_tracked_files():
 ACTION_REGISTRY = {
     "say": _action_say,
     "say_speech": _action_say_speech,
+    "conditional_say_speech": _action_conditional_say_speech,
+    "conditional_say": _action_conditional_say,
     "advance_objective": _action_advance_objective,
     "advance_quest": _action_advance_quest,
     "track_dir": _action_track_dir,
