@@ -4,8 +4,6 @@ Handles all TUI output for in-game characters.
 
 import time
 
-# New: Import quest_manager to access the generated secret password
-from supershell.game import quest_manager
 from supershell.tui import effects
 from supershell.tui.console import get_console
 
@@ -28,15 +26,6 @@ def say(message: str, character: str = "cypher"):
     """
     # Look up the character's properties
     props = CHARACTER_PROPERTIES.get(character, CHARACTER_PROPERTIES["system"])
-
-    # New: Dynamic replacement for secret_password
-    if (
-        "{{secret_password}}" in message
-        and quest_manager._last_generated_secret_password
-    ):
-        message = message.replace(
-            "{{secret_password}}", quest_manager._last_generated_secret_password
-        )
 
     # Call the typewriter tool with the character's properties
     effects.typewriter_print(
