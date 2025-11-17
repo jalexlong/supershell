@@ -1,216 +1,231 @@
 import logging
 import os
+from typing import List
 
+from supershell.game import quest_manager
 from supershell.game.base_quest import BaseQuest
 from supershell.game.models import Objective
+from supershell.shell.executor import CommandResult
 from supershell.tui import dialogue
 
 log = logging.getLogger(__name__)
 
 
 class Quest(BaseQuest):
-    id = "quest_01_boot_camp"
-    title = "Boot Camp"
-    description = "Time for your first lesson. We'll learn the basics: how to look, move, and build."
-
-    objectives = [
-        Objective(
-            id="01_a_whoami",
-            type="command_run",
-            description="Learn who you're logged in as.",
-            criteria={"command": "whoami"},
-            hint="Type `whoami` to see your user.",
-        ),
-        Objective(
-            id="01_b_pwd",
-            type="command_run",
-            description="Find your 'Present Working Directory.'",
-            criteria={"command": "pwd"},
-            hint="Type `pwd` to see your 'present working directory'.",
-        ),
-        Objective(
-            id="01_c_mkdir",
-            type="path_exists",
-            description="Make a directory named 'bootcamp'.",
-            criteria={"path": "~/bootcamp", "type": "dir"},
-            hint="Make a practice folder: `mkdir bootcamp`",
-        ),
-        Objective(
-            id="01_d_cd",
-            type="cwd_is",
-            description="Change directories into 'bootcamp'.",
-            criteria={"path": "~/bootcamp"},
-            hint="Now, 'change directory' into it: `cd bootcamp`",
-        ),
-        Objective(
-            id="01_e_touch",
-            type="path_exists",
-            description="Make a new file named 'test.txt'.",
-            criteria={"path": "~/bootcamp/test.txt", "type": "file"},
-            hint="Create an empty file: `touch test.txt`",
-        ),
-        Objective(
-            id="01_f_mv",
-            type="path_exists",
-            description="",
-            criteria={"path": "~/bootcamp/test_renamed.txt", "type": "file"},
-            hint="Let's rename it. `mv` is for 'move', but it's also for renaming: `mv test.txt test_renamed.txt`",
-        ),
-        Objective(
-            id="01_g_cp",
-            type="path_exists",
-            description="",
-            criteria={"path": "~/bootcamp/test_copy.txt", "type": "file"},
-            hint="Use `cp` to 'copy' the file: `cp test_renamed.txt test_copy.txt`",
-        ),
-        Objective(
-            id="01_h_ls",
-            type="path_exists",
-            description="",
-            criteria={"path": "~/bootcamp/test_copy.txt", "type": "file"},
-            hint="Use `ls` to 'list' the contents of the directory: `ls`",
-        ),
-        Objective(
-            id="01_i_rm",
-            type="path_not_exists",
-            description="",
-            criteria={"path": "~/bootcamp/test_renamed.txt"},
-            hint="Let's clean up. `rm` will 'remove' the original: `rm test_renamed.txt`",
-        ),
-    ]
+    def __init__(self):
+        super().__init__()
+        self.id = "quest_01_boot_camp"
+        self.title = "Boot Camp"
+        self.description = "Time for your first lesson. We'll learn the basics: how to look, move, and build."
+        self.objectives: List[Objective] = [
+            Objective(
+                id="01_a_whoami",
+                description="Learn who you're logged in as.",
+                type="command_run",
+                criteria={"command": "whoami"},
+                hint="Type `whoami` to see your user.",
+            ),
+            Objective(
+                id="01_b_pwd",
+                description="Find your 'Present Working Directory.'",
+                type="command_run",
+                criteria={"command": "pwd"},
+                hint="Type `pwd` to see your 'present working directory'.",
+            ),
+            Objective(
+                id="01_c_mkdir",
+                description="Make a directory named 'bootcamp'.",
+                type="path_exists",
+                criteria={"path": "~/bootcamp", "type": "dir"},
+                hint="Make a practice folder: `mkdir bootcamp`",
+            ),
+            Objective(
+                id="01_d_cd",
+                description="Change directories into 'bootcamp'.",
+                type="cwd_is",
+                criteria={"path": "~/bootcamp"},
+                hint="Now, 'change directory' into it: `cd bootcamp`",
+                required_cwd="~",
+            ),
+            Objective(
+                id="01_e_touch",
+                description="Make a new file named 'test.txt'.",
+                type="path_exists",
+                criteria={"path": "~/bootcamp/test.txt", "type": "file"},
+                hint="Create an empty file: `touch test.txt`",
+                required_cwd="~/bootcamp",
+            ),
+            Objective(
+                id="01_f_mv",
+                description="Rename 'test.txt' to 'test_renamed.txt'",
+                type="checklist",
+                criteria=[
+                    {
+                        "type": "path_not_exists",
+                        "criteria": {"path": "~/bootcamp/test.txt"},
+                    },
+                    {
+                        "type": "path_exists",
+                        "criteria": {
+                            "path": "~/bootcamp/test_renamed.txt",
+                            "type": "file",
+                        },
+                    },
+                ],
+                hint="Let's rename it: `mv test.txt test_renamed.txt`",
+                required_cwd="~/bootcamp",
+            ),
+            Objective(
+                id="01_g_cp",
+                description="Copy 'test_renamed.txt' to 'test_copy.txt'",
+                type="path_exists",
+                criteria={"path": "~/bootcamp/test_copy.txt", "type": "file"},
+                hint="Use `cp` to 'copy' the file: `cp test_renamed.txt test_copy.txt`",
+                required_cwd="~/bootcamp",
+            ),
+            Objective(
+                id="01_h_ls",
+                description="List the contents of the directory.",
+                type="command_run",
+                criteria={"command": "ls"},
+                hint="Use `ls` to 'list' the contents of the directory: `ls`",
+                required_cwd="~/bootcamp",
+            ),
+            Objective(
+                id="01_i_rm",
+                description="Remove 'test_copy.txt'",
+                type="path_not_exists",
+                criteria={"path": "~/bootcamp/test_copy.txt"},
+                hint="Let's clean up. `rm` will 'remove' the copy: `rm test_copy.txt`",
+                required_cwd="~/bootcamp",
+                fail_type="path_not_exists",
+                fail_criteria={"path": "~/bootcamp/test_renamed.txt"},
+            ),
+        ]
+        super().__post_init__()
 
     def on_quest_start(self):
-        dialogue.say("Oh, hi there! I've never seen you around here before. You must")
-        dialogue.say("be new to this system...")
-        dialogue.say("Well, welcome to Bash! This is the command line, where you have")
-        dialogue.say("[italic]complete[/italic] control over your system.")
-        dialogue.say("You type in 'commands' to perform actions on the command line.")
-        dialogue.say("In fact, to let you get some hands on experience now, let's run")
-        dialogue.say("through a Bash Bootcamp!")
-        dialogue.say("Let's start with who you are. To see who you're logged in as,")
-        dialogue.say("you can use the 'whoami' command. Try it now! Type 'whoami' into")
-        dialogue.say("the command line and press 'Enter' now.")
+        speech = [
+            "Oh, hi there! I've never seen you around here before. You must be new to this system...",
+            "Well, welcome to Bash! This is the command line, where you have [italic]complete[/italic] control over your system.",
+            "You type in 'commands' to perform actions on the command line.",
+            "In fact, to let you get some hands on experience now, let's run through a Bash Bootcamp!",
+            "Let's start with who you are. To see who you're logged in as, you can use the 'whoami' command. Try it now!",
+            "Type 'whoami' into the command line and press 'Enter' now.",
+        ]
+        dialogue.say_speech(speech, character="cypher")
 
     def on_objective_complete(self, completed_id: str, obj: Objective):
-        # Track our created files for the main cleanup function
         if completed_id == "01_a_whoami":
-            dialogue.say("That's you! Sometimes it helps to just know who you're")
-            dialogue.say("logged in as on a system...")
-            dialogue.say("Now it's time to find out [italic]where[/italic] we are...")
-            dialogue.say("Do you ever get to doing something and then completely")
-            dialogue.say("forget where you are?...")
-            dialogue.say("Yeah, me neither. But if you ever get lost, it never hurts")
-            dialogue.say("to find your 'Present Working Directory', or 'pwd' for")
-            dialogue.say("short. Try running the 'pwd' command now.")
+            speech = [
+                "That's you! Sometimes it helps to just know who you're logged in as on a system...",
+                "Now it's time to find out [italic]where[/italic] we are...",
+                "Try running the 'pwd' command now.",
+            ]
+            dialogue.say_speech(speech, character="cypher")
 
         elif completed_id == "01_b_pwd":
             user = os.getlogin()
-            dialogue.say(f"Good. `/home/{user}/`. That's your home directory. Your")
-            dialogue.say("corner of the system. This directory holds all of your")
-            dialogue.say("personal files and directories. Its nickname is '~', btw...")
-            dialogue.say("Now, let's make our own directory to play around in.")
-            dialogue.say("To make a directory, we just type in 'mkdir', a space, and")
-            dialogue.say("then the name of the directory we want to create. Try using")
-            dialogue.say("'mkdir' now to make a directory named 'bootcamp'.")
+            speech = [
+                f"Good. `/home/{user}/`. That's your home directory. Your corner of the system. Its nickname is `~`, by the way...",
+                "Now, let's make our own directory to play around in.",
+                "Try using 'mkdir' now to make a directory named 'bootcamp'.",
+            ]
+            dialogue.say_speech(speech, character="cypher")
 
         elif completed_id == "01_c_mkdir":
-            dialogue.say("Nice. A little sandbox for us to play in.")
-            dialogue.say("Okay, so now that the directory is made, we need to actually")
-            dialogue.say("move inside of it. Think of directories like a building for")
-            dialogue.say("other files and folders.")
+            speech = [
+                "Nice. A little sandbox for us to play in.",
+                "To 'change directory', use the `cd` command. Try it: `cd bootcamp`",
+            ]
+            dialogue.say_speech(speech, character="cypher")
             self._tracked_dirs.add(os.path.expanduser("~/bootcamp"))
 
         elif completed_id == "01_d_cd":
-            user = os.getlogin()
-            dialogue.say("You're in the directory now. Nice. When the prompt shows")
-            dialogue.say("up, you will see that you're in the bootcamp directory...")
-            dialogue.say("Before we continue, let me make sure you understand")
-            dialogue.say("how the 'path' system works in Bash.")
-            dialogue.say(f"Right now, you're in '/home/{user}/bootcamp/'...")
-            dialogue.say(f"But there's another way to refer to the 'home/{user}/'")
-            dialogue.say("directory. You can use '~' to refer to your home directory.")
-            dialogue.say("That means that '~/bootcamp/' is the same as")
-            dialogue.say(f"'/home/{user}/bootcamp/'...")
-            dialogue.say(f"So basically, '~' is the same as '/home/{user}/'")
-            dialogue.say("Another thing to note is that directories end with a '/'")
-            dialogue.say("so you can distinguish them from files...")
-            dialogue.say("That way, you can easily navigate your file system without")
-            dialogue.say("wondering what is a file or what is a folder...")
-            dialogue.say("Alright, now it's time to make our very first file.")
-            dialogue.say("To make a file, we just type in 'touch', a space, and")
-            dialogue.say("then the name of the file you want to create. Try using")
-            dialogue.say("the name 'test.txt'.")
+            speech = [
+                "You're in the directory now. See? The prompt changed.",
+                "Alright, let's make our very first file. Try `touch test.txt`.",
+            ]
+            dialogue.say_speech(speech, character="cypher")
 
         elif completed_id == "01_e_touch":
-            dialogue.say("Perfect. You've created a file. Files made with 'touch' are")
-            dialogue.say("empty, so don't expect them to have anything inside them...")
-            dialogue.say("But let's say that we accidentally gave 'test.txt' the")
-            dialogue.say("wrong name. We need to rename it! To do that in Bash, you")
-            dialogue.say("just use the 'mv' command. Normally, the 'mv' command is")
-            dialogue.say("used to *move* files, but you can also use it to *rename*")
-            dialogue.say("files instead. Try to rename the 'test.txt' file to")
-            dialogue.say("'test_renamed.txt'...")
-            dialogue.say("By the way, if you ever need help or get stuck, you can")
-            dialogue.say("always just ask for my help by running the 'cypher' command.")
-            dialogue.say("Okay, now let's rename that file!")
+            speech = [
+                "Perfect. You've created a file. Files made with 'touch' are empty.",
+                "But let's say we accidentally gave it the wrong name. We need to rename it!",
+                "In Bash, you `mv` (move) files to rename them. Try `mv test.txt test_renamed.txt`",
+            ]
+            dialogue.say_speech(speech, character="cypher")
             self._tracked_files.add(os.path.expanduser("~/bootcamp/test.txt"))
 
         elif completed_id == "01_f_mv":
-            dialogue.say("See? `mv` is a 2-for-1. Now, let's make a backup.")
-            dialogue.say("It's always good to have an extra copy of important")
-            dialogue.say("files, so let's practice on our 'test_renamed.txt' file.")
-            dialogue.say("To make a copy of a file or directory, just type 'cp' and")
-            dialogue.say("then the name of the file/directory to copy, and then where")
-            dialogue.say("you want to store that copy...")
-            dialogue.say("For example, 'cp file.txt backup_file.txt' will copy")
-            dialogue.say("a file named 'file.txt' and name that copy")
-            dialogue.say("'backup_file.txt'...")
-            dialogue.say("I want you to copy your 'test_renamed.txt' file and name")
-            dialogue.say("it 'test_copy.txt'. Try it now!")
+            speech = [
+                "See? `mv` is a 2-for-1. Now, let's make a backup.",
+                "Copy 'test_renamed.txt' and name it 'test_copy.txt'. Try it now!",
+            ]
+            dialogue.say_speech(speech, character="cypher")
             self._tracked_files.remove(os.path.expanduser("~/bootcamp/test.txt"))
             self._tracked_files.add(os.path.expanduser("~/bootcamp/test_renamed.txt"))
 
         elif completed_id == "01_g_cp":
-            dialogue.say("Great. Now you have two files. Let's take a look at them")
-            dialogue.say("with 'ls' to make sure our files look just like they're")
-            dialogue.say("supposed to...")
+            dialogue.say(
+                "Great. Now you have two files. Let's take a look at them with `ls`.",
+                character="cypher",
+            )
             self._tracked_files.add(os.path.expanduser("~/bootcamp/test_copy.txt"))
 
         elif completed_id == "01_h_ls":
-            dialogue.say("Fantastic! You're starting to get better at the command")
-            dialogue.say("line...")
+            speech = [
+                "Fantastic! You're starting to get better at this.",
+                "Let's clean up. `rm` will 'remove' the *copy*. Be careful, there's no undo!",
+                "Run `rm test_copy.txt`",
+            ]
+            dialogue.say_speech(speech, character="cypher")
+
         elif completed_id == "01_i_rm":
-            dialogue.say("And it's gone. *Poof*...")
-            dialogue.say("Be careful with 'rm'. It doesn't ask twice...")
-            self._tracked_files.remove(
-                os.path.expanduser("~/bootcamp/test_renamed.txt")
-            )
+            dialogue.say("And it's gone. *Poof*... See? Permanent.", character="cypher")
+            self._tracked_files.remove(os.path.expanduser("~/bootcamp/test_copy.txt"))
+
+    def on_objective_failure(self, command_result: CommandResult):
+        active_obj = quest_manager.get_active_objective()
+        if not active_obj:
+            return
+
+        if active_obj.id == "01_i_rm":
+            if (
+                "rm" in command_result.command
+                and "test_renamed.txt" in command_result.command
+            ):
+                speech = [
+                    "Whoa! Good try, but that's the *original* file.",
+                    "We're trying to remove `test_copy.txt`. Leave the original alone!",
+                ]
+                dialogue.say_speech(speech, character="cypher")
+            else:
+                dialogue.say(
+                    f"Not quite. Try this: {active_obj.hint}", character="cypher"
+                )
+        else:
+            if command_result.return_code == 0:
+                dialogue.say(
+                    f"That's not it. Remember: {active_obj.hint}", character="cypher"
+                )
+            else:
+                dialogue.say(
+                    f"That didn't seem to work. Remember: {active_obj.hint}",
+                    character="cypher",
+                )
 
     def sync_world_state(self, completed_ids: set[str]):
-        """
-        Re-spawns files for this quest based on saved progress.
-        """
         log.info(f"Syncing world state for {self.id}...")
 
-        # If 'mkdir' is done, the 'safehouse' should exist.
         if "01_c_mkdir" in completed_ids:
             self._spawn_dir("~/bootcamp")
-
-        # If 'touch' is done...
         if "01_e_touch" in completed_ids:
-            # ...but 'mv' is NOT...
             if "01_f_mv" not in completed_ids:
-                # ...then 'test.txt' should be in the bootcamp dir.
                 self._spawn_file("~/bootcamp/test.txt")
-
-        # If 'mv' is done...
         if "01_f_mv" in completed_ids:
-            # ...but 'rm' is NOT...
-            if "01_h_rm" not in completed_ids:
-                # ...then 'test_renamed.txt' should be there.
+            if "01_i_rm" not in completed_ids:
                 self._spawn_file("~/bootcamp/test_renamed.txt")
-
-        # If 'cp' is done...
-        if "01_g_cp" in completed_ids:
-            # ...then 'test_copy.txt' should be there.
-            self._spawn_file("~/bootcamp/test_copy.txt")
+        if "0D1_g_cp" in completed_ids:
+            if "01_i_rm" not in completed_ids:
+                self._spawn_file("~/bootcamp/test_copy.txt")

@@ -1,25 +1,21 @@
-"""
-Data models for Quests and Objectives.
-"""
-
-from dataclasses import dataclass
-from typing import Any
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Union
 
 
 @dataclass
 class Objective:
-    """Represents a single task for the player."""
-
     id: str
     description: str
-    type: str  # e.g., "command_run", "path_exists"
-    criteria: dict[str, Any]
+    type: str
+    criteria: Union[Dict[str, Any], List[Dict[str, Any]]]
     hint: str
     completed: bool = False
+    fail_type: str | None = None
+    fail_criteria: dict[str, Any] = field(default_factory=dict)
+    required_cwd: str | None = None
 
     @classmethod
     def from_dict(cls, data: dict):
-        """Creates an Objective from a dictionary."""
         return cls(
             id=data["id"],
             description=data["description"],

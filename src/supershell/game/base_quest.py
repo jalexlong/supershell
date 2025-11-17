@@ -1,57 +1,45 @@
-"""
-This is the "template" (Base Class) for all quests.
-"""
-
 import logging
 import os
 import shutil
+from typing import List, Set
 
 from supershell.game import quest_manager
 from supershell.game.models import Objective
+from supershell.shell.executor import CommandResult
 from supershell.tui import dialogue
 
 log = logging.getLogger(__name__)
 
 
 class BaseQuest:
-    id: str = "base_quest"
-    title: str = "Base Quest"
-    description: str = "A template for a quest."
-    objectives: list[Objective] = []
-
     def __init__(self):
-        """
-        Initializes the quest. We'll add a list
-        to track all files this quest creates.
-        """
-        self._tracked_files = set()
-        self._tracked_dirs = set()
+        self.id: str = "base_quest"
+        self.title: str = "Base Quest"
+        self.description: str = "A template for a quest."
+        self.objectives: List[Objective] = []
+        self._tracked_files: Set[str] = set()
+        self._tracked_dirs: Set[str] = set()
 
-        # Reset all objectives on load
+        self.__post_init__()
+
+    def __post_init__(self):
         for obj in self.objectives:
             obj.completed = False
 
     def on_quest_start(self):
-        """
-        A "cutscene" function that runs ONCE when this
-        quest is first loaded.
-        """
-        # The base version does nothing.
-        # Child quests will override this.
         pass
 
     def on_objective_complete(self, completed_id: str, obj: Objective):
-        """
-        Runs when an objective is finished.
-        Quests override this to add custom dialogue and events.
-        """
-        # The base version just prints the default success message.
         pass
 
+    def on_objective_failure(self, command_result: CommandResult):
+        active_obj = quest_manager.get_active_objective()
+        if active_obj:
+            dialogue.say(
+                f"That's not quite it. Hint: {active_obj.hint}", character="cypher"
+            )
+
     def handle_event(self, completed_id: str, obj: Objective):
-        """
-        Advances the quest to the next objective or starts the next quest.
-        """
         self.on_objective_complete(completed_id, obj)
 
         is_quest_still_active = quest_manager.advance_to_next_objective()
@@ -63,24 +51,12 @@ class BaseQuest:
                 )
 
     def sync_world_state(self, completed_ids: set[str]):
-        """
-        Called on game load. Re-creates any necessary files
-        based on the full list of completed objectives.
-
-        Args:
-            completed_ids: A *set* of all completed objective IDs
-                           from the save file.
-        """
-        # This base quest does nothing.
-        # Child quests will override this.
         pass
 
     def _spawn_file(self, path: str, content: str = ""):
-        """
-        Creates a file AND tracks it for cleanup.
-        """
         full_path = os.path.expanduser(path)
         try:
+            os.makedirs(os.path.dirname(full_path), exist_ok=True)
             with open(full_path, "w") as f:
                 f.write(content)
             log.info(f"Spawned file: {full_path}")
@@ -89,23 +65,15 @@ class BaseQuest:
             log.error(f"Could not create file {full_path}: {e}")
 
     def _spawn_dir(self, path: str):
-        """
-        Creates a directory AND tracks it for cleanup.
-        """
         full_path = os.path.expanduser(path)
         try:
-            os.mkdir(full_path)
+            os.makedirs(full_path, exist_ok=True)
             log.info(f"Spawned tracked directory: {full_path}")
             self._tracked_dirs.add(full_path)
-        except FileExistsError:
-            log.warning(f"Tracked directory {full_path} already exists.")
         except (IOError, OSError) as e:
             log.error(f"Could not create directory {full_path}: {e}")
 
     def _cleanup_quest_files(self):
-        """
-        Removes all files and dirs created by this quest.
-        """
         log.info(f"Cleaning up files for quest: {self.id}")
         for f_path in self._tracked_files:
             try:
