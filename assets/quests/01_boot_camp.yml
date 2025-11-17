@@ -2,258 +2,265 @@ id: "quest_01_boot_camp"
 title: "Boot Camp"
 description: "Time for your first lesson. We'll learn the basics: how to look, move, and build."
 
-# This script runs ONCE when the quest starts
 on_quest_start:
-  - action: "say"
-    character: "cypher"
-    message: "Oh, hi there! I've never seen you around here before. You must be new to this system..."
-  - action: "say"
-    character: "cypher"
-    message: "Well, welcome to Bash! This is the command line, where you have [italic]complete[/italic] control over your system."
-  - action: "say"
-    character: "cypher"
-    message: "You type in 'commands' to perform actions on the command line."
-  - action: "say"
-    character: "cypher"
-    message: "In fact, to let you get some hands on experience now, let's run through a Bash Bootcamp!"
-  - action: "say"
-    character: "cypher"
-    message: "Let's start with who you are. To see who you're logged in as, you can use the 'whoami' command. Try it now!"
-
-on_hard_fail_script:
-  - action: "say"
-    character: "system"
-    message: "[bold red]CRITICAL FAILURE:[/bold red] You've made a mistake that requires a full quest restart."
-  - action: "say"
-    character: "cypher"
-    message: "Whoops! Looks like that was a major screw-up. Don't worry, we'll just start this lesson over. Try to be more careful next time, okay?"
-  - action: "reset_current_quest"
+  - action: say_speech
+    character: cypher
+    messages:
+      - "Oh, hi there! I've never seen you around here before. You must be new to this system..."
+      - "Well, welcome to Bash! This is the command line, where you have [italic]complete[/italic] control over your system."
+      - "You type in 'commands' to perform actions on the command line."
+      - "In fact, to let you get some hands on experience now, let's run through a Bash Bootcamp!"
+      - "Let's start with who you are. To see who you're logged in as, you can use the 'whoami' command. Try it now!"
+      - "Type 'whoami' into the command line and press 'Enter' now."
+  # Note: The first objective is advanced by the event_handler on game start, not an action.
 
 objectives:
   - id: "01_a_whoami"
-    description: "Learn who you're logged in as."
     type: "command_run"
-    criteria: { command: "whoami" }
+    description: "Learn who you're logged in as."
+    criteria:
+      command: "whoami"
     hint: "Type `whoami` to see your user."
-    required_cwd: "~" # Requires player to be in home directory
-    on_command_fail_script:
-      - action: "conditional_say_on_fail"
-        character: "cypher"
-        message: "Not quite. Remember, we're trying to figure out who you are. Try the `whoami` command!"
-        if_command: "ls" # Example of a common wrong command
-        if_return_code: 0 # Only if ls itself succeeds, otherwise system error
-      - action: "say"
-        character: "cypher"
-        message: "Remember, we're trying to figure out who you are. Try the `whoami` command!"
     on_complete_script:
-      - action: "say"
-        character: "cypher"
-        message: "That's you! Sometimes it helps to just know who you're logged in as..."
-      - action: "say"
-        character: "cypher"
-        message: "Now it's time to find out [italic]where[/italic] we are..."
-      - action: "say"
-        character: "cypher"
-        message: "Try running the 'pwd' command now."
-      - action: "advance_objective"
+      - action: say_speech
+        character: cypher
+        messages:
+          - "That's you! Sometimes it helps to just know who you're logged in as on a system..."
+          - "Now it's time to find out [italic]where[/italic] we are..."
+          - "Try running the 'pwd' command now."
+      - action: advance_objective
 
   - id: "01_b_pwd"
-    description: "Find your 'Present Working Directory.'"
     type: "command_run"
-    criteria: { command: "pwd" }
+    description: "Find your 'Present Working Directory.'"
+    criteria:
+      command: "pwd"
     hint: "Type `pwd` to see your 'present working directory'."
-    required_cwd: "~" # Requires player to be in home directory
-    on_command_fail_script:
-      - action: "say"
-        character: "cypher"
-        message: "Not quite. We need to find your current location. Type `pwd`."
     on_complete_script:
-      - action: "say"
-        character: "cypher"
-        message: "Good. `~`. That's your home directory. Our little corner of the system."
-      - action: "say"
-        character: "cypher"
-        message: "Its nickname is `~`, btw... Now, let's make our own directory to play around in."
-      - action: "say"
-        character: "cypher"
-        message: "Try using 'mkdir' now to make a directory named 'bootcamp'."
-      - action: "advance_objective"
+      - action: say_speech
+        character: cypher
+        messages:
+          - "Good. That's your home directory. Your corner of the system. Its nickname is `~`, by the way..."
+          - "Now, let's make our own directory to play around in."
+          - "Try using 'mkdir' now to make a directory named 'bootcamp'."
+      - action: advance_objective
 
   - id: "01_c_mkdir"
-    description: "Make a directory named 'bootcamp'."
     type: "path_exists"
-    criteria: { path: "~/bootcamp", type: "dir" }
+    description: "Make a directory named 'bootcamp'."
+    criteria:
+      path: "~/bootcamp"
+      type: "dir"
     hint: "Make a practice folder: `mkdir bootcamp`"
-    required_cwd: "~" # Requires player to be in home directory
-    on_command_fail_script:
-      - action: "say"
-        character: "cypher"
-        message: "Remember, `mkdir` creates a new directory. We need one named `bootcamp`."
     on_complete_script:
-      - action: "track_dir" # <-- This is our custom logic action
+      - action: say_speech
+        character: cypher
+        messages:
+          - "Nice. A little sandbox for us to play in."
+          - "To 'change directory', use the `cd` command. Try it: `cd bootcamp`"
+      - action: track_dir # <-- Replaces self._tracked_dirs.add()
         path: "~/bootcamp"
-      - action: "say"
-        character: "cypher"
-        message: "Nice. A little sandbox for us to play in."
-      - action: "say"
-        character: "cypher"
-        message: "To 'change directory', use the `cd` command. Try it: `cd bootcamp`"
-      - action: "advance_objective"
+      - action: advance_objective
 
   - id: "01_d_cd"
-    description: "Change directories into 'bootcamp'."
     type: "cwd_is"
-    criteria: { path: "~/bootcamp" }
+    description: "Change directories into 'bootcamp'."
+    criteria:
+      path: "~/bootcamp"
     hint: "Now, 'change directory' into it: `cd bootcamp`"
-    required_cwd: "~" # Player should be in home dir *before* this command
-    on_command_fail_script:
-      - action: "say"
-        character: "cypher"
-        message: "You need to change your current directory. Use `cd bootcamp`."
     on_complete_script:
-      - action: "say"
-        character: "cypher"
-        message: "You're in the directory now. See? The prompt changed."
-      - action: "say"
-        character: "cypher"
-        message: "Alright, let's make our very first file. Try `touch test.txt`."
-      - action: "advance_objective"
+      - action: say_speech
+        character: cypher
+        messages:
+          - "You're in the directory now. See? The prompt changed."
+          - "Alright, let's make our very first file. Try `touch test.txt`."
+      - action: advance_objective
 
   - id: "01_e_touch"
-    description: "Make a new file named 'test.txt'."
     type: "path_exists"
-    criteria: { path: "~/bootcamp/test.txt", type: "file" }
+    description: "Make a new file named 'test.txt'."
+    criteria:
+      path: "~/bootcamp/test.txt"
+      type: "file"
     hint: "Create an empty file: `touch test.txt`"
-    required_cwd: "~/bootcamp" # Requires player to be in bootcamp directory
-    on_command_fail_script:
-      - action: "say"
-        character: "cypher"
-        message: "We need an empty file named `test.txt` in your current directory. Try `touch test.txt`."
+    required_cwd: "~/bootcamp"
     on_complete_script:
-      - action: "track_file" # <-- Custom action
+      - action: say_speech
+        character: cypher
+        messages:
+          - "Perfect. You've created a file. Files made with 'touch' are empty."
+          - "But let's say we accidentally gave it the wrong name. We need to rename it!"
+          - "In Bash, you `mv` (move) files to rename them. Try `mv test.txt test_renamed.txt`"
+      - action: track_file # <-- Replaces self._tracked_files.add()
         path: "~/bootcamp/test.txt"
-      - action: "say"
-        character: "cypher"
-        message: "Perfect. You've created a file. Files made with 'touch' are empty."
-      - action: "say"
-        character: "cypher"
-        message: "But let's say we accidentally gave it the wrong name. We need to rename it!"
-      - action: "say"
-        character: "cypher"
-        message: "In Bash, you `mv` (move) files to rename them. Try to rename 'test.txt' to 'test_renamed.txt'."
-      - action: "advance_objective"
+      - action: advance_objective
 
   - id: "01_f_mv"
-    description: "Rename 'test.txt' to 'test_renamed.txt'."
-    type: "path_exists"
-    criteria: { path: "~/bootcamp/test_renamed.txt", type: "file" }
+    type: "checklist"
+    description: "Rename 'test.txt' to 'test_renamed.txt'"
+    criteria:
+      - type: path_not_exists
+        criteria:
+          path: "~/bootcamp/test.txt"
+      - type: path_exists
+        criteria:
+          path: "~/bootcamp/test_renamed.txt"
+          type: "file"
     hint: "Let's rename it: `mv test.txt test_renamed.txt`"
-    required_cwd: "~/bootcamp" # Requires player to be in bootcamp directory
-    on_command_fail_script:
-      - action: "say"
-        character: "cypher"
-        message: "You need to rename `test.txt` to `test_renamed.txt`. The command is `mv test.txt test_renamed.txt`."
+    required_cwd: "~/bootcamp"
     on_complete_script:
-      - action: "untrack_file" # <-- Custom action
+      - action: say_speech
+        character: cypher
+        messages:
+          - "See? `mv` is a 2-for-1. Now, let's make a backup."
+          - "Copy 'test_renamed.txt' and name it 'test_copy.txt'. Try it now!"
+      - action: untrack_file # <-- Replaces self._tracked_files.remove()
         path: "~/bootcamp/test.txt"
-      - action: "track_file" # <-- Custom action
+      - action: track_file # <-- Replaces self._tracked_files.add()
         path: "~/bootcamp/test_renamed.txt"
-      - action: "say"
-        character: "cypher"
-        message: "See? `mv` is a 2-for-1. Now, let's make a backup."
-      - action: "say"
-        character: "cypher"
-        message: "Copy 'test_renamed.txt' and name it 'test_copy.txt'. Try it now!"
-      - action: "advance_objective"
+      - action: advance_objective
 
   - id: "01_g_cp"
-    description: "Copy 'test_renamed.txt' to 'test_copy.txt'."
-    type: "multi_path_exists"
+    type: "checklist" # <-- Change type
+    description: "Copy 'test_renamed.txt' to 'test_copy.txt'"
     criteria:
-      - { path: "~/bootcamp/test_copy.txt", type: "file", exist: true }
-      - { path: "~/bootcamp/test_renamed.txt", type: "file", exist: true }
+      - type: path_exists
+        criteria:
+          path: "~/bootcamp/test_copy.txt"
+          type: "file"
+      - type: path_exists
+        criteria:
+          path: "~/bootcamp/test_renamed.txt"
+          type: "file"
     hint: "Use `cp` to 'copy' the file: `cp test_renamed.txt test_copy.txt`"
-    required_cwd: "~/bootcamp" # Requires player to be in bootcamp directory
-    on_command_fail_script:
-      - action: "conditional_say_on_fail"
-        character: "cypher"
-        message: "It looks like you moved the file, not copied it. We need BOTH `test_renamed.txt` AND `test_copy.txt`."
-        if_command: "mv"
-      - action: "say"
-        character: "cypher"
-        message: "Use `cp` to make a *copy*, leaving the original file untouched."
+    required_cwd: "~/bootcamp"
     on_complete_script:
-      - action: "track_file"
-        path: "~/bootcamp/test_copy.txt"
-      - action: "say"
-        character: "cypher"
+      - action: say
+        character: cypher
         message: "Great. Now you have two files. Let's take a look at them with `ls`."
-      - action: "advance_objective"
+      - action: track_file
+        path: "~/bootcamp/test_copy.txt"
+      - action: advance_objective
+    on_command_fail_script:
+      - action: conditional_say_on_fail
+        character: cypher
+        if_command: "touch"
+        if_args_contain: "test_copy.txt"
+        message: "Nice try! But `touch` only creates an empty file. Use `cp` to *copy* the contents."
+      - action: conditional_say_on_fail
+        character: cypher
+        if_command: "cp"
+        if_args_contain: "test.txt"
+        message: "Almost! But `test.txt` doesn't exist anymore. You need to copy `test_renamed.txt`."
 
   - id: "01_h_ls"
+    type: "checklist"
     description: "List the contents of the directory."
-    type: "command_run"
-    criteria: { command: "ls" }
+    criteria:
+      - type: command_run
+        criteria:
+          command: "ls"
+      - type: path_exists
+        criteria:
+          path: "~/bootcamp/test_renamed.txt"
+      - type: path_exists
+        criteria:
+          path: "~/bootcamp/test_copy.txt"
     hint: "Use `ls` to 'list' the contents of the directory: `ls`"
-    required_cwd: "~/bootcamp" # Requires player to be in bootcamp directory
-    on_command_fail_script:
-      - action: "say"
-        character: "cypher"
-        message: "Just use the simple `ls` command to list the files in this directory."
+    required_cwd: "~/bootcamp"
     on_complete_script:
-      - action: "say"
-        character: "cypher"
-        message: "Fantastic! You're starting to get better at this."
-      - action: "say"
-        character: "cypher"
-        message: "Let's clean up. `rm` will 'remove' the original file. Be careful, there's no undo!"
-      - action: "say"
-        character: "cypher"
-        message: "Run `rm test_renamed.txt`"
-      - action: "advance_objective"
+      - action: say_speech
+        character: cypher
+        messages:
+          - "Fantastic! You're starting to get better at this."
+          - "Let's clean up. `rm` will 'remove' the *copy*. Be careful, there's no undo!"
+          - "Run `rm test_copy.txt`"
+      - action: advance_objective
 
   - id: "01_i_rm"
-    description: "Remove 'test_renamed.txt'."
     type: "path_not_exists"
-    criteria: { path: "~/bootcamp/test_renamed.txt" }
-    hint: "Let's clean up: `rm test_renamed.txt`"
-    required_cwd: "~/bootcamp" # Requires player to be in bootcamp directory
-    on_command_fail_script:
-      - action: "conditional_say_on_fail"
-        character: "cypher"
-        message: "Whoa there, Operator! That's the *copy*! We need to remove `test_renamed.txt`. Be careful with `rm`, it's permanent!"
-        if_command: "rm"
-        if_args_contain: "test_copy.txt"
-      - action: "conditional_hard_fail"
-        if_command: "rm"
-        if_args_contain: "-rf /"
-        if_return_code: 1
-      - action: "say"
-        character: "cypher"
-        message: "Remember, the goal is to remove `test_renamed.txt`."
+    description: "Remove 'test_copy.txt'"
+    criteria:
+      path: "~/bootcamp/test_copy.txt"
+    hint: "Let's clean up. `rm` will 'remove' the copy: `rm test_copy.txt`"
+    required_cwd: "~/bootcamp"
     on_complete_script:
-      - action: "untrack_file" # <-- Custom action
-        path: "~/bootcamp/test_renamed.txt"
-      - action: "say"
-        character: "cypher"
+      - action: say
+        character: cypher
         message: "And it's gone. *Poof*... See? Permanent."
-      - action: "advance_quest" # Advance to the next quest after final objective of this quest is complete.
+      - action: untrack_file
+        path: "~/bootcamp/test_copy.txt"
+      - action: advance_objective
+    on_command_fail_script:
+      - action: conditional_say_on_fail
+        character: cypher
+        if_command: "rm"
+        if_args_contain: "test_renamed.txt" # The big mistake!
+        message: "Whoa! That's the *original* file. We're trying to remove `test_copy.txt`. Leave the original alone!"
+      - action: conditional_say_on_fail
+        character: cypher
+        if_command: "mv" # Wrong command
+        if_args_contain: "test_copy.txt"
+        message: "Not quite. `mv` will *move* or *rename* the file. Use `rm` to *remove* it."
 
-# This logic is now separate. The `quest_manager` will call this
-# on load to re-spawn files from a save.
+  - id: "01_h_ls"
+    type: "command_run"
+    description: "List the contents of the directory."
+    criteria:
+      command: "ls"
+    hint: "Use `ls` to 'list' the contents of the directory: `ls`"
+    required_cwd: "~/bootcamp"
+    on_complete_script:
+      - action: say_speech
+        character: cypher
+        messages:
+          - "Fantastic! You're starting to get better at this."
+          - "Let's clean up. `rm` will 'remove' the *copy*. Be careful, there's no undo!"
+          - "Run `rm test_copy.txt`"
+      - action: advance_objective
+
+  - id: "01_i_rm"
+    type: "path_not_exists"
+    description: "Remove 'test_copy.txt'"
+    criteria:
+      path: "~/bootcamp/test_copy.txt"
+    hint: "Let's clean up. `rm` will 'remove' the copy: `rm test_copy.txt`"
+    required_cwd: "~/bootcamp"
+    on_complete_script:
+      - action: say
+        character: cypher
+        message: "And it's gone. *Poof*... See? Permanent."
+      - action: untrack_file
+        path: "~/bootcamp/test_copy.txt"
+      - action: advance_objective # This will advance to the next quest
+    on_command_fail_script:
+      - action: conditional_say_on_fail
+        character: cypher
+        if_command: "rm"
+        if_args_contain: "test_renamed.txt"
+        message: "Whoa! That's the *original* file. We're trying to remove `test_copy.txt`."
+
+# This section replaces the old sync_world_state method
 on_load_sync:
-  - id: "01_c_mkdir"
-    not_completed: "01_d_cd" # Only spawn if the player hasn't 'cd' into it (as then it's assumed they made it already.)
-    action: "spawn_tracked_dir"
+  - action: spawn_tracked_dir
     path: "~/bootcamp"
-  - id: "01_e_touch"
-    not_completed: "01_f_mv" # If test.txt hasn't been renamed, ensure it spawns on game reload
-    action: "spawn_tracked_file"
+    id: "01_c_mkdir" # Run if 01_c_mkdir is completed
+  - action: spawn_tracked_file
     path: "~/bootcamp/test.txt"
-  - id: "01_f_mv"
-    not_completed: "01_i_rm" # If test_renamed.txt hasn't been deleted, ensure it spawns
-    action: "spawn_tracked_file"
+    id: "01_e_touch" # Run if 01_e_touch is completed...
+    not_completed: "01_f_mv" # ...but 01_f_mv is NOT
+  - action: spawn_tracked_file
     path: "~/bootcamp/test_renamed.txt"
-  - id: "01_g_cp"
-    action: "spawn_tracked_file"
+    id: "01_f_mv"
+    not_completed: "01_i_rm"
+  - action: spawn_tracked_file
     path: "~/bootcamp/test_copy.txt"
+    id: "01_g_cp"
+    not_completed: "01_i_rm"
+
+# This is the new hard-fail script from quest 2, good to have
+on_hard_fail_script:
+  - action: say
+    character: system
+    message: "[bold red]CRITICAL FAILURE.[/bold red] Resetting quest."
+  - action: reset_current_quest

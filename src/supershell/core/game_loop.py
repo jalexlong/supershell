@@ -36,7 +36,7 @@ def main_loop():
     try:
         user = os.getlogin()
     except OSError:
-        user = "anomaly"
+        user = "operator"
     try:
         host = socket.gethostname().split(".")[0]
     except Exception:

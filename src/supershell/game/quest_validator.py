@@ -180,52 +180,72 @@ def _check_manual_complete(obj: quest_manager.Objective, res: CommandResult) -> 
     return False
 
 
-def _check_multi_path_exists(obj: quest_manager.Objective, res: CommandResult) -> bool:
-    # For 'multi_path_exists', criteria is expected to be a list
+def _check_checklist(obj: quest_manager.Objective, res: CommandResult) -> bool:
+    """
+    Checks a list of sub-objectives.
+    Fails if *any* sub-check fails.
+    """
+    # 1. Validate that the criteria is a list
     if not isinstance(obj.criteria, list):
         log.error(
-            f"Objective {obj.id} has type 'multi_path_exists' but criteria is not a list."
+            f"Objective {obj.id} has type 'checklist' but criteria is not a list."
         )
         return False
 
-    for item in obj.criteria:  # Iterate directly over the list
-        path_to_check = item.get("path")
-        expected_type = item.get("type")
-        should_exist = item.get("exist", True)  # Default to True if 'exist' is missing
+    criteria_list = obj.criteria
 
-        if not path_to_check:
-            log.warning(f"Missing 'path' in multi_path_exists criteria for {obj.id}")
+    # 2. Iterate through each sub-check defined in the list
+    for sub_check_data in criteria_list:
+        sub_type = sub_check_data.get("type")
+        sub_criteria = sub_check_data.get("criteria")
+
+        if not sub_type or sub_criteria is None:
+            log.warning(f"Checklist item for {obj.id} is missing 'type' or 'criteria'.")
+            return False  # Fail the whole check
+
+        # 3. Find the checker function for the sub_type
+        checker_function = _CHECKER_MAP.get(sub_type)
+
+        if not checker_function:
+            log.warning(
+                f"Checklist for {obj.id}: Unknown sub-objective type: {sub_type}"
+            )
+            return False  # Fail the whole check
+
+        if checker_function == _check_checklist:
+            log.error(f"Checklist {obj.id}: Nested checklists are not allowed.")
+            return False  # Prevent recursion
+
+        # 4. Create a temporary "fake" Objective object for the sub-check.
+        # This is necessary because our other checkers expect an 'Objective'
+        # object, not just a criteria dict.
+        try:
+            temp_obj_data = {
+                "id": f"{obj.id}_sub_{sub_type}",
+                "type": sub_type,
+                "criteria": sub_criteria,
+            }
+            temp_obj = quest_manager.Objective.from_dict(temp_obj_data)
+        except Exception as e:
+            log.error(f"Failed to create temp_obj for checklist: {e}", exc_info=True)
             return False
 
-        full_path = os.path.expanduser(path_to_check)
-
-        # Check based on expected_type first
-        exists = False
-        if expected_type == "dir":
-            exists = os.path.isdir(full_path)
-        elif expected_type == "file":
-            exists = os.path.isfile(full_path)
-        else:  # Default to generic existence check if type is not specified or recognized
-            exists = os.path.exists(full_path)
-
-        if should_exist and not exists:
-            log.debug(f"Path {full_path} should exist, but does not.")
-            return False
-        if not should_exist and exists:
-            log.debug(f"Path {full_path} should NOT exist, but does.")
+        # 5. Run the sub-check. If any check fails, the whole list fails.
+        if not checker_function(temp_obj, res):
+            log.debug(f"Checklist sub-check failed: {sub_type} with {sub_criteria}")
             return False
 
-    # All criteria passed
+    # 6. If the loop finishes, all sub-checks passed
     return True
 
 
 _CHECKER_MAP: Dict[str, Callable[[quest_manager.Objective, CommandResult], bool]] = {
     "command_run": _check_command_run,
     "path_exists": _check_path_exists,
+    "path_not_exists": _check_path_not_exists,
     "file_contains": _check_file_contains,
     "any_command": _check_any_command,
     "cwd_is": _check_cwd_is,
-    "path_not_exists": _check_path_not_exists,
     "manual_complete": _check_manual_complete,
-    "multi_path_exists": _check_multi_path_exists,
+    "checklist": _check_checklist,
 }

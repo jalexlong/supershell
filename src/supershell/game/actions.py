@@ -23,6 +23,11 @@ def _action_say(character: str, message: str):
     dialogue.say(message, character=character)
 
 
+def _action_say_speech(character: str, messages: list[str]):
+    """Prints a list of messages to the screen."""
+    dialogue.say_speech(speech=messages, character=character)
+
+
 def _action_advance_objective():
     """Tells the quest manager to advance."""
     quest = quest_manager.get_current_quest()
@@ -172,6 +177,7 @@ def _action_cleanup_all_tracked_files():
 # --- 2. Create the "Dispatch Map" ---
 ACTION_REGISTRY = {
     "say": _action_say,
+    "say_speech": _action_say_speech,
     "advance_objective": _action_advance_objective,
     "advance_quest": _action_advance_quest,
     "track_dir": _action_track_dir,
