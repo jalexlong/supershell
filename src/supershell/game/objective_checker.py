@@ -61,8 +61,9 @@ def _run_check(
     if checker_function:
         return checker_function(criteria, res)
     else:
-        log.warning(f"No checker found for objective type: {obj_type}")
-        return False
+        error_message = f"No checker found for objective type: {obj_type}"
+        log.error(error_message)
+        raise ValueError(error_message)
 
 
 def _check_command_run(criteria: Dict[str, Any], res: CommandResult) -> bool:
@@ -141,6 +142,10 @@ def _check_checklist(criteria_list: List[Dict[str, Any]], res: CommandResult) ->
     for sub_criteria_dict in criteria_list:
         sub_type = sub_criteria_dict.get("type")
         sub_criteria = sub_criteria_dict.get("criteria", {})
+
+        if sub_type is None:
+            log.warning("Checklist item is missing 'type'. Skipping.")
+            continue
 
         checker_function = CHECKER_MAP.get(sub_type)
 

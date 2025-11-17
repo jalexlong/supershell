@@ -191,18 +191,29 @@ class Quest(BaseQuest):
             return
 
         if active_obj.id == "01_i_rm":
-            if (
-                "rm" in command_result.command
-                and "test_renamed.txt" in command_result.command
-            ):
-                speech = [
-                    "Whoa! Good try, but that's the *original* file.",
-                    "We're trying to remove `test_copy.txt`. Leave the original alone!",
-                ]
-                dialogue.say_speech(speech, character="cypher")
+            if "rm" in command_result.command:
+                if "test_renamed.txt" in command_result.command:
+                    speech = [
+                        "Whoa! Good try, but that's the *original* file.",
+                        "We're trying to remove `test_copy.txt`. Leave the original alone!",
+                    ]
+                    dialogue.say_speech(speech, character="cypher")
+                elif "test_copy.txt" in command_result.command:
+                    # This case should ideally be caught by the path_not_exists check,
+                    # but as a fallback for user error:
+                    dialogue.say(
+                        "You're trying to remove the right file, but it's already gone! Interesting.",
+                        character="cypher",
+                    )
+                else:
+                    dialogue.say(
+                        f"That's not the file we want to remove. Remember: {active_obj.hint}",
+                        character="cypher",
+                    )
             else:
                 dialogue.say(
-                    f"Not quite. Try this: {active_obj.hint}", character="cypher"
+                    f"That didn't seem to work. Remember: {active_obj.hint}",
+                    character="cypher",
                 )
         else:
             if command_result.return_code == 0:

@@ -13,6 +13,7 @@ from supershell.game.models import Objective
 _quests: OrderedDict[str, BaseQuest] = OrderedDict()
 _current_quest_id: Optional[str] = None
 _active_quest_obj: Optional[BaseQuest] = None
+_quests_loaded: bool = False
 
 _SAVE_FILE_PATH = os.path.expanduser("~/.local/share/supershell/save.json")
 
@@ -106,7 +107,10 @@ def get_quest_by_id(quest_id: str) -> Optional[BaseQuest]:
 
 
 def load_quests():
-    global _current_quest_id, _active_quest_obj
+    global _current_quest_id, _active_quest_obj, _quests_loaded
+    if _quests_loaded:
+        return
+
     quest_dir = Path(__file__).parent / "quests"
 
     if not quest_dir.exists():
@@ -139,6 +143,8 @@ def load_quests():
         log.info(f"Loaded {len(_quests)} quests. Current quest: {_current_quest_id}")
     else:
         log.warning("No quests were loaded.")
+
+    _quests_loaded = True
 
 
 def get_current_quest() -> Optional[BaseQuest]:

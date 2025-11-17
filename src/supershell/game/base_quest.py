@@ -1,6 +1,7 @@
 import logging
 import os
 import shutil
+from abc import ABC, abstractmethod
 from typing import List, Set
 
 from supershell.game import quest_manager
@@ -11,7 +12,7 @@ from supershell.tui import dialogue
 log = logging.getLogger(__name__)
 
 
-class BaseQuest:
+class BaseQuest(ABC):
     def __init__(self):
         self.id: str = "base_quest"
         self.title: str = "Base Quest"
@@ -29,9 +30,11 @@ class BaseQuest:
     def on_quest_start(self):
         pass
 
+    @abstractmethod
     def on_objective_complete(self, completed_id: str, obj: Objective):
         pass
 
+    @abstractmethod
     def on_objective_failure(self, command_result: CommandResult):
         active_obj = quest_manager.get_active_objective()
         if active_obj:
