@@ -2,8 +2,8 @@
 
 echo "Starting supershell..."
 
-#source venv/bin/activate
-activate
+source venv/bin/activate
+#activate
 
 # Install or update the project
 if [[ ! -e "./poetry.lock" ]]; then

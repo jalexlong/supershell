@@ -183,8 +183,9 @@ objectives:
         character: cypher
         messages:
           - "Fantastic! You're starting to get better at this."
-          - "Let's clean up. `rm` will 'remove' the *copy*. Be careful, there's no undo!"
-          - "Run `rm copy.txt`"
+          - "Let's clean up. `rm` will 'remove' whatever [italic]file[/italic] you want."
+          - "Be careful, though, there's no undo. Let's practice by deleting 'copy.txt'."
+          - "And just for the purpose of learning... do NOT delete 'renamed.txt'."
       - action: advance_objective
 
   - id: "01_i_rm"

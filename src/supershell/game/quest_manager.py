@@ -6,24 +6,19 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any, Optional, OrderedDict  # Keep OrderedDict here for _quests
+from typing import Any, Optional, OrderedDict
 
-import yaml  # Used for yaml.safe_load
-from rich.panel import Panel  # Used for Panel in get_quest_display
+import yaml
+from rich.panel import Panel
 
-# Reverted to module import to break circular dependency with run_action
 from supershell.game import actions
-
-# --- Import our new YAML-based Quest and Objective models ---
 from supershell.game.models import Objective, Quest
 
 # --- Module-Level State ---
 _quests: OrderedDict[str, Quest] = OrderedDict()
 _current_quest_id: Optional[str] = None
 _active_quest_obj: Optional[Quest] = None
-_last_generated_secret_password: Optional[str] = (
-    None  # New: To hold the last generated password
-)
+_last_generated_secret_password: Optional[str] = None
 # -------------------------
 
 _SAVE_FILE_PATH = os.path.expanduser("~/.local/share/supershell/save.json")
