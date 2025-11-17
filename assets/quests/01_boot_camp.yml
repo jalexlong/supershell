@@ -178,10 +178,16 @@ objectives:
       - action: advance_objective
 
   - id: "01_i_rm"
-    type: "path_not_exists"
+    type: "checklist" # <-- Use checklist
     description: "Remove 'test_copy.txt'"
     criteria:
-      path: "~/bootcamp/test_copy.txt"
+      - type: path_not_exists # Check 1: The copy is gone
+        criteria:
+          path: "~/bootcamp/test_copy.txt"
+      - type: path_exists # Check 2: The original file is still safe
+        criteria:
+          path: "~/bootcamp/test_renamed.txt"
+          type: "file"
     hint: "Let's clean up. `rm` will 'remove' the copy: `rm test_copy.txt`"
     required_cwd: "~/bootcamp"
     on_complete_script:
@@ -195,13 +201,8 @@ objectives:
       - action: conditional_say_on_fail
         character: cypher
         if_command: "rm"
-        if_args_contain: "test_renamed.txt" # The big mistake!
+        if_args_contain: "test_renamed.txt"
         message: "Whoa! That's the *original* file. We're trying to remove `test_copy.txt`. Leave the original alone!"
-      - action: conditional_say_on_fail
-        character: cypher
-        if_command: "mv" # Wrong command
-        if_args_contain: "test_copy.txt"
-        message: "Not quite. `mv` will *move* or *rename* the file. Use `rm` to *remove* it."
 
   - id: "01_h_ls"
     type: "command_run"
@@ -239,8 +240,7 @@ objectives:
         if_command: "rm"
         if_args_contain: "test_renamed.txt"
         message: "Whoa! That's the *original* file. We're trying to remove `test_copy.txt`."
-
-# This section replaces the old sync_world_state method
+  # This section replaces the old sync_world_state method
 on_load_sync:
   - action: spawn_tracked_dir
     path: "~/bootcamp"
@@ -257,10 +257,3 @@ on_load_sync:
     path: "~/bootcamp/test_copy.txt"
     id: "01_g_cp"
     not_completed: "01_i_rm"
-
-# This is the new hard-fail script from quest 2, good to have
-on_hard_fail_script:
-  - action: say
-    character: system
-    message: "[bold red]CRITICAL FAILURE.[/bold red] Resetting quest."
-  - action: reset_current_quest

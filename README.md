@@ -4,9 +4,9 @@
 
 ### 📖 The Story
 
-The year is 20XX. The System is everywhere. You are a new operator, lost in the digital noise, with no memory of how you got here.
+The year is 20XX. You are a new operator of your system, lost in the digital noise.
 
-Your only companion is Cypher, a mysterious digital being who communicates with you through your terminal. Cypher's origins are unknown, but they seem dedicated to helping you "stabilize the signal" and find your way.
+Your only companion is Cypher, a mysterious digital being who communicates with you through your terminal. Cypher's origins are unknown, but they seem dedicated to helping you find your way.
 
 To survive, you'll need to learn the system's "supershell" (a.k.a. bash) from the ground up. Cypher will give you quests, teach you to navigate the file system, manage processes, and eventually, understand the very network that holds the world captive.
 
@@ -18,23 +18,17 @@ When you type ls -l, you are actually running ls -l. The game intercepts your co
 
 ### ✨ Features
 
-- Real Shell Environment: Learn bash by using bash. No fake consoles.
-
-- Immersive Story: A dystopian, cypherpunk world guides your learning.
-
-- Companion Guide: Cypher provides quests, contextual hints, and lore.
-
-- Bash Basics: ls, cd, pwd, mkdir, rm, cp, mv, echo, and more.
-
-- Networking: Learn ip, ping, and understand DHCP, DNS, and subnetting through interactive missions.
-
-- Modern TUI: A beautiful, responsive terminal experience powered by Rich.
-
-- Smart Shell Features: Includes command history and inline auto-suggestions (like the fish shell) powered by prompt_toolkit.
+- **Real Shell Environment**: Learn bash by using bash. No fake consoles.
+- **Immersive Story**: A dystopian, cypherpunk world guides your learning.
+- **Companion Guide**: Cypher provides quests, contextual hints, and lore.
+- **Bash Basics**: `ls`, `cd`, `pwd`, `mkdir`, `rm`, `cp`, `mv`, `echo`, and more.
+- **Robust Quest System**: A more reliable quest loading and progression system with enhanced validation and error handling.
+- **Idiot-Proof Quests**: Improved failure conditions and hints for initial quests to guide users effectively.
+- **Smart Shell Features**: Includes command history and inline auto-suggestions (like the fish shell) powered by `prompt_toolkit`. Enhanced prompt display with correct formatting and variable resolution.
 
 ## 🚀 Installation
 
-supershell is built using Poetry and requires Python 3.13+.
+supershell is built using Poetry and requires Python 3.12+.
 
 Clone the repository:
 ```bash
@@ -48,14 +42,9 @@ poetry install
 ```
 ## 🕹️ How to Play
 
-Activate the virtual environment:
-```bash
-eval "$(poetry env activate)"
-```
-
 Run the game:
 ```bash
-supershell
+poetry run supershell
 ```
 
 For convenience, we've also included a `run.sh` file that runs these commands for you.

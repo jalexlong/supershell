@@ -8,9 +8,7 @@ from typing import (  # Re-add Dict and List for clarity in type hints
     Any,
     Callable,
     Dict,
-    List,
     Optional,
-    Union,
 )
 
 from supershell.game import quest_manager
