@@ -45,7 +45,6 @@ class Quest(BaseQuest):
                 type="cwd_is",
                 criteria={"path": "~/bootcamp"},
                 hint="Now, 'change directory' into it: `cd bootcamp`",
-                required_cwd="~",
             ),
             Objective(
                 id="01_e_touch",

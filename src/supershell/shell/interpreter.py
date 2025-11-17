@@ -1,6 +1,9 @@
+import os
+
 from prompt_toolkit import PromptSession
 from prompt_toolkit.auto_suggest import AutoSuggest, Suggestion
 from prompt_toolkit.completion import (
+    CompleteEvent,  # Import CompleteEvent
     Completer,
     Completion,
     PathCompleter,
@@ -58,7 +61,9 @@ class AutoSuggestFromCompleter(AutoSuggest):
             return None
 
         try:
-            completions = list(completer.get_completions(document, None))
+            # Instantiate CompleteEvent to satisfy the type hint
+            event_to_pass = CompleteEvent()
+            completions = list(completer.get_completions(document, event_to_pass))
             if completions:
                 first_completion = completions[0]
                 word_being_completed = document.get_word_before_cursor(WORD=True)
