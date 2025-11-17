@@ -9,7 +9,13 @@ on_quest_start:
       - "Oh, hi there! I've never seen you around here before. You must be new to this system..."
       - "Well, welcome to Bash! This is the command line, where you have [italic]complete[/italic] control over your system."
       - "You type in 'commands' to perform actions on the command line."
-      - "In fact, to let you get some hands on experience now, let's run through a Bash Bootcamp!"
+      - "In fact, to let you get some hands on experience now, let's run through a [bold]Bash Bootcamp[/bold]!"
+      - "If you ever get lost, just ask for '[italic]help[/italic]'!"
+  - action: conditional_say_speech
+    condition:
+      objective_not_completed: "01_a_whoami"
+    character: cypher
+    messages:
       - "Let's start with who you are. To see who you're logged in as, you can use the 'whoami' command. Try it now!"
       - "Type 'whoami' into the command line and press 'Enter' now."
   # Note: The first objective is advanced by the event_handler on game start, not an action.
@@ -58,7 +64,7 @@ objectives:
         messages:
           - "Nice. A little sandbox for us to play in."
           - "To 'change directory', use the `cd` command. Try it: `cd bootcamp`"
-      - action: track_dir # <-- Replaces self._tracked_dirs.add()
+      - action: track_dir
         path: "~/bootcamp"
       - action: advance_objective
 
@@ -73,7 +79,8 @@ objectives:
         character: cypher
         messages:
           - "You're in the directory now. See? The prompt changed."
-          - "Alright, let's make our very first file. Try `touch test.txt`."
+          - "Alright, let's make our very first file. You make files using the 'touch' command."
+          - "Try `touch test.txt` to make an empty file named 'test.txt'."
       - action: advance_objective
 
   - id: "01_e_touch"
@@ -90,68 +97,71 @@ objectives:
         messages:
           - "Perfect. You've created a file. Files made with 'touch' are empty."
           - "But let's say we accidentally gave it the wrong name. We need to rename it!"
-          - "In Bash, you `mv` (move) files to rename them. Try `mv test.txt test_renamed.txt`"
-      - action: track_file # <-- Replaces self._tracked_files.add()
+          - "In Bash, you `mv` (move) files to rename them. Try `mv test.txt renamed.txt`"
+      - action: track_file
         path: "~/bootcamp/test.txt"
       - action: advance_objective
 
   - id: "01_f_mv"
     type: "checklist"
-    description: "Rename 'test.txt' to 'test_renamed.txt'"
+    description: "Rename 'test.txt' to 'renamed.txt'"
     criteria:
       - type: path_not_exists
         criteria:
           path: "~/bootcamp/test.txt"
       - type: path_exists
         criteria:
-          path: "~/bootcamp/test_renamed.txt"
+          path: "~/bootcamp/renamed.txt"
           type: "file"
-    hint: "Let's rename it: `mv test.txt test_renamed.txt`"
+    hint: "Let's rename it: `mv test.txt renamed.txt`"
     required_cwd: "~/bootcamp"
     on_complete_script:
       - action: say_speech
         character: cypher
         messages:
-          - "See? `mv` is a 2-for-1. Now, let's make a backup."
-          - "Copy 'test_renamed.txt' and name it 'test_copy.txt'. Try it now!"
-      - action: untrack_file # <-- Replaces self._tracked_files.remove()
+          - "See? `mv` is a 2-for-1. Now, it's always good to make a backup."
+          - "need to copy 'renamed.txt' and name it 'copy.txt'."
+          - "The command to copy a file is 'cp FILE_TO_COPY.txt NAME_OF_COPY.txt'."
+          - "Also, please... don't simply put FILE_TO_COPY.txt or NAME_OF_COPY.txt..."
+          - "You should replace those fake filenames with whatever files you're working with."
+      - action: untrack_file
         path: "~/bootcamp/test.txt"
-      - action: track_file # <-- Replaces self._tracked_files.add()
-        path: "~/bootcamp/test_renamed.txt"
+      - action: track_file
+        path: "~/bootcamp/renamed.txt"
       - action: advance_objective
 
   - id: "01_g_cp"
-    type: "checklist" # <-- Change type
-    description: "Copy 'test_renamed.txt' to 'test_copy.txt'"
+    type: "checklist"
+    description: "Copy 'renamed.txt' to 'copy.txt'"
     criteria:
       - type: path_exists
         criteria:
-          path: "~/bootcamp/test_copy.txt"
+          path: "~/bootcamp/copy.txt"
           type: "file"
       - type: path_exists
         criteria:
-          path: "~/bootcamp/test_renamed.txt"
+          path: "~/bootcamp/renamed.txt"
           type: "file"
-    hint: "Use `cp` to 'copy' the file: `cp test_renamed.txt test_copy.txt`"
+    hint: "Use `cp` to 'copy' the file: `cp renamed.txt copy.txt`"
     required_cwd: "~/bootcamp"
     on_complete_script:
       - action: say
         character: cypher
         message: "Great. Now you have two files. Let's take a look at them with `ls`."
       - action: track_file
-        path: "~/bootcamp/test_copy.txt"
+        path: "~/bootcamp/copy.txt"
       - action: advance_objective
     on_command_fail_script:
       - action: conditional_say_on_fail
         character: cypher
         if_command: "touch"
-        if_args_contain: "test_copy.txt"
+        if_args_contain: "copy.txt"
         message: "Nice try! But `touch` only creates an empty file. Use `cp` to *copy* the contents."
       - action: conditional_say_on_fail
         character: cypher
         if_command: "cp"
         if_args_contain: "test.txt"
-        message: "Almost! But `test.txt` doesn't exist anymore. You need to copy `test_renamed.txt`."
+        message: "Almost! But `test.txt` doesn't exist anymore. You need to copy `renamed.txt`."
 
   - id: "01_h_ls"
     type: "checklist"
@@ -162,10 +172,10 @@ objectives:
           command: "ls"
       - type: path_exists
         criteria:
-          path: "~/bootcamp/test_renamed.txt"
+          path: "~/bootcamp/renamed.txt"
       - type: path_exists
         criteria:
-          path: "~/bootcamp/test_copy.txt"
+          path: "~/bootcamp/copy.txt"
     hint: "Use `ls` to 'list' the contents of the directory: `ls`"
     required_cwd: "~/bootcamp"
     on_complete_script:
@@ -174,35 +184,35 @@ objectives:
         messages:
           - "Fantastic! You're starting to get better at this."
           - "Let's clean up. `rm` will 'remove' the *copy*. Be careful, there's no undo!"
-          - "Run `rm test_copy.txt`"
+          - "Run `rm copy.txt`"
       - action: advance_objective
 
   - id: "01_i_rm"
-    type: "checklist" # <-- Use checklist
-    description: "Remove 'test_copy.txt'"
+    type: "checklist"
+    description: "Remove 'copy.txt'"
     criteria:
       - type: path_not_exists # Check 1: The copy is gone
         criteria:
-          path: "~/bootcamp/test_copy.txt"
+          path: "~/bootcamp/copy.txt"
       - type: path_exists # Check 2: The original file is still safe
         criteria:
-          path: "~/bootcamp/test_renamed.txt"
+          path: "~/bootcamp/renamed.txt"
           type: "file"
-    hint: "Let's clean up. `rm` will 'remove' the copy: `rm test_copy.txt`"
+    hint: "Let's clean up. `rm` will 'remove' the copy: `rm copy.txt`"
     required_cwd: "~/bootcamp"
     on_complete_script:
       - action: say
         character: cypher
         message: "And it's gone. *Poof*... See? Permanent."
       - action: untrack_file
-        path: "~/bootcamp/test_copy.txt"
+        path: "~/bootcamp/copy.txt"
       - action: advance_objective
     on_command_fail_script:
       - action: conditional_say_on_fail
         character: cypher
         if_command: "rm"
-        if_args_contain: "test_renamed.txt"
-        message: "Whoa! That's the *original* file. We're trying to remove `test_copy.txt`. Leave the original alone!"
+        if_args_contain: "renamed.txt"
+        message: "Whoa! That's the *original* file. We're trying to remove `copy.txt`. Leave the original alone!"
 
   - id: "01_h_ls"
     type: "command_run"
@@ -217,30 +227,30 @@ objectives:
         messages:
           - "Fantastic! You're starting to get better at this."
           - "Let's clean up. `rm` will 'remove' the *copy*. Be careful, there's no undo!"
-          - "Run `rm test_copy.txt`"
+          - "Run `rm copy.txt`"
       - action: advance_objective
 
   - id: "01_i_rm"
     type: "path_not_exists"
-    description: "Remove 'test_copy.txt'"
+    description: "Remove 'copy.txt'"
     criteria:
-      path: "~/bootcamp/test_copy.txt"
-    hint: "Let's clean up. `rm` will 'remove' the copy: `rm test_copy.txt`"
+      path: "~/bootcamp/copy.txt"
+    hint: "Let's clean up. `rm` will 'remove' the copy: `rm copy.txt`"
     required_cwd: "~/bootcamp"
     on_complete_script:
       - action: say
         character: cypher
         message: "And it's gone. *Poof*... See? Permanent."
       - action: untrack_file
-        path: "~/bootcamp/test_copy.txt"
+        path: "~/bootcamp/copy.txt"
       - action: advance_objective # This will advance to the next quest
     on_command_fail_script:
       - action: conditional_say_on_fail
         character: cypher
         if_command: "rm"
-        if_args_contain: "test_renamed.txt"
-        message: "Whoa! That's the *original* file. We're trying to remove `test_copy.txt`."
-  # This section replaces the old sync_world_state method
+        if_args_contain: "renamed.txt"
+        message: "Whoa! That's the *original* file. We're trying to remove `copy.txt`."
+
 on_load_sync:
   - action: spawn_tracked_dir
     path: "~/bootcamp"
@@ -250,10 +260,10 @@ on_load_sync:
     id: "01_e_touch" # Run if 01_e_touch is completed...
     not_completed: "01_f_mv" # ...but 01_f_mv is NOT
   - action: spawn_tracked_file
-    path: "~/bootcamp/test_renamed.txt"
+    path: "~/bootcamp/renamed.txt"
     id: "01_f_mv"
     not_completed: "01_i_rm"
   - action: spawn_tracked_file
-    path: "~/bootcamp/test_copy.txt"
+    path: "~/bootcamp/copy.txt"
     id: "01_g_cp"
     not_completed: "01_i_rm"

@@ -31,6 +31,8 @@ def _action_say_speech(character: str, messages: list[str]):
 def _action_advance_objective():
     """Tells the quest manager to advance."""
     quest = quest_manager.get_current_quest()
+    if not quest:
+        log.error("No quest active. I don't think this is ever supposed to happen...")
     next_obj = quest_manager.advance_to_next_objective()
 
     if next_obj:
@@ -46,9 +48,7 @@ def _action_advance_quest():
     if not active_quest:
         dialogue.say("All objectives complete.", character="system")
         return
-
     new_quest = quest_manager.advance_quest()  # This returns the *new* quest
-
     if new_quest:
         dialogue.say(
             f"Quest Complete: [bold]{active_quest.title}[/bold]", character="mission"

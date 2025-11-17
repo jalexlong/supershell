@@ -6,7 +6,7 @@ that runs the YAML-based 'on_complete_script'.
 import logging
 
 from supershell.game import (
-    actions,  # <-- IMPORT THE NEW TOOLS
+    actions,
     quest_manager,
 )
 from supershell.tui import dialogue
