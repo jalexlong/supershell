@@ -38,21 +38,32 @@ def _action_conditional_say_speech(
     Current conditions supported:
     - objective_not_completed: Checks if a specific objective is NOT yet completed.
     """
+    log.debug(f"Checking conditional say speech with condition: {condition}")
     should_say = False
     objective_id_not_completed = condition.get("objective_not_completed")
 
     if objective_id_not_completed:
         obj = quest_manager.get_completed_objective(objective_id_not_completed)
-        if obj and not obj.completed:  # Objective exists and is NOT completed
+        if obj:
+            if not obj.completed:  # Objective exists and is NOT completed
+                should_say = True
+                log.debug(
+                    f"Objective '{objective_id_not_completed}' is NOT completed. Condition met."
+                )
+            else:
+                log.debug(
+                    f"Objective '{objective_id_not_completed}' IS completed. Condition NOT met."
+                )
+        else:  # Objective doesn't exist, assume it's not completed
             should_say = True
-        elif not obj:  # Objective doesn't exist, assume it's not completed
-            should_say = True
-        else:
             log.debug(
-                f"Objective '{objective_id_not_completed}' is already completed. Skipping conditional speech."
+                f"Objective '{objective_id_not_completed}' does not exist (or quest not active). Assuming NOT completed. Condition met."
             )
 
     if should_say:
+        log.debug(
+            f"Displaying conditional speech for character '{character}'. First message: '{messages[0][:50]}...'"
+        )
         dialogue.say_speech(speech=messages, character=character)
     else:
         log.debug(f"Conditional say speech skipped due to unmet condition: {condition}")
@@ -63,19 +74,17 @@ def _action_conditional_say(
     message: str,
     condition: dict,
 ):
-    """
-    Conditionally displays a single message based on various criteria.
-    This is a general-purpose conditional 'say' and its conditions
-    need to be explicitly defined based on use-cases.
-
-    Example:
-    - always_true: A simple condition that always evaluates to true (for testing/placeholding).
-    """
+    log.debug(f"Checking conditional say with condition: {condition}")
     should_say = False
+
     if condition.get("always_true"):
         should_say = True
+        log.debug("'always_true' condition met.")
 
     if should_say:
+        log.debug(
+            f"Displaying conditional message for character '{character}': '{message[:50]}...'"
+        )
         dialogue.say(message, character=character)
     else:
         log.debug(f"Conditional say skipped due to unmet condition: {condition}")
@@ -112,10 +121,13 @@ def _action_advance_quest():
 
 def _action_track_dir(path: str):
     """Tells the active quest to track a directory for cleanup."""
+    log.debug(f"Action: _action_track_dir, path: {path}")
     active_quest = quest_manager.get_current_quest()
     if active_quest:
         active_quest._tracked_dirs.add(os.path.expanduser(path))
         log.info(f"Now tracking directory: {path}")
+    else:
+        log.warning(f"No active quest to track directory: {path}")
 
 
 def _action_track_file(path: str):
@@ -255,6 +267,7 @@ def run_action(action_data: dict):
     """
     action_name = action_data.pop("action", None)
     if not action_name:
+        log.debug("Attempted to run action with no 'action' key in data.")
         return
 
     func = ACTION_REGISTRY.get(action_name)
@@ -271,10 +284,10 @@ def run_action(action_data: dict):
             )
             action_data.pop("command_result", None)
 
+    log.debug(f"Executing action '{action_name}' with arguments: {action_data}")
     try:
-        func(
-            **action_data
-        )  # Pass the remaining items in action_data as keyword arguments
+        func(**action_data)
+        log.debug(f"Action '{action_name}' completed successfully.")
     except TypeError as e:
         log.error(f"Action '{action_name}' called with wrong arguments: {e}")
     except Exception as e:

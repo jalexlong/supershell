@@ -38,6 +38,7 @@ def get_save_data() -> dict:
 
 
 def _save_progress():
+    log.debug(f"Attempting to save game progress to {_SAVE_FILE_PATH}")
     save_data = get_save_data()
     completed_ids = []
     for quest in _quests.values():
@@ -51,13 +52,16 @@ def _save_progress():
         os.makedirs(save_dir, exist_ok=True)
         with open(_SAVE_FILE_PATH, "w") as f:
             json.dump(save_data, f, indent=2)
-        log.info(f"Progress saved to {_SAVE_FILE_PATH}")
+        log.info(
+            f"Progress saved to {_SAVE_FILE_PATH}. Current quest: {_current_quest_id}, Completed objectives: {len(completed_ids)}"
+        )
     except (IOError, OSError) as e:
         log.error(f"Failed to save progress: {e}")
 
 
 def _load_progress():
     global _current_quest_id, _active_quest_obj
+    log.debug(f"Attempting to load game progress from {_SAVE_FILE_PATH}")
     completed_ids = set()
     if not os.path.exists(_SAVE_FILE_PATH):
         log.info("No save file found. Starting fresh.")
@@ -83,6 +87,9 @@ def _load_progress():
                 _active_quest_obj = _quests[_current_quest_id]
     except (IOError, json.JSONDecodeError) as e:
         log.error(f"Failed to load progress from {_SAVE_FILE_PATH}: {e}")
+    log.debug(
+        f"Progress loaded. Current quest ID: {_current_quest_id}, Active objectives marked complete."
+    )
     return completed_ids
 
 
@@ -105,6 +112,7 @@ def get_quest_by_id(quest_id: str) -> Optional[Quest]:
 
 def load_quests():
     global _current_quest_id, _active_quest_obj
+    log.debug("Initiating quest loading process...")
 
     # We load quests from outside the 'src' folder
     quest_dir = Path("assets/quests")
@@ -122,32 +130,48 @@ def load_quests():
 
             quest_instance = Quest.from_yaml(data)
             _quests[quest_instance.id] = quest_instance
-            log.info(f"Loaded quest: {quest_instance.title}")
-
+            log.debug(
+                f"Successfully loaded quest from file: {quest_file}, ID: {quest_instance.id}"
+            )
         except Exception as e:
             log.error(f"Failed to load quest {quest_file}: {e}", exc_info=True)
 
     if _quests:
+        log.debug(f"All quests loaded. First quest ID: {list(_quests.keys())[0]}")
         _current_quest_id = list(_quests.keys())[0]
         _active_quest_obj = _quests[_current_quest_id]
 
+        log.debug("Loading progress from save file...")
         completed_ids = _load_progress()
+        log.debug(f"Loaded completed objective IDs: {completed_ids}")
 
         log.info("Syncing world state for all loaded quests...")
         for quest in _quests.values():
             for action_data in quest.on_load_sync:
+                log.debug(
+                    f"Processing on_load_sync action: {action_data.get('action')} for quest {quest.id}"
+                )
                 not_completed = action_data.get("not_completed")
                 if not_completed and not_completed in completed_ids:
+                    log.debug(
+                        f"Skipping on_load_sync action because objective '{not_completed}' is completed."
+                    )
                     continue
 
                 is_completed = action_data.get("id")
                 if is_completed and is_completed not in completed_ids:
+                    log.debug(
+                        f"Skipping on_load_sync action because objective '{is_completed}' is NOT completed."
+                    )
                     continue
 
                 # Remove conditional keys which are not arguments for the action function
                 run_params = action_data.copy()
                 run_params.pop("id", None)
                 run_params.pop("not_completed", None)
+                log.debug(
+                    f"Running on_load_sync action '{run_params.get('action')}' with params {run_params}"
+                )
                 actions.run_action(run_params)
 
         log.info(f"Loaded {len(_quests)} quests. Current quest: {_current_quest_id}")
@@ -182,20 +206,30 @@ def get_completed_objective(objective_id: str) -> Optional[Objective]:
 def mark_objective_complete(objective_id: str):
     obj = get_completed_objective(objective_id)
     if obj:
+        log.debug(f"Marking objective '{objective_id}' as complete.")
         obj.completed = True
         log.info(f"Objective complete: {objective_id}")
         _save_progress()
+    else:
+        log.warning(
+            f"Attempted to mark non-existent objective '{objective_id}' as complete."
+        )
 
 
 def advance_to_next_objective() -> Optional[Objective]:
+    log.debug("Attempting to advance to next objective.")
     quest = get_current_quest()
     if not quest:
+        log.debug("No active quest to advance objective.")
         return None
 
     next_obj = get_active_objective()
     if next_obj:
+        log.debug(f"Next active objective found: '{next_obj.id}'")
         return next_obj
-    return None
+    else:
+        log.debug("No further active objectives in current quest.")
+        return None
 
 
 def advance_quest() -> Optional[Quest]:
