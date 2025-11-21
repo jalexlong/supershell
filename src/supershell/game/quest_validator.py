@@ -1,116 +1,152 @@
 """
-Checks the result of a command against active quest objectives.
+Validates command results against active quest objectives.
+
+This module is responsible for the core logic of determining if a user's
+action resulted in the completion or failure of a quest objective. It is
+designed to be stateless and rely only on the provided command result and
+the current state managed by `quest_manager`.
+
+The primary function, `check`, returns a tri-state status:
+- SUCCESS: The objective's completion criteria were met.
+- FAIL: The objective's failure criteria were met.
+- CONTINUE: Neither success nor failure criteria were met; no state change.
 """
 
 import logging
 import os
-from typing import (  # Re-add Dict and List for clarity in type hints
+from typing import (
     Any,
     Callable,
     Dict,
+    Literal,
     Optional,
+    Tuple,
 )
 
 from supershell.game import quest_manager
-from supershell.shell.executor import CommandResult
+from supershell.game.models import CommandResult, Objective
 
 log = logging.getLogger(__name__)
 
+# --- Type Definitions ---
+ValidationStatus = Literal["SUCCESS", "FAIL", "CONTINUE"]
 
-def check(command_str: str, command_result: CommandResult) -> str | None:
-    """
-    Checks the command result against the active objective.
-    If complete, returns the objective's ID.
-    Otherwise, returns None.
-    """
-    # Explicitly mark command_str as unused for linting purposes for now
-    _ = command_str
 
+# --- Main Validator Function ---
+
+
+def check(command_result: CommandResult) -> Tuple[ValidationStatus, Optional[str]]:
+    """
+    Checks a command result against the active objective's success and failure
+    conditions.
+
+    Args:
+        command_result: A CommandResult object containing the command string
+                        and its return code.
+
+    Returns:
+        A tuple containing the validation status (`SUCCESS`, `FAIL`, or
+        `CONTINUE`) and the ID of the objective that was checked.
+    """
     active_obj = quest_manager.get_active_objective()
     if not active_obj:
-        return None  # No active quest
+        return "CONTINUE", None
 
     log.debug(
-        f"Checking {command_result.command} against {active_obj.id} ({active_obj.type})"
+        f"Validating command '{command_result.command}' against objective '{active_obj.id}'"
     )
 
-    try:
-        is_complete = False
+    # 1. Check for explicit failure conditions first.
+    # These take precedence over success conditions.
+    if active_obj.fail_type and active_obj.fail_criteria:
+        fail_checker_func = _CHECKER_MAP.get(active_obj.fail_type)
+        if fail_checker_func:
+            # Create a temporary "objective" to represent the failure condition
+            # so we can reuse the standard checker functions.
+            temp_fail_obj_data: Dict[str, Any] = {
+                "id": f"{active_obj.id}_fail_check",
+                "type": active_obj.fail_type,
+                "criteria": active_obj.fail_criteria,
+                "hint": "",  # Temp objectives don't need hints
+                "description": "",  # Temp objectives don't need descriptions
+                # Explicitly set optional fields to None if they're not relevant for the temp objective
+                "on_complete_script": [],
+                "on_command_fail_script": [],
+                "required_cwd": None,
+                "fail_type": None,  # A fail check shouldn't have nested fail_type/criteria
+                "fail_criteria": None,
+            }
+            temp_fail_obj = Objective.from_dict(temp_fail_obj_data)
 
-        # --- Route to the correct checker function using the dispatch map ---
-        checker_func = _CHECKER_MAP.get(active_obj.type)
-        if checker_func:
-            is_complete = checker_func(active_obj, command_result)
-        else:
-            log.warning(
-                f"No checker function found for objective type: {active_obj.type}"
-            )
+            if fail_checker_func(temp_fail_obj, command_result):
+                log.info(
+                    f"Objective '{active_obj.id}' FAIL condition met: {active_obj.fail_type}"
+                )
+                return "FAIL", active_obj.id
 
-        # --- Return the ID if complete ---
-        if is_complete:
-            log.info(f"Objective complete: {active_obj.id}")
-            quest_manager.mark_objective_complete(active_obj.id)
-            return active_obj.id  # This is the "event"
+    # 2. If no failure, check for success conditions.
+    success_checker_func = _CHECKER_MAP.get(active_obj.type)
+    if success_checker_func:
+        if success_checker_func(active_obj, command_result):
+            log.info(f"Objective '{active_obj.id}' SUCCESS condition met.")
+            return "SUCCESS", active_obj.id
 
-    except Exception as e:
-        log.error(f"Error during objective check for {active_obj.id}: {e}")
-
-    return None  # Not complete
+    # 3. If neither success nor failure, the game state continues as is.
+    return "CONTINUE", None
 
 
-# --- HELPER FOR CRITERIA TYPE CHECK ---
-def _get_criteria_dict(obj: quest_manager.Objective) -> Optional[Dict[str, Any]]:
+# --- Helper for Criteria Type Check ---
+
+
+def _get_criteria_dict(obj: Objective) -> Optional[Dict[str, Any]]:
+    """Ensures that the criteria for an objective is a dictionary."""
     if not isinstance(obj.criteria, dict):
         log.error(
-            f"Objective {obj.id} has type '{obj.type}' but criteria is not a dictionary."
+            f"Objective '{obj.id}' has type '{obj.type}' but its criteria is not a dictionary."
         )
         return None
     return obj.criteria
 
 
-# --- CHECKER FUNCTIONS ---
+# --- Individual Checker Functions ---
+# Each function checks a specific condition and returns True if met, False otherwise.
+# CRITICAL: None of these functions should inspect `res.stdout` or `res.stderr`.
 
 
-def _check_command_run(obj: quest_manager.Objective, res: CommandResult) -> bool:
+def _check_command_run(obj: Objective, res: CommandResult) -> bool:
     criteria = _get_criteria_dict(obj)
-    if criteria is None:
+    if criteria is None or res.return_code != 0:
         return False
 
-    if res.return_code != 0:
-        return False
     command_ran = res.command.strip().split()[0].lower()
     expected_command = criteria.get("command")
     return command_ran == expected_command
 
 
-def _check_path_exists(obj: quest_manager.Objective, res: CommandResult) -> bool:
+def _check_path_exists(obj: Objective, res: CommandResult) -> bool:
     criteria = _get_criteria_dict(obj)
     if criteria is None:
         return False
 
     path_to_check = criteria.get("path")
-    expected_type = criteria.get("type")
+    expected_type = criteria.get("type")  # 'file' or 'dir'
     if not path_to_check:
         return False
 
     full_path = os.path.expanduser(path_to_check)
     if expected_type == "dir":
         return os.path.isdir(full_path)
-    elif expected_type == "file":
+    if expected_type == "file":
         return os.path.isfile(full_path)
-    return False
+    # If type is not specified, just check for existence
+    return os.path.exists(full_path)
 
 
-def _check_any_command(obj: quest_manager.Objective, res: CommandResult) -> bool:
-    # 'any_command' doesn't have specific dict criteria, but it's good to be explicit
-    # and ensures criteria isn't a list if type was mismatched.
-    criteria = _get_criteria_dict(obj)
-    if criteria is None:  # Still check to ensure it's not a list
-        return False
+def _check_any_command(obj: Objective, res: CommandResult) -> bool:
     return res.return_code == 0
 
 
-def _check_cwd_is(obj: quest_manager.Objective, res: CommandResult) -> bool:
+def _check_cwd_is(obj: Objective, res: CommandResult) -> bool:
     criteria = _get_criteria_dict(obj)
     if criteria is None:
         return False
@@ -121,7 +157,7 @@ def _check_cwd_is(obj: quest_manager.Objective, res: CommandResult) -> bool:
     return os.getcwd() == os.path.expanduser(path_to_check)
 
 
-def _check_path_not_exists(obj: quest_manager.Objective, res: CommandResult) -> bool:
+def _check_path_not_exists(obj: Objective, res: CommandResult) -> bool:
     criteria = _get_criteria_dict(obj)
     if criteria is None:
         return False
@@ -132,112 +168,91 @@ def _check_path_not_exists(obj: quest_manager.Objective, res: CommandResult) -> 
     return not os.path.exists(os.path.expanduser(path_to_check))
 
 
-def _check_file_contains(obj: quest_manager.Objective, res: CommandResult) -> bool:
+def _check_file_contains(obj: Objective, res: CommandResult) -> bool:
     criteria = _get_criteria_dict(obj)
     if criteria is None:
         return False
 
     path_to_check = os.path.expanduser(str(criteria.get("path", "")))
-
     content_to_find = criteria.get("content")
-    content_from_save_key = criteria.get("content_from_save")
-
-    if content_from_save_key:
-        save_data = quest_manager.get_save_data()
-        content_to_find = save_data.get(content_from_save_key)
 
     if not path_to_check or not content_to_find:
         return False
 
-    if os.path.isfile(path_to_check):
-        try:
-            with open(path_to_check, "r") as f:
-                return content_to_find in f.read()
-        except (IOError, OSError):
-            return False
-
-    elif os.path.isdir(path_to_check):
-        # Path is a directory. Search *all* files inside it.
-        for root, dirs, files in os.walk(path_to_check):
-            for file in files:
-                try:
-                    with open(os.path.join(root, file), "r") as f:
-                        if content_to_find in f.read():
-                            return True
-                except (IOError, OSError):
-                    continue
+    if not os.path.isfile(path_to_check):
         return False
+
+    try:
+        with open(path_to_check, "r") as f:
+            return content_to_find in f.read()
+    except (IOError, OSError):
+        return False
+
+
+def _check_manual_complete(obj: Objective, res: CommandResult) -> bool:
+    """This check can only be completed by a game command, not a shell command."""
     return False
 
 
-def _check_manual_complete(obj: quest_manager.Objective, res: CommandResult) -> bool:
-    criteria = _get_criteria_dict(obj)
-    if criteria is None:  # Still check to ensure it's not a list
-        return False
-    """This check can *only* be completed by a game command."""
-    return False
-
-
-def _check_checklist(obj: quest_manager.Objective, res: CommandResult) -> bool:
-    """
-    Checks a list of sub-objectives.
-    Fails if *any* sub-check fails.
-    """
-    # 1. Validate that the criteria is a list
+def _check_checklist(obj: Objective, res: CommandResult) -> bool:
+    """Checks a list of sub-objectives. Succeeds only if all sub-checks pass."""
     if not isinstance(obj.criteria, list):
         log.error(
-            f"Objective {obj.id} has type 'checklist' but criteria is not a list."
+            f"Objective '{obj.id}' has type 'checklist' but criteria is not a list."
         )
         return False
 
-    criteria_list = obj.criteria
-
-    # 2. Iterate through each sub-check defined in the list
-    for sub_check_data in criteria_list:
-        sub_type = sub_check_data.get("type")
+    for sub_check_data in obj.criteria:
+        sub_type_raw = sub_check_data.get("type")
         sub_criteria = sub_check_data.get("criteria")
 
-        if not sub_type or sub_criteria is None:
-            log.warning(f"Checklist item for {obj.id} is missing 'type' or 'criteria'.")
-            return False  # Fail the whole check
+        if not isinstance(sub_type_raw, str):
+            log.warning(f"Checklist item for '{obj.id}' has invalid or missing 'type'.")
+            return False
 
-        # 3. Find the checker function for the sub_type
-        checker_function = _CHECKER_MAP.get(sub_type)
+        sub_type: str = sub_type_raw
+        checker_func = _CHECKER_MAP.get(sub_type)
 
-        if not checker_function:
+        if not checker_func:
+            log.warning(f"Checklist for '{obj.id}': Unknown sub-type '{sub_type}'")
+            return False  # An unknown sub-type causes the whole checklist to fail.
+
+        # Ensure sub_criteria is a dictionary or appropriate type for the sub_type
+        # If it's expected to be a dict, check it. If it's for e.g., any_command, it might be None.
+        if sub_criteria is not None and not isinstance(sub_criteria, (dict, list)):
             log.warning(
-                f"Checklist for {obj.id}: Unknown sub-objective type: {sub_type}"
+                f"Checklist item for '{obj.id}' has invalid 'criteria' for type '{sub_type}'. It should be a dict or list (if applicable to sub_type)."
             )
-            return False  # Fail the whole check
-
-        if checker_function == _check_checklist:
-            log.error(f"Checklist {obj.id}: Nested checklists are not allowed.")
-            return False  # Prevent recursion
-
-        # 4. Create a temporary "fake" Objective object for the sub-check.
-        # This is necessary because our other checkers expect an 'Objective'
-        # object, not just a criteria dict.
-        try:
-            temp_obj_data = {
-                "id": f"{obj.id}_sub_{sub_type}",
-                "type": sub_type,
-                "criteria": sub_criteria,
-            }
-            temp_obj = quest_manager.Objective.from_dict(temp_obj_data)
-        except Exception as e:
-            log.error(f"Failed to create temp_obj for checklist: {e}", exc_info=True)
             return False
 
-        # 5. Run the sub-check. If any check fails, the whole list fails.
-        if not checker_function(temp_obj, res):
-            log.debug(f"Checklist sub-check failed: {sub_type} with {sub_criteria}")
+        # Create a temporary Objective object to pass to the sub-checker.
+        temp_obj_data: Dict[str, Any] = {
+            "id": f"{obj.id}_sub_{sub_type}",
+            "type": sub_type,
+            "criteria": sub_criteria,
+            "hint": "",  # Temp objectives don't need hints
+            "description": "",  # Temp objectives don't need descriptions
+            # Explicitly setting optional fields to None if they are not part of sub_check_data
+            "on_complete_script": sub_check_data.get("on_complete_script", []),
+            "on_command_fail_script": sub_check_data.get("on_command_fail_script", []),
+            "required_cwd": sub_check_data.get("required_cwd"),
+            "fail_type": sub_check_data.get("fail_type"),
+            "fail_criteria": sub_check_data.get("fail_criteria"),
+        }
+        temp_obj = Objective.from_dict(temp_obj_data)
+
+        # If any sub-check fails, the entire checklist fails.
+        if not checker_func(temp_obj, res):
             return False
 
-    # 6. If the loop finishes, all sub-checks passed
+    # If the loop completes, all sub-checks passed.
     return True
 
 
-_CHECKER_MAP: Dict[str, Callable[[quest_manager.Objective, CommandResult], bool]] = {
+# --- Dispatch Map ---
+# Maps an objective `type` from a YAML file to a checker function.
+
+_CHECKER_MAP: Dict[str, Callable[[Objective, CommandResult], bool]] = {
     "command_run": _check_command_run,
     "path_exists": _check_path_exists,
     "path_not_exists": _check_path_not_exists,

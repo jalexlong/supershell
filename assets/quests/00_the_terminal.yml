@@ -1,0 +1,119 @@
+id: "quest_00_the_terminal"
+title: "Chapter 0: The Terminal"
+description: "Learn the absolute basics of navigation and interaction in the terminal."
+
+on_quest_start:
+  - action: say_speech
+    character: cypher
+    messages:
+      - "You're awake. Good."
+      - "I pulled you out of the Grid. You're in the Undernet now. But the connection... it was rough. I don't even know who you are."
+      - "The System assigned you a designation. Let's see what it is."
+      - "There's a command to check your own identity. Type [italic]whoami[/italic] and press Enter."
+
+objectives:
+  - id: "00_a_whoami"
+    type: "command_run"
+    description: "Discover your System designation."
+    criteria:
+      command: "whoami"
+    hint: "Type `whoami` to see your user."
+    on_complete_script:
+      - action: say_speech
+        character: cypher
+        messages:
+          - "neophyte_73... right. Like it or not, that's your $USER here. It's who you are to The System."
+          - "Now, let's figure out where you are. I managed to carve out a small, safe space for you on a remote node. (Good thing these little Pi devices are everywhere.)"
+          - "This is your new home. Your home directory."
+          - "To see the 'path' to your location, type [italic]pwd[/italic]. It stands for 'print working directory'."
+      - action: advance_objective
+
+  - id: "00_b_pwd"
+    type: "command_run"
+    description: "Find your current location."
+    criteria:
+      command: "pwd"
+    hint: "Type `pwd` to see your 'present working directory'."
+    on_complete_script:
+      - action: say_speech
+        character: cypher
+        messages:
+          - "That's your spot. Your home base."
+          - "So, what's in this new home of yours? Let's look around."
+          - "The command to 'list' your surroundings is [italic]ls[/italic]. It's your vision. Use it often. Trust me."
+          - "Type [italic]ls[/italic] now."
+      - action: advance_objective
+
+  - id: "00_c_ls_initial"
+    type: "command_run"
+    description: "List the contents of your home directory."
+    criteria:
+      command: "ls"
+    hint: "Use `ls` to 'list' the contents of the directory: `ls`"
+    on_complete_script:
+      - action: say_speech
+        character: cypher
+        messages:
+          - "See those? The System automatically gives every new user a set of standard 'data containers'. Think of them as empty rooms."
+          - "They're all empty for now. But we're not here to sort 'Music' or 'Pictures'. We're here to learn."
+          - "I'm uploading your first 'quest packet' to your location... right... now."
+      - action: spawn_tracked_file # This spawns the file
+        path: "~/quest_01.txt"
+        content: |
+          == MISSION 01: MAKING SPACE ==
+
+          Welcome, neophyte.
+
+          Every operator needs a workshop. A place to build tools, store data, and plan their next move.
+
+          Your Documents directory is the perfect spot.
+
+          YOUR OBJECTIVES:
+
+          Move into the Documents directory.
+
+          Create a new, empty directory inside it named workshop.
+
+          Good luck. - C
+      - action: say_speech
+        character: cypher
+        messages:
+          - "It should be there. How do you check your surroundings again?"
+      - action: advance_objective
+
+  - id: "00_d_ls_after_spawn"
+    type: "command_run"
+    description: "Confirm the new quest file appeared."
+    criteria:
+      command: "ls"
+    hint: "Use `ls` to see your new file: `ls`"
+    on_complete_script:
+      - action: say_speech
+        character: cypher
+        messages:
+          - "There it is. That new file: quest_01.txt."
+          - "That's your first mission. To read a file, you use the [italic]cat[/italic] command. It displays the contents of a file directly to your screen."
+          - "Type [italic]cat quest_01.txt[/italic] to read your mission."
+      - action: advance_objective
+
+  - id: "00_e_cat_quest_file"
+    type: "command_run"
+    description: "Read your first mission briefing."
+    criteria:
+      command: "cat quest_01.txt"
+    hint: "Read your mission: `cat quest_01.txt`"
+    on_complete_script:
+      - action: say_speech
+        character: cypher
+        messages:
+          - "There you have it. Your first task. You already know how to move."
+          - "Go on. [italic]cd[/italic] into your Documents directory."
+      - action: untrack_file # untrack quest_01.txt, as it's not needed for cleanup in the next quest
+        path: "~/quest_01.txt"
+      - action: advance_objective # This will advance to the next quest, which is "Boot Camp"
+
+on_load_sync:
+  - action: spawn_tracked_file
+    path: "~/quest_01.txt"
+    id: "00_c_ls_initial" # If 00_c_ls_initial is completed (meaning quest_01.txt was spawned)
+    not_completed: "00_e_cat_quest_file" # But 00_e_cat_quest_file is NOT completed (meaning it hasn't been read/untracked)

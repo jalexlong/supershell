@@ -7,10 +7,10 @@ that perform them.
 import inspect
 import logging
 import os
-import random  # Added for password generation
+import random
 
 from supershell.game import quest_manager
-from supershell.shell import executor
+from supershell.game.models import CommandResult  # Import from models
 from supershell.tui import dialogue
 
 log = logging.getLogger(__name__)
@@ -163,7 +163,7 @@ def _action_spawn_dir(path: str):
 def _action_conditional_say_on_fail(
     character: str,
     message: str,
-    command_result: executor.CommandResult,
+    command_result: CommandResult,  # Updated to use models.CommandResult
     if_command: str | None = None,
     if_args_contain: str | None = None,
 ):
@@ -189,7 +189,7 @@ def _action_reset_current_quest():
 
 
 def _action_conditional_hard_fail(
-    command_result: executor.CommandResult,
+    command_result: CommandResult,  # Updated to use models.CommandResult
     if_command: str | None = None,
     if_args_contain: str | None = None,
     if_return_code: int | None = None,
@@ -225,7 +225,7 @@ def _action_conditional_hard_fail(
 def _action_generate_and_save_password():
     """Generates a random password, saves it, and makes it available for dialogue."""
     words = ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta"]
-    password = f"{random.choice(words)}-{random.choice(words)}"
+    password = f"{random.choice(words)}-{random.choice(words)}-{random.choice(words)}"  # Make it a bit longer
     quest_manager.set_save_data("secret_password", password)
     quest_manager._last_generated_secret_password = (
         password  # Make available for dialogue
