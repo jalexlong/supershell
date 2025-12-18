@@ -1,0 +1,49 @@
+# QUEST 00: The Calibration
+- id: "00_init"
+  name: "System Calibration"
+  next_quest_id: "01_navigation"
+  # VICTORY MESSAGE: Plays AFTER they type 'echo hello'
+  message: |
+    OUTPUT STREAM: VERIFIED.
+    LATENCY: NOMINAL.
+
+    Calibration complete. The shell is responsive.
+
+    [NEXT PROTOCOL]
+    You are currently in a file system sector. You need to identify assets.
+    Execute 'ls' to list current directory contents.
+  conditions:
+    - type: CommandMatches
+      pattern: "^echo hello"
+
+# QUEST 01: Looking Around
+- id: "01_navigation"
+  name: "Sector Scan"
+  next_quest_id: "02_movement"
+  # VICTORY MESSAGE: Plays AFTER they type 'ls'
+  message: |
+    SCAN COMPLETE.
+    Artifacts identified.
+
+    [NEXT PROTOCOL]
+    Static positioning is inefficient.
+    Initiate transport to the 'src' subdirectory.
+    Execute 'cd src'.
+  conditions:
+    - type: CommandMatches
+      pattern: "^ls"
+
+# QUEST 02: Moving
+- id: "02_movement"
+  name: "Relocation"
+  next_quest_id: "03_finish"
+  # VICTORY MESSAGE: Plays AFTER they type 'cd src'
+  message: |
+    POSITION UPDATED.
+    Current working directory: /src
+
+    Basic mobility protocols established.
+    Awaiting further module installation...
+  conditions:
+    - type: CommandMatches
+      pattern: "^cd\\s+src"
