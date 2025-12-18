@@ -21,7 +21,7 @@ Supershell follows a **"Fail-Open"** philosophy. It is designed to never interfe
 ### Installation
 1.  Clone the repository:
     ```bash
-    git clone [https://github.com/jalexlong/supershell.git](https://github.com/jalexlong/supershell.git)
+    git clone https://github.com/jalexlong/supershell.git
     cd supershell
     ```
 2.  Build the engine:
@@ -45,7 +45,7 @@ Supershell follows a **"Fail-Open"** philosophy. It is designed to never interfe
 3.  Type real commands (`ls`, `cd`, `echo`) to solve the puzzles.
 4.  The system will interrupt you when a protocol is satisfied.
 
-## 📂 Data Locations (Linux)
+## 📂 Data Locations (Linux/MacOS)
 Supershell adheres to the XDG Base Directory Specification:
 * **Content:** `~/.local/share/supershell/quests.yaml`
 * **Save Data:** `~/.local/share/supershell/save.json`
