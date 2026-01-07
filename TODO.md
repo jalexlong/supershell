@@ -1,24 +1,15 @@
-# Supershell Project Roadmap
+# SuperShell Development Roadmap
 
-## 🛑 Priority 1: Core Mechanics & Safety
-- [ ] **Error Handling:** Refactor `src/main.rs` and `src/quest.rs` to replace `.unwrap()` with proper `Result` handling (prevent panics on corrupt save files).
-- [ ] **Condition Logic:** Implement the missing logic for `FileExists`, `FileContains`, and `FileMissing` in `quest.rs` (currently only `CommandMatches` is wired up).
-- [ ] **Signal Handling:** Add a `Ctrl+C` handler to ensure the terminal state is restored if the user aborts a cutscene (partially handled by `Drop`, but needs verification).
+## ⚙️ Engine (Rust)
+- [ ] **Color Support:** Add `colored` crate or ANSI codes to `ui.rs` for Success/Error themes.
+- [ ] **Validation:** Create a `validate` subcommand to check `quests.yaml` for logic errors.
+- [ ] **Progress Stats:** Display "% complete" in the `supershell` status command.
 
-## 🛠️ Priority 2: Distribution & Install
-- [ ] **Release Profile:** Optimize `Cargo.toml` for binary size and speed.
-- [ ] **Install Script:** Create `install.sh` that:
-    - Builds in `--release` mode.
-    - Moves binary to `~/.local/bin/`.
-    - Creates `~/.local/share/supershell/`.
-    - Copies `quests.yaml` to the data folder.
-- [ ] **Shell Agnosticism:** Port `supershell.sh` logic to Zsh (`supershell.zsh`).
+## 🐚 Shell Integration
+- [ ] **Zsh Support:** Test and document the `precmd` hook for Zsh users.
+- [ ] **Auto-Installer:** Create a script to automatically append the hook to `.bashrc`.
 
-## 🎨 Priority 3: Polish & Content
-- [ ] **Markdown Parsing:** Update the YAML loader to support basic formatting (e.g., `*bold*` turns white in the TUI).
-- [ ] **Sound:** (Optional) Add a simple beep or click sound effect during the typewriter animation.
-- [ ] **Content Expansion:** Write Chapter 04 (File Creation) and Chapter 05 (Deletion).
-
-## 🐛 Known Issues / Tech Debt
-- [ ] `supershell.sh` currently hardcodes the path to `target/debug`. Needs to be dynamic based on install location.
-- [ ] The TUI typewriter speed is hardcoded to 25ms. Should be configurable in `config.yaml`.
+## ✅ Done
+- [x] Refactor to hierarchical Chapter/Checkpoint structure.
+- [x] Implement linear progression with `is_finished` flag.
+- [x] Create inherent start-point discovery.
