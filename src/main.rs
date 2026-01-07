@@ -4,7 +4,7 @@ mod ui;
 
 use clap::Parser;
 use directories::ProjectDirs;
-use quest::{Condition, load_quests};
+use quest::{Chapter, load_chapters};
 use state::GameState;
 use std::fs;
 use std::path::PathBuf;
@@ -12,100 +12,110 @@ use ui::play_cutscene;
 
 #[derive(Parser)]
 struct Cli {
-    /// The user command to validate
     #[arg(long)]
     check: Option<String>,
+    #[arg(long)]
+    reset: bool,
 }
 
 fn main() {
     let args = Cli::parse();
 
-    // 1. DISCOVER STANDARD PATHS (XDG)
-    // qualifier="com", organization="jalexlong", application="supershell"
-    // On Linux, this maps to: ~/.local/share/supershell
+    // 1. PATH DISCOVERY
+    // Using env! to find quests.yaml relative to your project root
+    let local_quest_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("quests.yaml");
+
     let proj_dirs = ProjectDirs::from("com", "jalexlong", "supershell")
         .expect("Could not determine home directory");
+    let save_path = proj_dirs.data_dir().join("save.json");
 
-    let data_dir = proj_dirs.data_dir();
-
-    // 2. ENSURE DATA DIRECTORY EXISTS
-    if !data_dir.exists() {
-        fs::create_dir_all(data_dir).expect("Failed to create game data directory");
+    // Ensure data directory exists
+    if let Some(parent) = save_path.parent() {
+        fs::create_dir_all(parent).ok();
     }
 
-    // 3. DEFINE FILE PATHS
-    // Save file ALWAYS goes to the system data folder
-    let save_path = data_dir.join("save.json");
+    // 2. LOAD CHAPTER DATABASE
+    let yaml_content = fs::read_to_string(&local_quest_path).unwrap_or_default();
+    let chapters_list: Vec<Chapter> = serde_yml::from_str(&yaml_content).unwrap_or_default();
+    let start_id = chapters_list
+        .first()
+        .map(|c| c.id.clone())
+        .unwrap_or_else(|| "START".into());
 
-    // Quest file strategy: Check System -> Fallback to Local (Dev)
-    let system_quest_path = data_dir.join("quests.yaml");
-    let local_quest_path = PathBuf::from("quests.yaml");
+    // 3. RESET LOGIC
+    if args.reset {
+        if save_path.exists() {
+            fs::remove_file(&save_path).expect("Failed to delete save file");
+            println!("\r\n>> [SYSTEM] Save state wiped. Resetting to start of YAML.");
+        }
+        return;
+    }
 
-    let final_quest_path = if system_quest_path.exists() {
-        system_quest_path
-    } else if local_quest_path.exists() {
-        // Fallback for when you are developing in the source folder
-        local_quest_path
-    } else {
-        // Panic if we can't find the game content anywhere
-        eprintln!("CRITICAL ERROR: 'quests.yaml' not found in:");
-        eprintln!("  1. System: {:?}", system_quest_path);
-        eprintln!("  2. Local:  {:?}", local_quest_path);
-        std::process::exit(1);
-    };
+    // 4. LOAD GAME STATE
+    let chapter_db = load_chapters(local_quest_path.to_str().unwrap());
+    let mut game = GameState::load(save_path.to_str().unwrap(), start_id);
 
-    // Convert to string for our loader functions
-    let save_file = save_path.to_str().unwrap();
-    let quest_file = final_quest_path.to_str().unwrap();
-
-    // 4. LOAD ENGINE
-    let mut game = GameState::load(save_file);
-    let quest_db = load_quests(quest_file);
-
-    // --- LOGIC LOOP (Same as before) ---
+    // 5. EXECUTION LOGIC
     if let Some(user_cmd) = args.check {
-        let current_quest = quest_db.get(&game.current_quest_id);
+        if game.is_finished {
+            return;
+        } // End-of-game silence
 
-        if let Some(quest) = current_quest {
-            let all_met = quest
-                .conditions
-                .iter()
-                .all(|c: &Condition| c.is_met(&user_cmd));
+        if let Some(chapter) = chapter_db.get(&game.current_chapter_id) {
+            if let Some(checkpoint) = chapter.checkpoints.get(game.current_checkpoint_index) {
+                if checkpoint.conditions.iter().all(|c| c.is_met(&user_cmd)) {
+                    // Success message
+                    play_cutscene(&checkpoint.success);
 
-            if all_met {
-                play_cutscene(&quest.message);
-                game.complete_current_quest(&quest.next_quest_id);
-                game.save(save_file);
+                    // Advance to next Checkpoint
+                    if (game.current_checkpoint_index + 1) < chapter.checkpoints.len() {
+                        game.advance_checkpoint();
+
+                        if let Some(next_cp) =
+                            chapter.checkpoints.get(game.current_checkpoint_index)
+                        {
+                            println!("\r\n[NEXT OBJECTIVE]");
+                            println!("INSTRUCTION: {}", next_cp.instruction);
+                            println!("OBJECTIVE:   {}", next_cp.objective);
+                        }
+                    } else {
+                        // Chapter Complete
+                        play_cutscene(&chapter.debriefing);
+
+                        if let Some(next_id) = &chapter.next_chapter_id {
+                            game.move_to_chapter(next_id.clone());
+                            if let Some(next_ch) = chapter_db.get(next_id) {
+                                play_cutscene(&next_ch.briefing);
+
+                                // Show first objective of new chapter
+                                if let Some(first_cp) = next_ch.checkpoints.get(0) {
+                                    println!("\r\n[NEXT OBJECTIVE]");
+                                    println!("INSTRUCTION: {}", first_cp.instruction);
+                                    println!("OBJECTIVE:   {}", first_cp.objective);
+                                }
+                            }
+                        } else {
+                            game.is_finished = true;
+                            println!("\r\n>> [SYSTEM] All diagnostic protocols complete.");
+                        }
+                    }
+                    game.save(save_path.to_str().unwrap());
+                }
             }
         }
     } else {
-        // DASHBOARD / INTRO
-        if game.completed_quests.is_empty() && game.current_quest_id == "00_init" {
-            let boot_sequence = "SUPERSHELL DAEMON v1.0.2
-INITIALIZING KERNEL MODULES... [OK]
-MOUNTING VIRTUAL TUTOR... [OK]
-
-[STATUS]
-Standard shell functionality: ACTIVE.
-Supershell overlay: ACTIVE.
-
-[PROTOCOL 00: CALIBRATION]
-Before complex tasks can be assigned, input/output integrity must be verified.
-Demonstrate control of the standard output stream.
-
-[TASK]
-Execute the 'echo' command with the string 'hello'.
-Command: echo hello";
-            play_cutscene(boot_sequence);
-        } else {
-            println!("\n=== 🛡️  SUPERSHELL DAEMON STATUS 🛡️  ===");
-            if let Some(q) = quest_db.get(&game.current_quest_id) {
-                println!("CURRENT PROTOCOL: {}", q.name);
-                println!("STATUS: Awaiting input matching protocol criteria.");
-            } else {
-                println!("STATUS: No active protocols. System idle.");
+        // MANUAL MODE
+        if game.is_finished {
+            println!(">> [SYSTEM] Status: 100% Complete. System Stable.");
+            println!(">> Run 'supershell --reset' to restart.");
+        } else if let Some(chapter) = chapter_db.get(&game.current_chapter_id) {
+            if let Some(checkpoint) = chapter.checkpoints.get(game.current_checkpoint_index) {
+                if game.current_checkpoint_index == 0 {
+                    play_cutscene(&chapter.briefing);
+                }
+                println!("\r\n[CURRENT STATUS: {}]", chapter.title);
+                println!("OBJECTIVE: {}", checkpoint.objective);
             }
-            println!("==========================================\n");
         }
     }
 }

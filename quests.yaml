@@ -1,49 +1,74 @@
-# QUEST 00: The Calibration
-- id: "00_init"
-  name: "System Calibration"
-  next_quest_id: "01_navigation"
-  # VICTORY MESSAGE: Plays AFTER they type 'echo hello'
-  message: |
-    OUTPUT STREAM: VERIFIED.
-    LATENCY: NOMINAL.
+# ==============================================================================
+# CHAPTER 01: CORE DIAGNOSTICS
+# Testing: Sequential Checkpoints, Regex Matching, and Briefing/Debriefing
+# ==============================================================================
+- id: "DEV_CORE"
+  title: "Diagnostic: Core Logic"
+  briefing: |
+    [DAEMON INITIALIZED]
+    Starting Engine Diagnostic Suite.
+    Verifying sequential checkpoint progression...
+  debriefing: |
+    [CORE DIAGNOSTIC COMPLETE]
+    Sequential logic is functional. Proceeding to File System diagnostics.
+  checkpoints:
+    - id: "regex_test"
+      name: "Regex Stream"
+      instruction: "Verify the shell hook can pass data to the engine."
+      objective: "Type: echo ready"
+      success: "Regex match: SUCCESS."
+      conditions:
+        - type: CommandMatches
+          pattern: "^echo ready$"
 
-    Calibration complete. The shell is responsive.
+    - id: "logic_test"
+      name: "Status Check"
+      instruction: "Verify the daemon can handle multiple-word regex."
+      objective: "Type: echo system-green"
+      success: "Status match: SUCCESS."
+      conditions:
+        - type: CommandMatches
+          pattern: "^echo system-green$"
+  next_chapter_id: "DEV_FILESYSTEM"
 
-    [NEXT PROTOCOL]
-    You are currently in a file system sector. You need to identify assets.
-    Execute 'ls' to list current directory contents.
-  conditions:
-    - type: CommandMatches
-      pattern: "^echo hello"
+# ==============================================================================
+# CHAPTER 02: FS DIAGNOSTICS
+# Testing: File Presence, Content Scanning, and Negative Logic (Missing)
+# ==============================================================================
+- id: "DEV_FILESYSTEM"
+  title: "Diagnostic: File System"
+  briefing: |
+    [SECTOR 2: FS_PROBE]
+    Testing disk read/write permissions and content scanning.
+  debriefing: |
+    [FS DIAGNOSTIC COMPLETE]
+    Engine is 100% Green. Ready for curriculum deployment.
+  checkpoints:
+    - id: "fs_exists"
+      name: "Manifestation"
+      instruction: "Verify the engine detects new files in the CWD."
+      objective: "Type: touch .dev_probe"
+      success: "FileExists: SUCCESS."
+      conditions:
+        - type: FileExists
+          path: ".dev_probe"
 
-# QUEST 01: Looking Around
-- id: "01_navigation"
-  name: "Sector Scan"
-  next_quest_id: "02_movement"
-  # VICTORY MESSAGE: Plays AFTER they type 'ls'
-  message: |
-    SCAN COMPLETE.
-    Artifacts identified.
+    - id: "fs_content"
+      name: "Deep Scan"
+      instruction: "Verify the engine can read strings inside files."
+      objective: "Type: echo 'ALFA_01' > .dev_probe"
+      success: "FileContains: SUCCESS."
+      conditions:
+        - type: FileContains
+          path: ".dev_probe"
+          pattern: "ALFA_01"
 
-    [NEXT PROTOCOL]
-    Static positioning is inefficient.
-    Initiate transport to the 'src' subdirectory.
-    Execute 'cd src'.
-  conditions:
-    - type: CommandMatches
-      pattern: "^ls"
-
-# QUEST 02: Moving
-- id: "02_movement"
-  name: "Relocation"
-  next_quest_id: "03_finish"
-  # VICTORY MESSAGE: Plays AFTER they type 'cd src'
-  message: |
-    POSITION UPDATED.
-    Current working directory: /src
-
-    Basic mobility protocols established.
-    Awaiting further module installation...
-  conditions:
-    - type: CommandMatches
-      pattern: "^cd\\s+src"
+    - id: "fs_missing"
+      name: "Purge Logic"
+      instruction: "Verify the engine detects file deletion (negative logic)."
+      objective: "Type: rm .dev_probe"
+      success: "FileMissing: SUCCESS."
+      conditions:
+        - type: FileMissing
+          path: ".dev_probe"
+  next_chapter_id: null # End of diagnostic suite

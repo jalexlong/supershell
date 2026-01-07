@@ -22,9 +22,14 @@ impl Condition {
             }
             Condition::FileExists { path } => Path::new(path).exists(),
             Condition::FileContains { path, pattern } => {
-                if let Ok(content) = fs::read_to_string(path) {
-                    let re = Regex::new(pattern).unwrap_or_else(|_| Regex::new("").unwrap());
-                    re.is_match(&content)
+                let p = Path::new(path);
+                if p.is_file() {
+                    if let Ok(content) = fs::read_to_string(p) {
+                        let re = Regex::new(pattern).unwrap_or_else(|_| Regex::new("").unwrap());
+                        re.is_match(&content)
+                    } else {
+                        false
+                    }
                 } else {
                     false
                 }
@@ -35,29 +40,36 @@ impl Condition {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Quest {
+pub struct Checkpoint {
     pub id: String,
     pub name: String,
-
-    #[serde(default)]
-    pub message: String,
-
+    pub instruction: String,
+    pub objective: String,
+    pub success: String,
     pub conditions: Vec<Condition>,
-    pub next_quest_id: String,
 }
 
-pub fn load_quests(path: &str) -> HashMap<String, Quest> {
-    let mut db = HashMap::new();
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Chapter {
+    pub id: String,
+    pub title: String,
+    pub briefing: String,
+    pub debriefing: String,
+    pub checkpoints: Vec<Checkpoint>,
+    pub next_chapter_id: Option<String>,
+    #[serde(default)]
+    pub tags: Vec<String>,
+}
 
+pub fn load_chapters(path: &str) -> HashMap<String, Chapter> {
+    let mut db = HashMap::new();
     if Path::new(path).exists() {
         let content = fs::read_to_string(path).unwrap_or_default();
-        let quests: Vec<Quest> = serde_yml::from_str(&content).unwrap_or_default();
-
-        for q in quests {
-            db.insert(q.id.clone(), q);
+        if let Ok(chapters) = serde_yml::from_str::<Vec<Chapter>>(&content) {
+            for c in chapters {
+                db.insert(c.id.clone(), c);
+            }
         }
-    } else {
-        println!("[!] WARNING: quests.yaml not found at {}", path);
     }
     db
 }
