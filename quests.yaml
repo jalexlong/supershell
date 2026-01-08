@@ -71,4 +71,78 @@
       conditions:
         - type: FileMissing
           path: ".dev_probe"
-  next_chapter_id: null # End of diagnostic suite
+  next_chapter_id: "LAB_01" # End of diagnostic suite
+
+# ==============================================================================
+# CHAPTER: LAB 01 - THE HANDSHAKE
+# Source: IT&Sec - Lab 01 - The Handshake.md
+# Topics: Identity verification, Directory creation, Redirection
+# ==============================================================================
+- id: "LAB_01"
+  title: "Lab 01: The Handshake"
+  briefing: |
+    [CONNECTION ESTABLISHED]
+    [SOURCE: CONTROL]
+
+    Operative, we have detected your signal, but the channel is unsecured.
+    Before we proceed with sensitive tasking, we must verify your terminal
+    integrity and establish a handshake.
+
+    Do not fail me.
+  debriefing: |
+    [HANDSHAKE VERIFIED]
+
+    Identity confirmed. Uplink established.
+    You are now authorized for further instruction.
+    Standing by for Lab 02.
+  checkpoints:
+    - id: "l1_identity"
+      name: "Identity Verification"
+      instruction: "Verify your user identity on this terminal."
+      objective: "Type: whoami"
+      success: "User identity confirmed."
+      conditions:
+        - type: CommandMatches
+          pattern: "^whoami.*"
+
+    - id: "l1_recon"
+      name: "Terminal Recon"
+      instruction: "Report your terminal's hostname to Control."
+      objective: "Type: hostname"
+      success: "Hostname logged."
+      conditions:
+        - type: CommandMatches
+          pattern: "^hostname.*"
+
+    - id: "l1_secure_channel"
+      name: "Secure Channel"
+      instruction: "Create a hidden directory named '.uplink' to store the handshake."
+      objective: "Type: mkdir .uplink"
+      success: "Secure channel allocated."
+      conditions:
+        - type: CommandMatches
+          pattern: "^mkdir.*\\.uplink"
+        - type: FileExists
+          path: ".uplink"
+
+    - id: "l1_token_gen"
+      name: "Token Generation"
+      instruction: "Generate a timestamp token and redirect it into the uplink."
+      objective: "Type: date > .uplink/handshake.dat"
+      success: "Token generated and stored."
+      conditions:
+        - type: CommandMatches
+          pattern: "^date.*>.*\\.uplink/handshake\\.dat"
+        - type: FileExists
+          path: ".uplink/handshake.dat"
+
+    - id: "l1_transmit"
+      name: "Signal Transmission"
+      instruction: "Read the token back to verify the integrity of the data stream."
+      objective: "Type: cat .uplink/handshake.dat"
+      success: "Transmission received. Content matches."
+      conditions:
+        - type: CommandMatches
+          pattern: "^cat.*\\.uplink/handshake\\.dat"
+
+  next_chapter_id: null # Set to LAB_02 when ready

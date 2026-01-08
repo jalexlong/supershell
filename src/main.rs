@@ -64,30 +64,31 @@ fn main() {
         if let Some(chapter) = chapter_db.get(&game.current_chapter_id) {
             if let Some(checkpoint) = chapter.checkpoints.get(game.current_checkpoint_index) {
                 if checkpoint.conditions.iter().all(|c| c.is_met(&user_cmd)) {
-                    // Success message
-                    play_cutscene(&checkpoint.success);
+                    // Advance immediately
+                    game.advance_checkpoint();
 
-                    // Advance to next Checkpoint
-                    if (game.current_checkpoint_index + 1) < chapter.checkpoints.len() {
-                        game.advance_checkpoint();
+                    // Check if that was the LAST checkpoint in the chapter
+                    if (game.current_checkpoint_index) >= chapter.checkpoints.len() {
+                        // --- VICTORY LAP ---
+                        println!("");
+                        println!("\x1b[32m>> [MISSION COMPLETE] Objective Verified.\x1b[0m");
+                        println!("\x1b[32m>> System is ready for the next phase.\x1b[0m");
+                        println!("\x1b[90m>> Press [ENTER] to establish uplink...\x1b[0m");
 
-                        if let Some(next_cp) =
-                            chapter.checkpoints.get(game.current_checkpoint_index)
-                        {
-                            println!("\r\n[NEXT OBJECTIVE]");
-                            println!("INSTRUCTION: {}", next_cp.instruction);
-                            println!("OBJECTIVE:   {}", next_cp.objective);
-                        }
-                    } else {
-                        // Chapter Complete
+                        // Stop until user hits Enter
+                        let mut buffer = String::new();
+                        let _ = std::io::stdin().read_line(&mut buffer);
+
+                        // NOW wipe the screen for the briefing
                         play_cutscene(&chapter.debriefing);
 
                         if let Some(next_id) = &chapter.next_chapter_id {
                             game.move_to_chapter(next_id.clone());
+
                             if let Some(next_ch) = chapter_db.get(next_id) {
                                 play_cutscene(&next_ch.briefing);
 
-                                // Show first objective of new chapter
+                                // Show first objective of next chapter
                                 if let Some(first_cp) = next_ch.checkpoints.get(0) {
                                     println!("\r\n[NEXT OBJECTIVE]");
                                     println!("INSTRUCTION: {}", first_cp.instruction);
@@ -98,7 +99,22 @@ fn main() {
                             game.is_finished = true;
                             println!("\r\n>> [SYSTEM] All diagnostic protocols complete.");
                         }
+                    } else {
+                        // NOT finished yet - just a normal checkpoint
+                        // We print the success message INLINE instead of using play_cutscene
+                        // so we don't wipe the user's command output.
+                        println!("\n\x1b[32m>> [SUCCESS] {}\x1b[0m", checkpoint.success);
+
+                        // Show first objective of new chapter
+                        if let Some(next_cp) =
+                            chapter.checkpoints.get(game.current_checkpoint_index)
+                        {
+                            println!("\r\n[NEXT OBJECTIVE]");
+                            println!("INSTRUCTION: {}", next_cp.instruction);
+                            println!("OBJECTIVE:   {}", next_cp.objective);
+                        }
                     }
+
                     game.save(save_path.to_str().unwrap());
                 }
             }
