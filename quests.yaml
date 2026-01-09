@@ -82,16 +82,22 @@
           pattern: "^ls\\s+/"
 
     - id: "t0_look"
-      name: "Manifestation"
+      name: "Look Around"
       instruction: |
-        "Now that we can see the root directory "
-      objective: "Type: mkdir workspace"
-      success: "It is done. The structure now exists because you commanded it."
+        Now that we can see the root directory, we can look at the "branches"
+        of our filetree. Let's look at the "home" branch inside of the root (/)
+        directory.
+      objective: "Type: ls /home"
+      success: |
+        Great! Now we can see everything inside of the "/home" directory.
+
+        It's a good thing to remember that you can always look wherever you want,
+        but ls doesn't change where you are. You're still exactly where you
+        started out, but you're able to see anything on this system from where
+        you are like a hawk.
       conditions:
         - type: CommandMatches
-          pattern: "^mkdir.*workspace"
-        - type: FileExists
-          path: "workspace"
+          pattern: "^ls.*/home"
 
     - id: "t0_construct"
       name: "Manifestation"
@@ -104,9 +110,9 @@
       objective: "Type: mkdir workspace"
       success: "It is done. The structure now exists because you commanded it."
       conditions:
-        - type: CommandMatches
-          pattern: "^mkdir.*workspace"
-        - type: FileExists
+        # LOGIC UPGRADE: Ensure it is actually a Directory, not a file.
+        # If the user types 'touch workspace', this will rightly fail.
+        - type: IsDirectory
           path: "workspace"
 
     - id: "t0_translation"
@@ -122,8 +128,10 @@
       objective: "Type: cd workspace"
       success: "Focus shifted. You are now inside the construct."
       conditions:
-        - type: CommandMatches
-          pattern: "^cd.*workspace"
+        # LOGIC UPGRADE: Verify they are actually INSIDE the folder.
+        # This prevents cheating or failed 'cd' commands from passing.
+        - type: WorkingDir
+          pattern: "workspace$"
 
     - id: "t0_verify"
       name: "Trusting Silence"
@@ -138,20 +146,46 @@
         - type: CommandMatches
           pattern: "^ls.*"
 
-    - id: "t0_predict"
-      name: "The Harmony"
+    - id: "t0_back"
+      name: "Step Back"
       instruction: |
         We must return to the previous level.
         We could type the absolute path, but there is a shortcut.
 
-        In the Linux Tree, every directory contains a hidden link called ".." (Dot Dot).
-        This link points to the "Parent" branch—the one directly above you.
+        In the Linux Tree, every directory contains a hidden link called ".." (dot dot).
+        This link points to the "parent" branch — the one directly above you.
 
         Type 'cd ..' to climb up one level.
         [PRO TIP]: Use the [TAB] key in the future to autocomplete names.
       objective: "Type: cd .."
-      success: "Returned to origin. Path integration complete."
+      success: "Returned to home. Path integration complete."
       conditions:
-        - type: CommandMatches
-          pattern: "^cd \\.\\."
+        # LOGIC UPGRADE: We verify they are NO LONGER in 'workspace'.
+        # Matches any path ending in something other than 'workspace',
+        # or specifically matches the user's home folder structure.
+        - type: WorkingDir
+          pattern: "(home|Users)/[^/]+$"
+
+    - id: "t0_cleanup"
+      name: "Clean Up"
+      instruction: |
+        Now that we're back home, let's clean up our workspace. To remove
+        files, you use the `rm` command. To remove empty folders/directories,
+        you use the `rmdir` command.
+
+        In this case, we need to remove the directory we just made named
+        'workspace'. Since 'workspace' is a directory, we need to make sure
+        that it's empty first. Once we verify that there's nothing in it,
+        then we can use the `rmdir` command followed by the name of the
+        directory we want to delete.
+      objective: "Type: rmdir workspace"
+      success: "Our home folder is now clean and we're ready to move on."
+      conditions:
+        # LOGIC UPGRADE: This fixes the 'relative path' bug.
+        # Condition 1: Must be at Home.
+        - type: WorkingDir
+          pattern: "(home|Users)/[^/]+$"
+        # Condition 2: The folder must be gone.
+        - type: PathMissing
+          path: "workspace"
   next_chapter_id: "TUT_01"

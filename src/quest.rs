@@ -1,16 +1,38 @@
+use directories::UserDirs;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::env;
 use std::fs;
+use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "type")]
 pub enum Condition {
+    // INPUT CHECKS
     CommandMatches { pattern: String },
-    FileExists { path: String },
+    HistoryContains { pattern: String },
+
+    // EXISTENCE CHECKS
+    PathExists { path: String },
+    PathMissing { path: String },
+
+    // TYPE CHECKS
+    IsDirectory { path: String },
+    IsFile { path: String },
+    IsExecutable { path: String },
+
+    // LOCATION CHECKS
+    WorkingDir { pattern: String },
+
+    // CONTENT CHECKS
     FileContains { path: String, pattern: String },
-    FileMissing { path: String },
+    FileNotContains { path: String, pattern: String },
+    FileEmpty { path: String },
+
+    // ENVIRONMENT CHECKS
+    EnvVar { name: String, value: String },
 }
 
 impl Condition {
@@ -20,11 +42,11 @@ impl Condition {
                 let re = Regex::new(pattern).unwrap_or_else(|_| Regex::new("").unwrap());
                 re.is_match(user_command)
             }
-            Condition::FileExists { path } => Path::new(path).exists(),
-            Condition::FileContains { path, pattern } => {
-                let p = Path::new(path);
-                if p.is_file() {
-                    if let Ok(content) = fs::read_to_string(p) {
+            Condition::HistoryContains { pattern } => {
+                if let Some(user_dirs) = UserDirs::new() {
+                    let history_path = user_dirs.home_dir().join(".bash_history");
+
+                    if let Ok(content) = fs::read_to_string(history_path) {
                         let re = Regex::new(pattern).unwrap_or_else(|_| Regex::new("").unwrap());
                         re.is_match(&content)
                     } else {
@@ -34,7 +56,51 @@ impl Condition {
                     false
                 }
             }
-            Condition::FileMissing { path } => !Path::new(path).exists(),
+            Condition::PathExists { path } => Path::new(path).exists(),
+            Condition::PathMissing { path } => !Path::new(path).exists(),
+            Condition::IsDirectory { path } => Path::new(path).is_dir(),
+            Condition::IsFile { path } => Path::new(path).is_file(),
+            Condition::IsExecutable { path } => {
+                if let Ok(metadata) = fs::metadata(path) {
+                    // Check if the executable bit (0o111) is set
+                    metadata.permissions().mode() & 0o111 != 0
+                } else {
+                    false
+                }
+            }
+            Condition::WorkingDir { pattern } => {
+                let current_dir = env::current_dir().unwrap_or_default();
+                let path_str = current_dir.to_string_lossy();
+                let re = Regex::new(pattern).unwrap_or_else(|_| Regex::new("").unwrap());
+                re.is_match(&path_str)
+            }
+            Condition::FileContains { path, pattern } => {
+                if let Ok(content) = fs::read_to_string(path) {
+                    let re = Regex::new(pattern).unwrap_or_else(|_| Regex::new("").unwrap());
+                    re.is_match(&content)
+                } else {
+                    false
+                }
+            }
+            Condition::FileNotContains { path, pattern } => {
+                if let Ok(content) = fs::read_to_string(path) {
+                    let re = Regex::new(pattern).unwrap_or_else(|_| Regex::new("").unwrap());
+                    !re.is_match(&content)
+                } else {
+                    true
+                }
+            }
+            Condition::FileEmpty { path } => {
+                if let Ok(metadata) = fs::metadata(path) {
+                    metadata.len() == 0
+                } else {
+                    false
+                }
+            }
+            Condition::EnvVar { name, value } => match env::var(name) {
+                Ok(val) => val == *value,
+                Err(_) => false,
+            },
         }
     }
 }
