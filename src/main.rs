@@ -73,7 +73,7 @@ fn main() {
                         println!("");
                         println!("\x1b[32m>> [MISSION COMPLETE] Objective Verified.\x1b[0m");
                         println!("\x1b[32m>> System is ready for the next phase.\x1b[0m");
-                        println!("\x1b[90m>> Press [ENTER] to establish uplink...\x1b[0m");
+                        println!("\x1b[90m>> Press [ENTER] to begin transmission...\x1b[0m");
 
                         // Stop until user hits Enter
                         let mut buffer = String::new();

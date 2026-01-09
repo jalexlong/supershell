@@ -1,5 +1,5 @@
 use crossterm::{
-    cursor::{Hide, MoveTo, MoveToColumn, MoveToNextLine, Show},
+    cursor::{Hide, MoveTo, Show},
     event::{Event, KeyCode, KeyEventKind, poll, read},
     execute,
     style::{Attribute, Color, Print, ResetColor, SetAttribute, SetForegroundColor},
@@ -73,15 +73,12 @@ pub fn play_cutscene(text: &str) {
     .unwrap();
 
     // The Typewriter Loop
-    let chars: Vec<char> = text.chars().collect();
     let mut skipped = false;
 
-    for char in chars {
+    for char in wrapped_text.chars() {
+        // PRINT LOGIC
         if char == '\n' {
-            // MANUAL FIX: When we hit a newline...
-            // 1. Go down one line (resets to col 0)
-            // 2. Move right to col 2 (to maintain indentation)
-            execute!(stdout, MoveToNextLine(1), MoveToColumn(1)).unwrap();
+            execute!(stdout, Print("\r\n")).unwrap();
         } else {
             // Otherwise, print normally
             print!("{}", char);
@@ -89,31 +86,21 @@ pub fn play_cutscene(text: &str) {
         }
 
         // CHECK FOR SKIP (Non-blocking check)
-        // We poll for 0 seconds to see if a key is waiting
-        if poll(Duration::from_secs(0)).unwrap() {
-            if let Event::Key(key) = read().unwrap() {
-                if key.kind == KeyEventKind::Press && key.code == KeyCode::Char(' ') {
-                    skipped = true;
-                    break; // Stop typing, jump to end
+        if !skipped {
+            // Check if key is pressed (Non-blocking)
+            if poll(Duration::from_secs(0)).unwrap() {
+                if let Event::Key(key) = read().unwrap() {
+                    if key.kind == KeyEventKind::Press && key.code == KeyCode::Enter {
+                        skipped = true;
+                    }
                 }
             }
-        }
-
-        // The "Rhythm" (25ms)
-        if !skipped {
+            // THE DELAY
+            // We only sleep if the user hasn't skipped yet.
+            // If skipped is true, this block is ignored, and the loop
+            // spins as fast as the CPU allows (instantly filling the text).
             thread::sleep(Duration::from_millis(25));
         }
-    }
-
-    // SKIP HANDLER (Instant Print)
-    if skipped {
-        execute!(stdout, Clear(ClearType::All), MoveTo(0, 0)).unwrap();
-        // We manually inject the alignment for the fast-print block
-        // \r = Return to 0, \n = Down, "  " = Indent to 2
-        let aligned_block = wrapped_text.replace("\n", "\r\n ");
-
-        print!("{}", aligned_block);
-        stdout.flush().unwrap();
     }
 
     // PROMPT
@@ -121,14 +108,14 @@ pub fn play_cutscene(text: &str) {
         stdout,
         Print("\r\n\r\n"),
         SetForegroundColor(Color::DarkGrey),
-        Print(">> PRESS [SPACE] TO CONTINUE_")
+        Print(">> PRESS [ENTER] TO CONTINUE_")
     )
     .unwrap();
 
-    // Loop until Space is pressed
+    // Loop until Enter is pressed
     loop {
         if let Event::Key(key) = read().unwrap() {
-            if key.kind == KeyEventKind::Press && key.code == KeyCode::Char(' ') {
+            if key.kind == KeyEventKind::Press && key.code == KeyCode::Enter {
                 break;
             }
         }
