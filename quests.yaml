@@ -1,191 +1,141 @@
-# ==============================================================================
-# CHAPTER 00: THE AWAKENING
-# Focus: Spatial awareness, navigation, and the philosophy of the CLI.
-# Theme: Moving from "Consumer" (GUI) to "Operator" (Shell).
-# ==============================================================================
-- id: "TUT_00"
-  title: "Module: The Awakening"
-  briefing: |
-    [Welcome to SuperShell]
+quests:
+  # --- TIER 2: QUEST (Module 00) ---
+  - id: "awakening"
+    title: "MODULE 00: THE AWAKENING"
+    chapters:
+      # --- CHAPTER 1: ORIENTATION ---
+      - title: "Orientation"
+        intro: |
+          [Welcome to SuperShell]
 
-    For years, you have interacted with computers through a veil.
+          For years, you have interacted with computers through a veil.
+          You were a guest in your own house. That ends now.
 
-    You clicked on icons drawn by others. You navigated paths paved by engineers
-    who didn't trust you. You were a guest in your own house, relying on the
-    mouse — a device that limits your speed to the physical motion of your wrist.
+          You have stripped away the Graphical User Interface.
+          Here, you do not point. You do not click.
+          You speak, and the machine obeys.
 
-    That ends now.
+          First, we must establish your senses in the dark.
+        outro: |
+          Vision returned. Coordinates locked.
+          You have successfully mapped your immediate surroundings.
+        tasks:
+          - description: "Ping the sonar."
+            instruction: "The screen is dark. You must actively ask the system to describe itself."
+            objective: "Type 'ls' to list contents."
+            success_msg: "Vision returned. The system has revealed its contents."
+            conditions:
+              - type: CommandMatches
+                pattern: "^ls"
 
-    You have stripped away the Graphical User Interface. What remains is the Shell.
+          - description: "Triangulate position."
+            instruction: |
+              Scanning tells you WHAT is nearby, but not WHERE you are.
+              Linux is an 'Upside-Down Tree'. You are currently on a branch.
+            objective: "Type 'pwd' to print working directory."
+            success_msg: "Coordinates locked. You are grounded."
+            conditions:
+              - type: CommandMatches
+                pattern: "^pwd"
 
-    To the uninitiated, this black screen looks archaic. It looks empty.
-    But to the master, this silence is potential. The GUI limits you to what
-    has been programmed *for* you. The Shell empowers you to execute what
-    you *will*.
+          - description: "Identify the Root."
+            instruction: |
+              Your path likely starts with '/'. This is the Root.
+              Every file grows downward from this single point.
+              Let us look at the source.
+            objective: "Type 'ls /' to list the root directory."
+            success_msg: "The Foundation revealed."
+            conditions:
+              - type: CommandMatches
+                pattern: "^ls\\s+/"
 
-    Here, you do not point. You do not click. You speak, and the machine obeys.
+          - description: "Scan the Home Branch."
+            instruction: |
+              We can look at other branches without moving.
+              Let's look at the 'home' branch inside of the root.
+            objective: "Type 'ls /home'"
+            success_msg: "Remote scan complete."
+            conditions:
+              - type: CommandMatches
+                pattern: "^ls.*/home"
 
-    Welcome to the Terminal.
-  debriefing: |
-    [PROFICIENCY LOGGED]
+      # --- CHAPTER 2: MANIPULATION ---
+      - title: "Manifestation"
+        intro: |
+          [PHASE 2: INTERACTION]
 
-    You have taken your first steps without a visual guide.
-    The silence of the terminal is no longer a void; it is a waiting room.
+          Now that you know the shape of the world, we can alter it.
+          There is no "Right Click -> New Folder" here.
 
-    You are ready to begin building.
-  checkpoints:
-    - id: "t0_ping"
-      name: "The Sonar"
-      instruction: |
-        In the GUI, you "look" at a window to see your files.
-        Here, the screen is dark. You must actively ask the system to describe itself.
+          If you want structure, you must speak it into existence.
+        outro: |
+          Structure verified.
+          You have proven you can alter the digital landscape.
+        tasks:
+          - description: "Construct a directory."
+            instruction: "Command the system to make a directory named 'workspace'."
+            objective: "Type 'mkdir workspace'"
+            success_msg: "It is done. Structure created."
+            conditions:
+              - type: IsDirectory
+                path: "workspace"
 
-        Cast your senses out. List the contents of this space.
-      objective: "Type: ls"
-      success: "Vision returned. The system has revealed its contents."
-      conditions:
-        - type: CommandMatches
-          pattern: "^ls.*"
+          - description: "Shift focus."
+            instruction: |
+              The directory exists, but you are outside it.
+              Movement in the Shell is not physical; it is a shift in focus.
+              Use a 'Relative Path'.
+            objective: "Type 'cd workspace'"
+            success_msg: "Focus shifted. You are inside the construct."
+            conditions:
+              - type: WorkingDir
+                pattern: "workspace$"
 
-    - id: "t0_triangulate"
-      name: "True North"
-      instruction: |
-        Scanning tells you *what* is nearby, but not *where* you are.
+          - description: "Verify the void."
+            instruction: |
+              In the GUI, an empty folder is a white box.
+              Here, it is simply silence. If the system says nothing, there is nothing.
+            objective: "Type 'ls' to verify it is empty."
+            success_msg: "Silence confirmed."
+            conditions:
+              - type: CommandMatches
+                pattern: "^ls"
 
-        You must understand the Map. Linux is an "Upside-Down Tree."
-        At the very top is the ROOT, represented by a single slash: /
-        Every file, folder, and program grows downward from that single point.
+      # --- CHAPTER 3: RESTORATION ---
+      - title: "Restoration"
+        intro: |
+          [PHASE 3: RETREAT]
 
-        You are currently on a branch called "home".
-        Ask the system to print your absolute coordinates (Working Directory).
-      objective: "Type: pwd"
-      success: "Coordinates locked. You are grounded."
-      conditions:
-        - type: CommandMatches
-          pattern: "^pwd$"
+          A master operator leaves no trace.
+          We must return to the surface and remove our temporary constructs.
+        outro: |
+          [PROFICIENCY LOGGED]
 
-    - id: "t0_root_logic"
-      name: "The Origin"
-      instruction: |
-        Look at the output of your last command. It likely reads something like:
-        /home/username
+          You have taken your first steps without a visual guide.
+          The silence of the terminal is no longer a void; it is a waiting room.
 
-        This is a "path." It traces the route from the root (/) through the
-        branches (home) to you (username).
+          You are ready to begin building.
+        tasks:
+          - description: "Return to surface."
+            instruction: |
+              We must return to the parent level.
+              The '..' (dot dot) link points to the branch above you.
+            objective: "Type 'cd ..'"
+            success_msg: "Returned to home. Path integration complete."
+            conditions:
+              # Checks that we are NOT in workspace anymore
+              - type: WorkingDir
+                pattern: "[^/]+$"
+              # Ensure the path does not end in workspace
+              - type: WorkingDir
+                pattern: "^(?!.*/workspace$).*$"
 
-        To truly understand the scale of the system, let us look at the source.
-        List the contents of the root directory.
-      objective: "Type: ls /"
-      success: "The Foundation revealed. This is the trunk of the tree."
-      conditions:
-        - type: CommandMatches
-          pattern: "^ls\\s+/"
-
-    - id: "t0_look"
-      name: "Look Around"
-      instruction: |
-        Now that we can see the root directory, we can look at the "branches"
-        of our filetree. Let's look at the "home" branch inside of the root (/)
-        directory.
-      objective: "Type: ls /home"
-      success: |
-        Great! Now we can see everything inside of the "/home" directory.
-
-        It's a good thing to remember that you can always look wherever you want,
-        but ls doesn't change where you are. You're still exactly where you
-        started out, but you're able to see anything on this system from where
-        you are like a hawk.
-      conditions:
-        - type: CommandMatches
-          pattern: "^ls.*/home"
-
-    - id: "t0_construct"
-      name: "Manifestation"
-      instruction: |
-        Now that you know the shape of the world, we can alter it.
-        There is no "Right Click -> New Folder" here.
-        If you want structure, you must speak it into existence.
-
-        Command the system to make a directory named 'workspace'.
-      objective: "Type: mkdir workspace"
-      success: "It is done. The structure now exists because you commanded it."
-      conditions:
-        # LOGIC UPGRADE: Ensure it is actually a Directory, not a file.
-        # If the user types 'touch workspace', this will rightly fail.
-        - type: IsDirectory
-          path: "workspace"
-
-    - id: "t0_translation"
-      name: "Focus Shift"
-      instruction: |
-        The directory exists, but you are still standing outside of it.
-        Movement in the Shell is not physical; it is a shift in focus.
-
-        We will use a "Relative Path." Since 'workspace' is right next to us,
-        we do not need the full address (starting with /). We just say the name.
-
-        Change your context into the 'workspace'.
-      objective: "Type: cd workspace"
-      success: "Focus shifted. You are now inside the construct."
-      conditions:
-        # LOGIC UPGRADE: Verify they are actually INSIDE the folder.
-        # This prevents cheating or failed 'cd' commands from passing.
-        - type: WorkingDir
-          pattern: "workspace$"
-
-    - id: "t0_verify"
-      name: "Trusting Silence"
-      instruction: |
-        The prompt has changed, but the screen is empty.
-        In the GUI, an empty folder is a white box. Here, it is simply silence.
-
-        Verify the room is empty. If the system says nothing, it means there is nothing.
-      objective: "Type: ls"
-      success: "Silence confirmed. The space is clean."
-      conditions:
-        - type: CommandMatches
-          pattern: "^ls.*"
-
-    - id: "t0_back"
-      name: "Step Back"
-      instruction: |
-        We must return to the previous level.
-        We could type the absolute path, but there is a shortcut.
-
-        In the Linux Tree, every directory contains a hidden link called ".." (dot dot).
-        This link points to the "parent" branch — the one directly above you.
-
-        Type 'cd ..' to climb up one level.
-        [PRO TIP]: Use the [TAB] key in the future to autocomplete names.
-      objective: "Type: cd .."
-      success: "Returned to home. Path integration complete."
-      conditions:
-        # LOGIC UPGRADE: We verify they are NO LONGER in 'workspace'.
-        # Matches any path ending in something other than 'workspace',
-        # or specifically matches the user's home folder structure.
-        - type: WorkingDir
-          pattern: "(home|Users)/[^/]+$"
-
-    - id: "t0_cleanup"
-      name: "Clean Up"
-      instruction: |
-        Now that we're back home, let's clean up our workspace. To remove
-        files, you use the `rm` command. To remove empty folders/directories,
-        you use the `rmdir` command.
-
-        In this case, we need to remove the directory we just made named
-        'workspace'. Since 'workspace' is a directory, we need to make sure
-        that it's empty first. Once we verify that there's nothing in it,
-        then we can use the `rmdir` command followed by the name of the
-        directory we want to delete.
-      objective: "Type: rmdir workspace"
-      success: "Our home folder is now clean and we're ready to move on."
-      conditions:
-        # LOGIC UPGRADE: This fixes the 'relative path' bug.
-        # Condition 1: Must be at Home.
-        - type: WorkingDir
-          pattern: "(home|Users)/[^/]+$"
-        # Condition 2: The folder must be gone.
-        - type: PathMissing
-          path: "workspace"
-  next_chapter_id: "TUT_01"
+          - description: "Remove the construct."
+            instruction: |
+              We need to remove the 'workspace' directory.
+              Use 'rmdir' (Remove Directory).
+            objective: "Type 'rmdir workspace'"
+            success_msg: "Trace removed. System clean."
+            conditions:
+              - type: PathMissing
+                path: "workspace"

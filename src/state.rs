@@ -4,32 +4,36 @@ use std::path::Path;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GameState {
-    pub current_chapter_id: String,
-    pub current_checkpoint_index: usize,
+    pub current_quest_id: String,
+    pub current_chapter_index: usize,
+    pub current_task_index: usize,
     pub is_finished: bool,
 }
 
 impl GameState {
-    /// Creates a fresh state starting at the beginning of the provided chapter ID
-    pub fn new(start_chapter_id: String) -> Self {
+    /// Initialize defaults.
+    /// NOTE: You should change "bootcamp" to match the first ID in your YAML.
+    pub fn new() -> Self {
         Self {
-            current_chapter_id: start_chapter_id,
-            current_checkpoint_index: 0,
+            current_quest_id: String::new(),
+            current_chapter_index: 0,
+            current_task_index: 0,
             is_finished: false,
         }
     }
 
     /// Loads the save file or initializes a new one if missing
-    pub fn load(path: &str, start_chapter_id: String) -> Self {
+    pub fn load(path: &str) -> Self {
         if Path::new(path).exists() {
             let content = fs::read_to_string(path).unwrap_or_default();
-            serde_json::from_str(&content).unwrap_or_else(|_| Self::new(start_chapter_id))
+            serde_json::from_str(&content).unwrap_or_else(|_| Self::new())
         } else {
-            Self::new(start_chapter_id)
+            Self::new()
         }
     }
 
     pub fn save(&self, path: &str) {
+        // Atomic save: Write to tmp then rename to prevent potential data loss
         let tmp_path = format!("{}.tmp", path);
         let json = serde_json::to_string_pretty(self).expect("Failed to serialize");
         fs::write(&tmp_path, json).expect("Failed to write tmp file");
@@ -37,13 +41,13 @@ impl GameState {
     }
 
     /// Increments the checkpoint index
-    pub fn advance_checkpoint(&mut self) {
-        self.current_checkpoint_index += 1;
+    pub fn advance_task(&mut self) {
+        self.current_task_index += 1;
     }
 
     /// Moves the user to the start (index 0) of a new chapter
-    pub fn move_to_chapter(&mut self, next_chapter_id: String) {
-        self.current_chapter_id = next_chapter_id;
-        self.current_checkpoint_index = 0;
+    pub fn advance_chapter(&mut self) {
+        self.current_chapter_index += 1;
+        self.current_task_index = 0;
     }
 }

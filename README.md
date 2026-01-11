@@ -6,10 +6,10 @@ A data-driven terminal curriculum engine built in Rust. It transforms the standa
 SuperShell monitors your terminal activity via a shell hook. When you complete a task defined in `quests.yaml`, the engine provides immediate feedback, plays narrative cutscenes, and advances the quest state.
 
 ## 🛠 Features
-- **Hierarchical Design:** Lessons are organized into Chapters and sequential Checkpoints.
+- **Hierarchical Design:** Lessons are organized into Quests (Seasons), Chapters (Episodes), and atomic Tasks.
 - **Narrative-Driven:** Separate fields for "Flavor Text" and "Technical Objectives."
 - **Persistent State:** Progress is saved automatically to your system's standard data directory.
-- **Regex Validation:** Uses powerful pattern matching to verify commands and file contents.
+- **Hybrid Validation:** Uses a mix of system checks (`IsDirectory`, `PathMissing`) and Regex pattern matching to verify objectives.
 
 ## ⌨️ Commands
 - `supershell`: Displays the current chapter title and your active objective.
@@ -24,6 +24,15 @@ Supershell adheres to the XDG Base Directory Specification:
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 📜 Release History
+
+### v0.3.0 (The Architecture Update)
+- **Breaking:** Complete engine rewrite to 4-tier hierarchy (Quest -> Chapter -> Task).
+- **Breaking:** Renamed `Checkpoint` to `Task` in internal logic.
+- **Breaking:** Previous `save.json` files are incompatible. Run with `--reset`.
+- **New:** Added support for multi-chapter "Quests" (Seasons).
+- **New:** Cinematic Intros and Outros now trigger on Chapter transitions.
+- **New:** Added native `Condition` types (e.g., `IsDirectory`, `WorkingDir`) for robust validation.
+- **Fixed:** Input handling now correctly accepts `[ENTER]` to advance cutscenes.
 
 ### v0.2.0 (The Hierarchy Update)
 - **Breaking:** New YAML structure (Chapters & Checkpoints).

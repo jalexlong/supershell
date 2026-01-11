@@ -1,12 +1,45 @@
 use directories::UserDirs;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
+// --- TIER 1: THE ROOT ---
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Curriculum {
+    pub quests: Vec<Quest>,
+}
+
+// --- TIER 2: THE SEASON ---
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Quest {
+    pub id: String,
+    pub title: String,
+    pub chapters: Vec<Chapter>,
+}
+
+// --- TIER 3: THE EPISODE ---
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Chapter {
+    pub title: String,
+    pub intro: String,
+    pub outro: String,
+    pub tasks: Vec<Task>,
+}
+
+// --- TIER 4: THE SCENE ---
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Task {
+    pub description: String,
+    pub instruction: String,
+    pub objective: String,
+    pub success_msg: String,
+    pub conditions: Vec<Condition>,
+}
+
+// --- LOGIC: CONDITIONS ---
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "type")]
 pub enum Condition {
@@ -105,37 +138,70 @@ impl Condition {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Checkpoint {
-    pub id: String,
-    pub name: String,
-    pub instruction: String,
-    pub objective: String,
-    pub success: String,
-    pub conditions: Vec<Condition>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Chapter {
-    pub id: String,
-    pub title: String,
-    pub briefing: String,
-    pub debriefing: String,
-    pub checkpoints: Vec<Checkpoint>,
-    pub next_chapter_id: Option<String>,
-    #[serde(default)]
-    pub tags: Vec<String>,
-}
-
-pub fn load_chapters(path: &str) -> HashMap<String, Chapter> {
-    let mut db = HashMap::new();
-    if Path::new(path).exists() {
-        let content = fs::read_to_string(path).unwrap_or_default();
-        if let Ok(chapters) = serde_yml::from_str::<Vec<Chapter>>(&content) {
-            for c in chapters {
-                db.insert(c.id.clone(), c);
-            }
+impl Curriculum {
+    /// Loads the full hierarchy from the YAML file.
+    pub fn load(path: &Path) -> Self {
+        if path.exists() {
+            let content = fs::read_to_string(path).unwrap_or_default();
+            serde_yml::from_str(&content).unwrap_or_else(|e| {
+                eprintln!("Failed to parse quests.yaml: {}", e);
+                Curriculum { quests: vec![] }
+            })
+        } else {
+            Curriculum { quests: vec![] }
         }
     }
-    db
+
+    /// Finds the specific Quest/Chapter/Task based on indices or IDs
+    pub fn get_active_content(
+        &self,
+        quest_id: &str,
+        chapter_idx: usize,
+        task_idx: usize,
+    ) -> Option<(&Quest, &Chapter, &Task)> {
+        let quest = self.quests.iter().find(|q| q.id == quest_id)?;
+        let chapter = quest.chapters.get(chapter_idx)?;
+        let task = chapter.tasks.get(task_idx)?;
+        Some((quest, chapter, task))
+    }
+
+    /// Look ahead logic: Returns the info for the NEXT step (if it exists)
+    /// Handles crossing Chapter boundaries
+    pub fn find_next_step(
+        &self,
+        quest_id: &str,
+        current_chapter_idx: usize,
+        current_task_idx: usize,
+    ) -> Option<NextStepInfo> {
+        let quest = self.quests.iter().find(|q| q.id == quest_id)?;
+        let current_chapter = quest.chapters.get(current_chapter_idx)?;
+
+        // Case A: Next Task in SAME Chapter
+        if current_task_idx + 1 < current_chapter.tasks.len() {
+            let task = &current_chapter.tasks[current_task_idx + 1];
+            return Some(NextStepInfo {
+                instruction: task.instruction.clone(),
+                objective: task.objective.clone(),
+            });
+        }
+
+        // Case B: First Task in NEXT Chapter
+        if current_chapter_idx + 1 < quest.chapters.len() {
+            let next_chapter = &quest.chapters[current_chapter_idx + 1];
+            if let Some(first_task) = next_chapter.tasks.first() {
+                return Some(NextStepInfo {
+                    instruction: first_task.instruction.clone(),
+                    objective: first_task.objective.clone(),
+                });
+            }
+        }
+
+        // Case C: Quest Complete (No next step)
+        None
+    }
+}
+
+pub struct NextStepInfo {
+    pub instruction: String,
+    pub objective: String,
 }

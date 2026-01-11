@@ -4,7 +4,7 @@ mod ui;
 
 use clap::Parser;
 use directories::ProjectDirs;
-use quest::{Chapter, load_chapters};
+use quest::Curriculum;
 use state::GameState;
 use std::fs;
 use std::path::PathBuf;
@@ -34,15 +34,7 @@ fn main() {
         fs::create_dir_all(parent).ok();
     }
 
-    // 2. LOAD CHAPTER DATABASE
-    let yaml_content = fs::read_to_string(&local_quest_path).unwrap_or_default();
-    let chapters_list: Vec<Chapter> = serde_yml::from_str(&yaml_content).unwrap_or_default();
-    let start_id = chapters_list
-        .first()
-        .map(|c| c.id.clone())
-        .unwrap_or_else(|| "START".into());
-
-    // 3. RESET LOGIC
+    // 2. RESET LOGIC
     if args.reset {
         if save_path.exists() {
             fs::remove_file(&save_path).expect("Failed to delete save file");
@@ -51,87 +43,133 @@ fn main() {
         return;
     }
 
-    // 4. LOAD GAME STATE
-    let chapter_db = load_chapters(local_quest_path.to_str().unwrap());
-    let mut game = GameState::load(save_path.to_str().unwrap(), start_id);
+    // 3. LOAD DATA & STATE
+    let curriculum = Curriculum::load(&local_quest_path);
+    let mut game = GameState::load(save_path.to_str().unwrap());
 
-    // 5. EXECUTION LOGIC
+    let quest_exists = curriculum
+        .quests
+        .iter()
+        .any(|q| q.id == game.current_quest_id);
+
+    if game.current_quest_id.is_empty() || !quest_exists {
+        if let Some(first_quest) = curriculum.quests.first() {
+            println!(
+                ">> [SYSTEM] Auto-selecting first quest: {}",
+                first_quest.title
+            );
+            game.current_quest_id = first_quest.id.clone();
+            game.current_chapter_index = 0;
+            game.current_task_index = 0;
+            game.is_finished = false;
+            game.save(save_path.to_str().unwrap());
+        } else {
+            eprintln!(">> [ERROR] No quests found in quests.yaml!");
+            return;
+        }
+    }
+
+    // 4. MAIN LOOP
     if let Some(user_cmd) = args.check {
+        // --- CHECK MODE (Triggered by shell hook) ---
+
         if game.is_finished {
             return;
-        } // End-of-game silence
+        } // Silent exit if game is over
 
-        if let Some(chapter) = chapter_db.get(&game.current_chapter_id) {
-            if let Some(checkpoint) = chapter.checkpoints.get(game.current_checkpoint_index) {
-                if checkpoint.conditions.iter().all(|c| c.is_met(&user_cmd)) {
-                    // Advance immediately
-                    game.advance_checkpoint();
+        // Attempt to find the currently active task object
+        if let Some((quest, chapter, task)) = curriculum.get_active_content(
+            &game.current_quest_id,
+            game.current_chapter_index,
+            game.current_task_index,
+        ) {
+            // Verify Conditions
+            if task.conditions.iter().all(|c| c.is_met(&user_cmd)) {
+                // A. Task Complete
+                println!("\n\x1b[32m>> [SUCCESS] {}\x1b[0m", task.success_msg);
 
-                    // Check if that was the LAST checkpoint in the chapter
-                    if (game.current_checkpoint_index) >= chapter.checkpoints.len() {
-                        // --- VICTORY LAP ---
-                        println!("");
-                        println!("\x1b[32m>> [MISSION COMPLETE] Objective Verified.\x1b[0m");
-                        println!("\x1b[32m>> System is ready for the next phase.\x1b[0m");
-                        println!("\x1b[90m>> Press [ENTER] to begin transmission...\x1b[0m");
+                // B. Peek at the future (for "Next Objective" text)
+                // We do this BEFORE updating state so we know if we are crossing a chapter boundary
+                let next_step_info = curriculum.find_next_step(
+                    &game.current_quest_id,
+                    game.current_chapter_index,
+                    game.current_task_index,
+                );
 
-                        // Stop until user hits Enter
-                        let mut buffer = String::new();
-                        let _ = std::io::stdin().read_line(&mut buffer);
+                // C. Update State
+                game.advance_task();
 
-                        // NOW wipe the screen for the briefing
-                        play_cutscene(&chapter.debriefing);
+                // D. Check Chapter Boundary
+                // If the new task index is beyond the bounds of the current chapter
+                if game.current_task_index >= chapter.tasks.len() {
+                    // 1. Finish Current Chapter (Outro)
+                    println!("");
+                    println!("\x1b[32m>> [MISSION COMPLETE] Objective Verified.\x1b[0m");
+                    println!("\x1b[90m>> Press [ENTER] to begin transmission...\x1b[0m");
 
-                        if let Some(next_id) = &chapter.next_chapter_id {
-                            game.move_to_chapter(next_id.clone());
+                    // Stop until user hits Enter
+                    let mut buffer = String::new();
+                    let _ = std::io::stdin().read_line(&mut buffer);
 
-                            if let Some(next_ch) = chapter_db.get(next_id) {
-                                play_cutscene(&next_ch.briefing);
+                    play_cutscene(&chapter.outro);
 
-                                // Show first objective of next chapter
-                                if let Some(first_cp) = next_ch.checkpoints.get(0) {
-                                    println!("\r\n[NEXT OBJECTIVE]");
-                                    println!("INSTRUCTION: {}", first_cp.instruction);
-                                    println!("OBJECTIVE:   {}", first_cp.objective);
-                                }
-                            }
-                        } else {
-                            game.is_finished = true;
-                            println!("\r\n>> [SYSTEM] All diagnostic protocols complete.");
-                        }
+                    // 2. Advance State to Next Chapter
+                    game.advance_chapter();
+
+                    // 3. Check Quest Boundary
+                    if game.current_chapter_index >= quest.chapters.len() {
+                        // QUEST COMPLETE
+                        game.is_finished = true;
+                        println!("\r\n>> [SYSTEM] ALL QUESTS COMPLETE.")
                     } else {
-                        // NOT finished yet - just a normal checkpoint
-                        // We print the success message INLINE instead of using play_cutscene
-                        // so we don't wipe the user's command output.
-                        println!("\n\x1b[32m>> [SUCCESS] {}\x1b[0m", checkpoint.success);
+                        // NEW CHAPTER STARTS
+                        let next_chapter = &quest.chapters[game.current_chapter_index];
+                        play_cutscene(&next_chapter.intro);
 
-                        // Show first objective of new chapter
-                        if let Some(next_cp) =
-                            chapter.checkpoints.get(game.current_checkpoint_index)
-                        {
+                        // Show first objective of next chapter
+                        if let Some(info) = next_step_info {
                             println!("\r\n[NEXT OBJECTIVE]");
-                            println!("INSTRUCTION: {}", next_cp.instruction);
-                            println!("OBJECTIVE:   {}", next_cp.objective);
+                            println!("INSTRUCTION: {}", info.instruction);
+                            println!("OBJECTIVE:   {}", info.objective);
                         }
                     }
-
-                    game.save(save_path.to_str().unwrap());
+                } else {
+                    // E. Normal Task Advance (Same Chapter)
+                    if let Some(info) = next_step_info {
+                        println!("\r\n[NEXT OBJECTIVE]");
+                        println!("INSTRUCTION: {}", info.instruction);
+                        println!("OBJECTIVE:   {}", info.objective);
+                    }
                 }
+
+                game.save(save_path.to_str().unwrap());
             }
         }
     } else {
-        // MANUAL MODE
+        // --- MANUAL MODE (Running `supershell` directly) ---
+
         if game.is_finished {
             println!(">> [SYSTEM] Status: 100% Complete. System Stable.");
             println!(">> Run 'supershell --reset' to restart.");
-        } else if let Some(chapter) = chapter_db.get(&game.current_chapter_id) {
-            if let Some(checkpoint) = chapter.checkpoints.get(game.current_checkpoint_index) {
-                if game.current_checkpoint_index == 0 {
-                    play_cutscene(&chapter.briefing);
-                }
-                println!("\r\n[CURRENT STATUS: {}]", chapter.title);
-                println!("OBJECTIVE: {}", checkpoint.objective);
+            return;
+        }
+
+        if let Some((_, chapter, task)) = curriculum.get_active_content(
+            &game.current_quest_id,
+            game.current_chapter_index,
+            game.current_task_index,
+        ) {
+            // If it's the very first task of a chapter, user might need the briefing again
+            if game.current_task_index == 0 {
+                play_cutscene(&chapter.intro);
             }
+
+            println!("\r\n[CURRENT STATUS: {}]", chapter.title);
+            println!("INSTRUCTION: {}", task.instruction);
+            println!("OBJECTIVE: {}", task.objective);
+        } else {
+            println!(">> [ERROR] Save state does not match Quest Database.");
+            println!(">> Try running 'supershell --reset'.");
         }
     }
 }
