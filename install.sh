@@ -6,9 +6,19 @@ INSTALL_DIR="$HOME/.local/bin"
 DATA_DIR="$HOME/.local/share/$APP_NAME"
 HOOK_FILE="$DATA_DIR/init.sh"
 
-# 1. BUILD RELEASE BINARY
-echo "🛠️  Building SuperShell (Release Mode)..."
-cargo build --release
+# 1. PREPARE BINARY
+# Check if we are in a "Pre-compiled" environment (e.g., a downloaded release)
+if [ -f "./supershell" ]; then
+    echo "📦 Found pre-compiled binary. Skipping build."
+    SOURCE_BIN="./supershell"
+elif [ -f "target/release/&APP_NAME" ]; then
+    echo "🛠️ Using existing release build..."
+    SOURCE_BIN="target/release/&APP_NAME"
+else
+    echo "🛠️  Building SuperShell (Release Mode)..."
+    cargo build --release
+    SOURCE_BIN="target/release/$APP_NAME"
+fi
 
 # 2. CREATE DIRECTORIES
 echo "📂 Creating data directories..."
@@ -17,7 +27,7 @@ mkdir -p "$DATA_DIR"
 
 # 3. INSTALL BINARY
 echo "🚀 Installing binary to $INSTALL_DIR..."
-cp "target/release/$APP_NAME" "$INSTALL_DIR/"
+cp "$SOURCE_BIN" "$INSTALL_DIR/$APP_NAME"
 chmod +x "$INSTALL_DIR/$APP_NAME"
 
 # 4. INSTALL ASSETS
