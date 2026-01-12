@@ -22,12 +22,22 @@ fn main() {
     let args = Cli::parse();
 
     // 1. PATH DISCOVERY
-    // Using env! to find quests.yaml relative to your project root
-    let local_quest_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("quests.yaml");
-
     let proj_dirs = ProjectDirs::from("com", "jalexlong", "supershell")
         .expect("Could not determine home directory");
-    let save_path = proj_dirs.data_dir().join("save.json");
+    let data_dir = proj_dirs.data_dir();
+    let save_path = data_dir.join("save.json");
+
+    // Look for installed quests.yaml first (Production),
+    // fall back to local file (Development).
+    let installed_quest_path = data_dir.join("quests.yaml");
+    let dev_quest_path = PathBuf::from("quests.yaml");
+
+    let local_quest_path = if installed_quest_path.exists() {
+        installed_quest_path
+    } else {
+        // Fallback for when you run 'cargo run' locally
+        dev_quest_path
+    };
 
     // Ensure data directory exists
     if let Some(parent) = save_path.parent() {

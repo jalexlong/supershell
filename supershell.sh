@@ -27,7 +27,7 @@ _supershell_hook() {
 if [ -n "$ZSH_VERSION" ]; then
     # --- ZSH SETUP ---
     autoload -Uz add-zsh-hook
-    
+
     # Check if hook is already added to avoid duplication
     if [[ "${precmd_functions[@]}" != *"_supershell_hook"* ]]; then
         add-zsh-hook precmd _supershell_hook
@@ -44,5 +44,6 @@ fi
 # Create supershell alias, calling supershell as if it were on $PATH
 alias supershell="$SUPERSHELL_BIN"
 
-echo ">> SuperShell hook loaded for: $(ps -p $$ -o comm=)"
-
+# For debug output (to diagnose shell issues when both
+# bash and zsh are installed) uncomment the next line
+# echo ">> SuperShell hook loaded for: $(ps -p $$ -o comm=)"

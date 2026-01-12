@@ -2,18 +2,16 @@
 name = "supershell"
 version = "0.3.0"
 edition = "2024"
+authors = ["J. Alex Long <jalexlong@proton.me"]
 description = "A gamified terminal tutor that teaches CLI skills via interactive quests."
 license = "MIT"
 repository = "https://github.com/jalexlong/supershell"
-readme = "README.md"
-keywords = ["cli", "education", "tutorial", "gamification", "bash"]
-categories = ["command-line-utilities"]
+keywords = ["cli", "education", "game", "tutorial"]
+categories = ["command-line-utilities", "simulation"]
 
 exclude = [
     "images/*",
     ".github/*",
-    "DESIGN.md",
-    "TODO.md"
 ]
 
 
