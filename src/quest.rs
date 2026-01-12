@@ -205,3 +205,39 @@ pub struct NextStepInfo {
     pub instruction: String,
     pub objective: String,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs::File;
+    use tempfile::tempdir; // You'll need to add 'tempfile' to dev-dependencies
+
+    #[test]
+    fn test_regex_condition() {
+        let cond = Condition::CommandMatches {
+            pattern: "^git commit".to_string(),
+        };
+
+        assert!(cond.is_met("git commit -m 'fix'"));
+        assert!(!cond.is_met("git add ."));
+    }
+
+    #[test]
+    fn test_file_exists_condition() {
+        // Create a temporary directory that cleans up after itself
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("test_file.txt");
+
+        // 1. Assert file is missing initially
+        let cond = Condition::PathExists {
+            path: file_path.to_str().unwrap().to_string(),
+        };
+        assert!(!cond.is_met("")); // User command doesn't matter for path checks
+
+        // 2. Create file
+        File::create(&file_path).unwrap();
+
+        // 3. Assert condition passes
+        assert!(cond.is_met(""));
+    }
+}

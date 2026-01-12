@@ -8,12 +8,7 @@ license = "MIT"
 repository = "https://github.com/jalexlong/supershell"
 keywords = ["cli", "education", "game", "tutorial"]
 categories = ["command-line-utilities", "simulation"]
-
-exclude = [
-    "images/*",
-    ".github/*",
-]
-
+exclude = ["images/*", ".github/*"]
 
 [dependencies]
 clap = { version = "4.5.53", features = ["derive"] }
@@ -24,3 +19,8 @@ serde_yml = "0.0.12"
 crossterm = "0.29.0"
 textwrap = "0.16.2"
 directories = "6.0.0"
+
+[dev-dependencies]
+assert_cmd = "2"
+predicates = "3"
+tempfile = "3"
