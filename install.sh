@@ -3,16 +3,18 @@ set -e # Exit on error
 
 APP_NAME="supershell"
 INSTALL_DIR="$HOME/.local/bin"
-HOOK_FILE="$DATA_DIR/init.sh"
 
+# 1. DEFINE DATA_DIR
 if [[ "$OSTYPE" == "darwin"* ]]; then
     DATA_DIR="$HOME/Library/Application Support/com.jalexlong.supershell"
 else
     DATA_DIR="$HOME/.local/share/$APP_NAME"
 fi
 
-# 1. PREPARE BINARY
-# Check if we are in a "Pre-compiled" environment (e.g., a downloaded release)
+# 2. DEFINE HOOK_FILE
+HOOK_FILE="$DATA_DIR/init.sh"
+
+# 3. PREPARE OR DETECT BINARY
 if [ -f "./supershell" ]; then
     echo "📦 Found pre-compiled binary. Skipping build."
     SOURCE_BIN="./supershell"
@@ -25,21 +27,21 @@ else
     SOURCE_BIN="target/release/$APP_NAME"
 fi
 
-# 2. CREATE DIRECTORIES
+# 4. CREATE DIRECTORIES
 echo "📂 Creating data directories..."
 mkdir -p "$INSTALL_DIR"
 mkdir -p "$DATA_DIR"
 
-# 3. INSTALL BINARY
+# 5. INSTALL BINARY
 echo "🚀 Installing binary to $INSTALL_DIR..."
 cp "$SOURCE_BIN" "$INSTALL_DIR/$APP_NAME"
 chmod +x "$INSTALL_DIR/$APP_NAME"
 
-# 4. INSTALL ASSETS
+# 6. INSTALL ASSETS
 echo "📜 Installing quests.yaml to $DATA_DIR..."
 cp "quests.yaml" "$DATA_DIR/"
 
-# 5. GENERATE PRODUCTION HOOK
+# 7. GENERATE HOOK
 # We write a fresh script that points specifically to the installed binary
 echo "🪝  Generating shell hook..."
 cat <<EOF > "$HOOK_FILE"
@@ -86,27 +88,32 @@ fi
 alias supershell="\$SUPERSHELL_BIN"
 EOF
 
-# 6. UPDATE SHELL CONFIG
+# 8. UPDATE SHELL CONFIG
 RC_FILE=""
-if [ -n "$ZSH_VERSION" ]; then
-    RC_FILE="$HOME/.zshrc"
-elif [ -n "$BASH_VERSION" ]; then
-    # Bash logic: prefer .bashrc, fallback to .bash_profile
-    if [ -f "$HOME/.bashrc" ]; then
-        RC_FILE="$HOME/.bashrc"
-    else
-        RC_FILE="$HOME/.bash_profile"
-    fi
-fi
 
-# Detect generic Linux shell if script is run via sh/dash
-if [ -z "$RC_FILE" ]; then
-    # Fallback detection
-    case "$SHELL" in
-    */zsh) RC_FILE="$HOME/.zshrc" ;;
-    */bash) RC_FILE="$HOME/.bashrc" ;;
-    esac
-fi
+case "$SHELL" in
+    */zsh)
+        RC_FILE="$HOME/.zshrc"
+        ;;
+	*/bash)
+	    if [ -f "$HOME/.bashrc" ]; then
+		RC_FILE="$HOME/.bashrc"
+	    else
+		RC_FILE="$HOME/.bash_profile"
+	    fi
+	    ;;
+    *)
+	    # Fallback: If $SHELL is weird, look for config files that exist
+	    if [ -f "$HOME/.zshrc" ]; then
+		RC_FILE="$HOME/.zshrc"
+	    elif [ -f "$HOME/.bash_profile" ]; then
+		RC_FILE="$HOME/.bash_profile"
+	    elif [ -f "$HOME/.bashrc" ]; then
+		RC_FILE="$HOME/.bashrc"
+	    fi
+	    ;;
+esac
+
 
 if [ -n "$RC_FILE" ]; then
     SOURCE_LINE="source \"$HOOK_FILE\""
@@ -125,7 +132,7 @@ else
     echo "   source \"$HOOK_FILE\""
 fi
 
-# 7. PATH CHECK
+# 9. PATH CHECK
 if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
     echo "⚠️  WARNING: $HOME/.local/bin is not in your \$PATH."
     echo "   You may need to add it to your shell config."
