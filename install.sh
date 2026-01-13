@@ -3,8 +3,13 @@ set -e # Exit on error
 
 APP_NAME="supershell"
 INSTALL_DIR="$HOME/.local/bin"
-DATA_DIR="$HOME/.local/share/$APP_NAME"
 HOOK_FILE="$DATA_DIR/init.sh"
+
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    DATA_DIR="$HOME/Library/Application Support/com.jalexlong.supershell"
+else
+    DATA_DIR="$HOME/.local/share/$APP_NAME"
+fi
 
 # 1. PREPARE BINARY
 # Check if we are in a "Pre-compiled" environment (e.g., a downloaded release)
