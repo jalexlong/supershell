@@ -1,7 +1,6 @@
 quests:
-  # --- TIER 2: QUEST (Module 00) ---
-  - id: "awakening"
-    title: "MODULE 00: THE AWAKENING"
+  - id: "01_awakening"
+    title: "MODULE 01: THE AWAKENING"
     chapters:
       # --- CHAPTER 1: ORIENTATION ---
       - title: "Orientation"
@@ -16,10 +15,24 @@ quests:
           You speak, and the machine obeys.
 
           First, we must establish your senses in the dark.
+
+        setup_actions:
+          - type: RemovePath
+            path: "workspace"
+
         outro: |
           Vision returned. Coordinates locked.
           You have successfully mapped your immediate surroundings.
+
         tasks:
+          - description: "Enter the Construct"
+            instruction: "Our operations are contained within the 'Construct' directory. Move there now."
+            objective: "cd ~/Construct"
+            success_msg: "Construct Environment Accessed."
+            conditions:
+              - type: WorkingDir
+                path: "Construct$"
+
           - description: "Ping the sonar."
             instruction: "The screen is dark. You must actively ask the system to describe itself."
             objective: "Type 'ls' to list contents."
@@ -77,6 +90,7 @@ quests:
             objective: "Type 'mkdir workspace'"
             success_msg: "It is done. Structure created."
             conditions:
+              # Rust now checks ~/Construct/workspace automatically
               - type: IsDirectory
                 path: "workspace"
 
@@ -89,7 +103,7 @@ quests:
             success_msg: "Focus shifted. You are inside the construct."
             conditions:
               - type: WorkingDir
-                pattern: "workspace$"
+                path: "workspace$"
 
           - description: "Verify the void."
             instruction: |
@@ -123,12 +137,8 @@ quests:
             objective: "Type 'cd ..'"
             success_msg: "Returned to home. Path integration complete."
             conditions:
-              # Checks that we are NOT in workspace anymore
               - type: WorkingDir
-                pattern: "[^/]+$"
-              # Ensure the path does not end in workspace
-              - type: WorkingDir
-                pattern: "^(?!.*/workspace$).*$"
+                path: "Construct$"
 
           - description: "Remove the construct."
             instruction: |
@@ -137,5 +147,6 @@ quests:
             objective: "Type 'rmdir workspace'"
             success_msg: "Trace removed. System clean."
             conditions:
+              # Rust checks ~/Construct/workspace
               - type: PathMissing
                 path: "workspace"

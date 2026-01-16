@@ -4,6 +4,8 @@ use std::path::Path;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GameState {
+    #[serde(default)]
+    pub current_course: String,
     pub current_quest_id: String,
     pub current_chapter_index: usize,
     pub current_task_index: usize,
@@ -15,6 +17,7 @@ impl GameState {
     /// NOTE: You should change "bootcamp" to match the first ID in your YAML.
     pub fn new() -> Self {
         Self {
+            current_course: String::new(),
             current_quest_id: String::new(),
             current_chapter_index: 0,
             current_task_index: 0,

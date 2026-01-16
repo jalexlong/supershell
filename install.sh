@@ -3,44 +3,51 @@ set -e # Exit on error
 
 APP_NAME="supershell"
 INSTALL_DIR="$HOME/.local/bin"
-HOOK_FILE="$DATA_DIR/init.sh"
 
+# 1. DETECT OS & PATHS
+# We must define DATA_DIR before we define HOOK_FILE
 if [[ "$OSTYPE" == "darwin"* ]]; then
     DATA_DIR="$HOME/Library/Application Support/com.jalexlong.supershell"
 else
     DATA_DIR="$HOME/.local/share/$APP_NAME"
 fi
 
-# 1. PREPARE BINARY
-# Check if we are in a "Pre-compiled" environment (e.g., a downloaded release)
+LIBRARY_DIR="$DATA_DIR/library"
+HOOK_FILE="$DATA_DIR/init.sh"
+
+# 2. PREPARE BINARY
+# Check if we are in a "Pre-compiled" environment
 if [ -f "./supershell" ]; then
     echo "📦 Found pre-compiled binary. Skipping build."
     SOURCE_BIN="./supershell"
-elif [ -f "target/release/&APP_NAME" ]; then
-    echo "🛠️ Using existing release build..."
-    SOURCE_BIN="target/release/&APP_NAME"
+elif [ -f "target/release/$APP_NAME" ]; then
+    echo "🛠️  Using existing release build..."
+    SOURCE_BIN="target/release/$APP_NAME"
 else
     echo "🛠️  Building SuperShell (Release Mode)..."
     cargo build --release
     SOURCE_BIN="target/release/$APP_NAME"
 fi
 
-# 2. CREATE DIRECTORIES
+# 3. CREATE DIRECTORIES
 echo "📂 Creating data directories..."
 mkdir -p "$INSTALL_DIR"
 mkdir -p "$DATA_DIR"
+mkdir -p "$LIBRARY_DIR"
 
-# 3. INSTALL BINARY
+# 4. INSTALL BINARY
 echo "🚀 Installing binary to $INSTALL_DIR..."
 cp "$SOURCE_BIN" "$INSTALL_DIR/$APP_NAME"
 chmod +x "$INSTALL_DIR/$APP_NAME"
 
-# 4. INSTALL ASSETS
-echo "📜 Installing quests.yaml to $DATA_DIR..."
-cp "quests.yaml" "$DATA_DIR/"
+# 5. INSTALL ASSETS (The Library)
+echo "📜 Installing Quest Library to $LIBRARY_DIR..."
+# Clean old files to ensure no duplicates if we renamed things
+rm -f "$LIBRARY_DIR"/*.yaml
+# Copy all YAMLs from the local 'library' folder
+cp library/*.yaml "$LIBRARY_DIR/"
 
-# 5. GENERATE PRODUCTION HOOK
-# We write a fresh script that points specifically to the installed binary
+# 6. GENERATE PRODUCTION HOOK
 echo "🪝  Generating shell hook..."
 cat <<EOF > "$HOOK_FILE"
 #!/bin/bash
@@ -86,12 +93,11 @@ fi
 alias supershell="\$SUPERSHELL_BIN"
 EOF
 
-# 6. UPDATE SHELL CONFIG
+# 7. UPDATE SHELL CONFIG
 RC_FILE=""
 if [ -n "$ZSH_VERSION" ]; then
     RC_FILE="$HOME/.zshrc"
 elif [ -n "$BASH_VERSION" ]; then
-    # Bash logic: prefer .bashrc, fallback to .bash_profile
     if [ -f "$HOME/.bashrc" ]; then
         RC_FILE="$HOME/.bashrc"
     else
@@ -99,9 +105,8 @@ elif [ -n "$BASH_VERSION" ]; then
     fi
 fi
 
-# Detect generic Linux shell if script is run via sh/dash
+# Fallback detection
 if [ -z "$RC_FILE" ]; then
-    # Fallback detection
     case "$SHELL" in
     */zsh) RC_FILE="$HOME/.zshrc" ;;
     */bash) RC_FILE="$HOME/.bashrc" ;;
@@ -111,7 +116,6 @@ fi
 if [ -n "$RC_FILE" ]; then
     SOURCE_LINE="source \"$HOOK_FILE\""
 
-    # Check if we already added it
     if grep -Fq "$HOOK_FILE" "$RC_FILE"; then
         echo "✅ Hook already present in $RC_FILE"
     else
@@ -125,7 +129,7 @@ else
     echo "   source \"$HOOK_FILE\""
 fi
 
-# 7. PATH CHECK
+# 8. PATH CHECK
 if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
     echo "⚠️  WARNING: $HOME/.local/bin is not in your \$PATH."
     echo "   You may need to add it to your shell config."

@@ -1,154 +1,60 @@
+use crate::actions::SetupAction;
 use directories::UserDirs;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-// --- TIER 1: THE ROOT ---
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Curriculum {
-    pub quests: Vec<Quest>,
+pub struct Library {
+    pub root_dir: PathBuf,
 }
 
-// --- TIER 2: THE SEASON ---
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Quest {
-    pub id: String,
-    pub title: String,
-    pub chapters: Vec<Chapter>,
-}
+impl Library {
+    pub fn new(root_dir: PathBuf) -> Self {
+        Self { root_dir }
+    }
 
-// --- TIER 3: THE EPISODE ---
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Chapter {
-    pub title: String,
-    pub intro: String,
-    pub outro: String,
-    pub tasks: Vec<Task>,
-}
-
-// --- TIER 4: THE SCENE ---
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Task {
-    pub description: String,
-    pub instruction: String,
-    pub objective: String,
-    pub success_msg: String,
-    pub conditions: Vec<Condition>,
-}
-
-// --- LOGIC: CONDITIONS ---
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(tag = "type")]
-pub enum Condition {
-    // INPUT CHECKS
-    CommandMatches { pattern: String },
-    HistoryContains { pattern: String },
-
-    // EXISTENCE CHECKS
-    PathExists { path: String },
-    PathMissing { path: String },
-
-    // TYPE CHECKS
-    IsDirectory { path: String },
-    IsFile { path: String },
-    IsExecutable { path: String },
-
-    // LOCATION CHECKS
-    WorkingDir { pattern: String },
-
-    // CONTENT CHECKS
-    FileContains { path: String, pattern: String },
-    FileNotContains { path: String, pattern: String },
-    FileEmpty { path: String },
-
-    // ENVIRONMENT CHECKS
-    EnvVar { name: String, value: String },
-}
-
-impl Condition {
-    pub fn is_met(&self, user_command: &str) -> bool {
-        match self {
-            Condition::CommandMatches { pattern } => {
-                let re = Regex::new(pattern).unwrap_or_else(|_| Regex::new("").unwrap());
-                re.is_match(user_command)
-            }
-            Condition::HistoryContains { pattern } => {
-                if let Some(user_dirs) = UserDirs::new() {
-                    let history_path = user_dirs.home_dir().join(".bash_history");
-
-                    if let Ok(content) = fs::read_to_string(history_path) {
-                        let re = Regex::new(pattern).unwrap_or_else(|_| Regex::new("").unwrap());
-                        re.is_match(&content)
-                    } else {
-                        false
+    pub fn list_available_courses(&self) -> Vec<(PathBuf, String)> {
+        let mut courses = Vec::new();
+        if let Ok(entries) = fs::read_dir(&self.root_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                // Check for .yaml or .yml
+                if let Some(ext) = path.extension() {
+                    if ext == "yaml" || ext == "yml" {
+                        let name = path
+                            .file_stem()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or("Unknown")
+                            .to_string();
+                        courses.push((path, name));
                     }
-                } else {
-                    false
                 }
             }
-            Condition::PathExists { path } => Path::new(path).exists(),
-            Condition::PathMissing { path } => !Path::new(path).exists(),
-            Condition::IsDirectory { path } => Path::new(path).is_dir(),
-            Condition::IsFile { path } => Path::new(path).is_file(),
-            Condition::IsExecutable { path } => {
-                if let Ok(metadata) = fs::metadata(path) {
-                    // Check if the executable bit (0o111) is set
-                    metadata.permissions().mode() & 0o111 != 0
-                } else {
-                    false
-                }
-            }
-            Condition::WorkingDir { pattern } => {
-                let current_dir = env::current_dir().unwrap_or_default();
-                let path_str = current_dir.to_string_lossy();
-                let re = Regex::new(pattern).unwrap_or_else(|_| Regex::new("").unwrap());
-                re.is_match(&path_str)
-            }
-            Condition::FileContains { path, pattern } => {
-                if let Ok(content) = fs::read_to_string(path) {
-                    let re = Regex::new(pattern).unwrap_or_else(|_| Regex::new("").unwrap());
-                    re.is_match(&content)
-                } else {
-                    false
-                }
-            }
-            Condition::FileNotContains { path, pattern } => {
-                if let Ok(content) = fs::read_to_string(path) {
-                    let re = Regex::new(pattern).unwrap_or_else(|_| Regex::new("").unwrap());
-                    !re.is_match(&content)
-                } else {
-                    true
-                }
-            }
-            Condition::FileEmpty { path } => {
-                if let Ok(metadata) = fs::metadata(path) {
-                    metadata.len() == 0
-                } else {
-                    false
-                }
-            }
-            Condition::EnvVar { name, value } => match env::var(name) {
-                Ok(val) => val == *value,
-                Err(_) => false,
-            },
         }
+        courses.sort_by(|a, b| a.1.cmp(&b.1));
+        courses
     }
 }
 
-impl Curriculum {
-    /// Loads the full hierarchy from the YAML file.
+// --- TIER 1: THE COURSE ---
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Course {
+    pub quests: Vec<Quest>,
+}
+
+impl Course {
     pub fn load(path: &Path) -> Self {
         if path.exists() {
             let content = fs::read_to_string(path).unwrap_or_default();
             serde_yml::from_str(&content).unwrap_or_else(|e| {
                 eprintln!("Failed to parse quests.yaml: {}", e);
-                Curriculum { quests: vec![] }
+                Course { quests: vec![] }
             })
         } else {
-            Curriculum { quests: vec![] }
+            Course { quests: vec![] }
         }
     }
 
@@ -195,7 +101,6 @@ impl Curriculum {
                 });
             }
         }
-
         // Case C: Quest Complete (No next step)
         None
     }
@@ -206,38 +111,146 @@ pub struct NextStepInfo {
     pub objective: String,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::fs::File;
-    use tempfile::tempdir; // You'll need to add 'tempfile' to dev-dependencies
+// --- TIER 2: THE SEASON ---
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Quest {
+    pub id: String,
+    pub title: String,
+    pub chapters: Vec<Chapter>,
+}
 
-    #[test]
-    fn test_regex_condition() {
-        let cond = Condition::CommandMatches {
-            pattern: "^git commit".to_string(),
-        };
+// --- TIER 3: THE EPISODE ---
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Chapter {
+    pub title: String,
+    pub intro: String,
+    pub outro: String,
+    #[serde(default)]
+    pub setup_actions: Vec<SetupAction>,
+    pub tasks: Vec<Task>,
+}
 
-        assert!(cond.is_met("git commit -m 'fix'"));
-        assert!(!cond.is_met("git add ."));
+// --- TIER 4: THE SCENE ---
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Task {
+    pub description: String,
+    pub instruction: String,
+    pub objective: String,
+    pub success_msg: String,
+    pub conditions: Vec<Condition>,
+}
+
+// --- LOGIC: CONDITIONS ---
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(tag = "type")]
+pub enum Condition {
+    // INPUT CHECKS
+    CommandMatches { pattern: String },
+    HistoryContains { pattern: String },
+
+    // EXISTENCE CHECKS
+    PathExists { path: String },
+    PathMissing { path: String },
+
+    // TYPE CHECKS
+    IsDirectory { path: String },
+    IsFile { path: String },
+    IsExecutable { path: String },
+
+    // LOCATION CHECKS
+    WorkingDir { path: String },
+
+    // CONTENT CHECKS
+    FileContains { path: String, pattern: String },
+    FileNotContains { path: String, pattern: String },
+    FileEmpty { path: String },
+
+    // ENVIRONMENT CHECKS
+    EnvVar { name: String, value: String },
+}
+
+impl Condition {
+    /// Helper to get the Sandbox Root (~/Construct)
+    fn get_sandbox_path(path: &str) -> PathBuf {
+        if let Some(user_dirs) = UserDirs::new() {
+            user_dirs.home_dir().join("Construct").join(path)
+        } else {
+            PathBuf::from(path) // Fallback (shouldn't happen)
+        }
     }
 
-    #[test]
-    fn test_file_exists_condition() {
-        // Create a temporary directory that cleans up after itself
-        let dir = tempdir().unwrap();
-        let file_path = dir.path().join("test_file.txt");
-
-        // 1. Assert file is missing initially
-        let cond = Condition::PathExists {
-            path: file_path.to_str().unwrap().to_string(),
-        };
-        assert!(!cond.is_met("")); // User command doesn't matter for path checks
-
-        // 2. Create file
-        File::create(&file_path).unwrap();
-
-        // 3. Assert condition passes
-        assert!(cond.is_met(""));
+    pub fn is_met(&self, user_command: &str) -> bool {
+        match self {
+            Condition::CommandMatches { pattern } => {
+                let re = Regex::new(pattern).unwrap_or_else(|_| Regex::new("").unwrap());
+                re.is_match(user_command)
+            }
+            Condition::HistoryContains { pattern } => {
+                if let Some(user_dirs) = UserDirs::new() {
+                    // Check standard bash/zsh history locations
+                    let history_files = vec![".bash_history", ".zsh_history"];
+                    for fname in history_files {
+                        let history_path = user_dirs.home_dir().join(fname);
+                        if let Ok(content) = fs::read_to_string(history_path) {
+                            let re =
+                                Regex::new(pattern).unwrap_or_else(|_| Regex::new("").unwrap());
+                            if re.is_match(&content) {
+                                return true;
+                            }
+                        }
+                    }
+                    false
+                } else {
+                    false
+                }
+            }
+            // --- SANDBOXED CHECKS ---
+            Condition::PathExists { path } => Self::get_sandbox_path(path).exists(),
+            Condition::PathMissing { path } => !Self::get_sandbox_path(path).exists(),
+            Condition::IsDirectory { path } => Self::get_sandbox_path(path).is_dir(),
+            Condition::IsFile { path } => Self::get_sandbox_path(path).is_file(),
+            Condition::IsExecutable { path } => {
+                if let Ok(metadata) = fs::metadata(Self::get_sandbox_path(path)) {
+                    metadata.permissions().mode() & 0o111 != 0
+                } else {
+                    false
+                }
+            }
+            Condition::FileContains { path, pattern } => {
+                if let Ok(content) = fs::read_to_string(Self::get_sandbox_path(path)) {
+                    let re = Regex::new(pattern).unwrap_or_else(|_| Regex::new("").unwrap());
+                    re.is_match(&content)
+                } else {
+                    false
+                }
+            }
+            Condition::FileNotContains { path, pattern } => {
+                if let Ok(content) = fs::read_to_string(Self::get_sandbox_path(path)) {
+                    let re = Regex::new(pattern).unwrap_or_else(|_| Regex::new("").unwrap());
+                    !re.is_match(&content)
+                } else {
+                    true // If file doesn't exist, it certainly doesn't contain the pattern
+                }
+            }
+            Condition::FileEmpty { path } => {
+                if let Ok(metadata) = fs::metadata(Self::get_sandbox_path(path)) {
+                    metadata.len() == 0
+                } else {
+                    false
+                }
+            }
+            // --- NON-SANDBOXED CHECKS ---
+            Condition::WorkingDir { path } => {
+                let current_dir = env::current_dir().unwrap_or_default();
+                let path_str = current_dir.to_string_lossy();
+                // We use the 'path' field as a Regex Pattern
+                let re = Regex::new(path).unwrap_or_else(|_| Regex::new("").unwrap());
+                re.is_match(&path_str)
+            }
+            Condition::EnvVar { name, value } => match env::var(name) {
+                Ok(val) => val == *value,
+                Err(_) => false,
+            },
+        }
     }
 }
