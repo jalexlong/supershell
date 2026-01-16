@@ -22,6 +22,8 @@ struct Cli {
     reset: bool,
     #[arg(long)]
     menu: bool,
+    #[arg(long)]
+    hint: bool,
 }
 
 fn main() {
@@ -47,20 +49,17 @@ fn main() {
     if args.reset {
         if save_path.exists() {
             fs::remove_file(&save_path).expect("Failed to delete save file");
-            println!("\r\n>> [SYSTEM] Save state wiped. Resetting to start of YAML.");
+            println!("\r\n>> [SYSTEM] Save state wiped.");
         }
         game = GameState::new();
     }
 
-    // 3. MENU SELECTION LOGIC
-    // We show the menu if:
-    // A. The user passed --menu
-    // B. The user has no active course selected
-    // C. The active course file is missing
+    // 3. COURSE RESOLUTION
+    let lib = Library::new(library_path.clone());
+    let courses = lib.list_available_courses();
+    let mut active_course_path: Option<PathBuf> = None;
 
-    let mut active_course_path = library_path.join(&game.current_course);
-
-    if args.menu || game.current_course.is_empty() || !active_course_path.exists() {
+    if args.menu {
         println!("\n╔══════════════════════════════════════╗");
         println!("║           S U P E R S H E L L        ║");
         println!("╠══════════════════════════════════════╣");
@@ -69,16 +68,13 @@ fn main() {
         let courses = lib.list_available_courses();
 
         if courses.is_empty() {
-            println!("║  [ERROR] No courses found in:        ║");
-            println!("║  {:?}  ║", library_path);
-            println!("║                                      ║");
-            println!("║  Please run the installer again.     ║");
+            println!("║  [ERROR] No courses found            ║");
             println!("╚══════════════════════════════════════╝");
             return;
         }
 
         for (i, (_, name)) in courses.iter().enumerate() {
-            println!("║  [{}] {:<30} ║", i + 1, name);
+            println!("║  [{:2}] {:<32} ║", i + 1, name);
         }
         println!("╚══════════════════════════════════════╝");
         print!(">> SELECT MODULE_ ");
@@ -86,28 +82,62 @@ fn main() {
 
         let mut input = String::new();
         io::stdin().read_line(&mut input).unwrap();
-        let choice = input.trim().parse::<usize>().unwrap_or(0);
 
-        if choice > 0 && choice <= courses.len() {
-            let (path, name) = &courses[choice - 1];
-            println!(">> Loading Module: {}", name);
+        if let Ok(choice) = input.trim().parse::<usize>() {
+            if choice > 0 && choice <= courses.len() {
+                let (path, name) = &courses[choice - 1];
+                println!(">> Loading Module: {}", name);
 
-            game.current_course = path.file_name().unwrap().to_string_lossy().to_string();
-            game.current_quest_id = String::new();
-            game.current_chapter_index = 0;
-            game.current_task_index = 0;
-            game.is_finished = false;
-            game.save(save_path.to_str().unwrap());
+                game.current_course = path.file_name().unwrap().to_string_lossy().to_string();
+                game.current_quest_id = String::new();
+                game.current_chapter_index = 0;
+                game.current_task_index = 0;
+                game.is_finished = false;
+                game.save(save_path.to_str().unwrap());
 
-            active_course_path = path.clone();
+                active_course_path = Some(path.clone());
+            } else {
+                println!(">> [ERROR] Invalid Selection.");
+                return;
+            }
         } else {
-            println!(">> [ERROR] Invalid Selection.");
             return;
         }
     }
+    // B) No Menu Requested
+    else {
+        // Do we have a curent course?
+        if !game.current_course.is_empty() {
+            active_course_path = Some(library_path.join(&game.current_course));
+        } else if let Some((path, _)) = courses.first() {
+            // println!(">> [SYSTEM] Auto-loading Module: {}", name);
+            game.current_course = path.file_name().unwrap().to_string_lossy().to_string();
+            game.save(save_path.to_str().unwrap());
+            active_course_path = Some(path.clone());
+        }
+    }
 
-    // 4. LOAD THE COURSE
-    let course = Course::load(&active_course_path);
+    // 4. VALIDATE & LOAD
+    let course_path = match active_course_path {
+        Some(p) => p,
+        None => {
+            if courses.is_empty() {
+                println!(">> [ERROR] No quests found in library.");
+                println!(">> Please reinstall or run 'supershell --reset'.");
+            } else {
+                println!(">> [ERROR] Could not load module. Run 'supershell --menu'.");
+            }
+            return;
+        }
+    };
+
+    if !course_path.exists() {
+        println!(">> [ERROR] Module file missing: {:?}", course_path);
+        return;
+    }
+
+    // 5. RUN ENGINE
+    let course = Course::load(&course_path);
     let world = WorldEngine::new();
     world.initialize();
 
@@ -123,11 +153,15 @@ fn main() {
         }
     }
 
-    // Check for "New Game" Setup Actions
+    // New Game Setup Actions
     if game.current_chapter_index == 0 && game.current_task_index == 0 {
         if let Some(quest) = course.quests.iter().find(|q| q.id == game.current_quest_id) {
             if let Some(chapter) = quest.chapters.first() {
                 if args.check.is_none() && !chapter.setup_actions.is_empty() {
+                    // Only run setup if we haven't already (simple heuristic: are we at the very start?)
+                    // Ideally, we'd have a 'chapter_initialized' flag, but this works for now.
+                    // To prevent re-running on every 'status' check, we trust the idempotency of actions,
+                    // OR we only run it if this is strictly the manual 'supershell' command, not '--check'.
                     println!(">> [SYSTEM] Initializing Construct...");
                     world.build_scenario(&chapter.setup_actions);
                 }
@@ -135,7 +169,24 @@ fn main() {
         }
     }
 
-    // 5. MAIN LOOP
+    if args.hint {
+        if let Some((_, _, task)) = course.get_active_content(
+            &game.current_quest_id,
+            game.current_chapter_index,
+            game.current_task_index,
+        ) {
+            println!("\r\n>> [SYSTEM HELP]");
+            match &task.hint {
+                Some(h) => println!("   {}", h),
+                None => println!("   No additional data available. Reread the instruction."),
+            }
+        } else {
+            println!(">> [ERROR] Cannot retrieve task data.");
+        }
+        return;
+    }
+
+    // 6. MAIN LOOP
     if let Some(user_cmd) = args.check {
         // --- CHECK MODE (Triggered by shell hook) ---
         if let Some((quest, chapter, task)) = course.get_active_content(
@@ -154,10 +205,18 @@ fn main() {
 
             if all_met {
                 println!("\r\n>> [SUCCESS] {}", task.success_msg);
+
+                // 1. Look ahead before advancing
+                let next_step_info = course.find_next_step(
+                    &game.current_quest_id,
+                    game.current_chapter_index,
+                    game.current_task_index,
+                );
+
+                // 2. Update the state (move the indices)
                 game.advance_task();
 
-                let mut next_step_info: Option<NextStepInfo> = None;
-
+                // 3. Handle transitions and cutscenes
                 if game.current_task_index >= chapter.tasks.len() {
                     // Chapter Complete
                     play_cutscene(&chapter.outro);
@@ -167,30 +226,17 @@ fn main() {
                         println!(">> [QUEST COMPLETE] {}", quest.title);
                         game.is_finished = true;
                     } else {
-                        // New Chapter
+                        // New Chapter Intro
                         let next_chapter = &quest.chapters[game.current_chapter_index];
                         if !next_chapter.setup_actions.is_empty() {
                             println!(">> [SYSTEM] Reconfiguring Construct...");
                             world.build_scenario(&next_chapter.setup_actions);
                         }
                         play_cutscene(&next_chapter.intro);
-
-                        if let Some(first_task) = next_chapter.tasks.first() {
-                            next_step_info = Some(NextStepInfo {
-                                instruction: first_task.instruction.clone(),
-                                objective: first_task.objective.clone(),
-                            });
-                        }
-                    }
-                } else {
-                    if let Some(next_task) = chapter.tasks.get(game.current_task_index) {
-                        next_step_info = Some(NextStepInfo {
-                            instruction: next_task.instruction.clone(),
-                            objective: next_task.objective.clone(),
-                        });
                     }
                 }
 
+                // 4. Print the data (if found)
                 if let Some(info) = next_step_info {
                     println!("\r\n[NEXT OBJECTIVE]");
                     println!("INSTRUCTION: {}", info.instruction);

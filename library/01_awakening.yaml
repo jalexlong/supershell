@@ -2,7 +2,6 @@ quests:
   - id: "01_awakening"
     title: "MODULE 01: THE AWAKENING"
     chapters:
-      # --- CHAPTER 1: ORIENTATION ---
       - title: "Orientation"
         intro: |
           [Welcome to SuperShell]
@@ -28,6 +27,7 @@ quests:
           - description: "Enter the Construct"
             instruction: "Our operations are contained within the 'Construct' directory. Move there now."
             objective: "cd ~/Construct"
+            hint: "The tilde symbol '~' is a shortcut for your home folder. Type 'cd ~/Construct' exactly."
             success_msg: "Construct Environment Accessed."
             conditions:
               - type: WorkingDir
@@ -36,6 +36,7 @@ quests:
           - description: "Ping the sonar."
             instruction: "The screen is dark. You must actively ask the system to describe itself."
             objective: "Type 'ls' to list contents."
+            hint: "'ls' stands for 'List'. It shows you the files in your current location."
             success_msg: "Vision returned. The system has revealed its contents."
             conditions:
               - type: CommandMatches
@@ -46,6 +47,7 @@ quests:
               Scanning tells you WHAT is nearby, but not WHERE you are.
               Linux is an 'Upside-Down Tree'. You are currently on a branch.
             objective: "Type 'pwd' to print working directory."
+            hint: "'pwd' stands for 'Print Working Directory'. It tells you your absolute path from the root."
             success_msg: "Coordinates locked. You are grounded."
             conditions:
               - type: CommandMatches
@@ -57,6 +59,7 @@ quests:
               Every file grows downward from this single point.
               Let us look at the source.
             objective: "Type 'ls /' to list the root directory."
+            hint: "Spaces matter. Type 'ls', then a space, then the forward slash '/'."
             success_msg: "The Foundation revealed."
             conditions:
               - type: CommandMatches
@@ -67,12 +70,12 @@ quests:
               We can look at other branches without moving.
               Let's look at the 'home' branch inside of the root.
             objective: "Type 'ls /home'"
+            hint: "We are combining the command 'ls' with the path '/home'."
             success_msg: "Remote scan complete."
             conditions:
               - type: CommandMatches
                 pattern: "^ls.*/home"
 
-      # --- CHAPTER 2: MANIPULATION ---
       - title: "Manifestation"
         intro: |
           [PHASE 2: INTERACTION]
@@ -88,9 +91,9 @@ quests:
           - description: "Construct a directory."
             instruction: "Command the system to make a directory named 'workspace'."
             objective: "Type 'mkdir workspace'"
+            hint: "'mkdir' stands for 'Make Directory'. Syntax: mkdir [NAME]"
             success_msg: "It is done. Structure created."
             conditions:
-              # Rust now checks ~/Construct/workspace automatically
               - type: IsDirectory
                 path: "workspace"
 
@@ -100,6 +103,7 @@ quests:
               Movement in the Shell is not physical; it is a shift in focus.
               Use a 'Relative Path'.
             objective: "Type 'cd workspace'"
+            hint: "You are currently sitting next to the folder. You can just type 'cd workspace'."
             success_msg: "Focus shifted. You are inside the construct."
             conditions:
               - type: WorkingDir
@@ -110,12 +114,12 @@ quests:
               In the GUI, an empty folder is a white box.
               Here, it is simply silence. If the system says nothing, there is nothing.
             objective: "Type 'ls' to verify it is empty."
+            hint: "Just run 'ls' again. If it prints nothing, that means the folder is empty."
             success_msg: "Silence confirmed."
             conditions:
               - type: CommandMatches
                 pattern: "^ls"
 
-      # --- CHAPTER 3: RESTORATION ---
       - title: "Restoration"
         intro: |
           [PHASE 3: RETREAT]
@@ -135,6 +139,7 @@ quests:
               We must return to the parent level.
               The '..' (dot dot) link points to the branch above you.
             objective: "Type 'cd ..'"
+            hint: "Two dots '..' represent the parent directory. 'cd ..' moves you up one level."
             success_msg: "Returned to home. Path integration complete."
             conditions:
               - type: WorkingDir
@@ -145,8 +150,8 @@ quests:
               We need to remove the 'workspace' directory.
               Use 'rmdir' (Remove Directory).
             objective: "Type 'rmdir workspace'"
+            hint: "Ensure you are outside the folder first (which you are). Then type 'rmdir workspace'."
             success_msg: "Trace removed. System clean."
             conditions:
-              # Rust checks ~/Construct/workspace
               - type: PathMissing
                 path: "workspace"

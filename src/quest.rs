@@ -137,6 +137,7 @@ pub struct Task {
     pub instruction: String,
     pub objective: String,
     pub success_msg: String,
+    pub hint: Option<String>,
     pub conditions: Vec<Condition>,
 }
 
