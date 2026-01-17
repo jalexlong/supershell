@@ -45,7 +45,7 @@ echo "📜 Installing Quest Library to $LIBRARY_DIR..."
 # Clean old files to ensure no duplicates if we renamed things
 rm -f "$LIBRARY_DIR"/*.yaml
 # Copy all YAMLs from the local 'library' folder
-cp library/*.yaml "$LIBRARY_DIR/"
+cp -r library/*.yaml "$LIBRARY_DIR/"
 
 # 6. GENERATE PRODUCTION HOOK
 echo "🪝  Generating shell hook..."
