@@ -1,5 +1,5 @@
 ## Current Architecture
-- **Language:** Rust (v1.70+)
+- **Language:** Rust (v1.90+)
 - **State Storage:** JSON (standardized via `directories-next` crate)
 - **Data Format:** YAML (parsed via `serde_yml`)
 - **UI Logic:** Blocking TTY reads for "Press Space to Continue" interactions.
