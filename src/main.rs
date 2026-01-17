@@ -6,7 +6,7 @@ mod world;
 
 use clap::Parser;
 use directories::ProjectDirs;
-use quest::{Course, Library, NextStepInfo};
+use quest::{Course, Library};
 use state::GameState;
 use std::fs;
 use std::io::{self, Write};

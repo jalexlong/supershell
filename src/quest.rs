@@ -47,14 +47,38 @@ pub struct Course {
 
 impl Course {
     pub fn load(path: &Path) -> Self {
-        if path.exists() {
-            let content = fs::read_to_string(path).unwrap_or_default();
-            serde_yml::from_str(&content).unwrap_or_else(|e| {
-                eprintln!("Failed to parse quests.yaml: {}", e);
-                Course { quests: vec![] }
-            })
-        } else {
-            Course { quests: vec![] }
+        if !path.exists() {
+            return Course { quests: vec![] };
+        }
+
+        let content = fs::read_to_string(path).unwrap_or_default();
+
+        // ATTEMPT 1: Standard "Wrapped" Format (quests: ...)
+        match serde_yml::from_str::<Course>(&content) {
+            Ok(course) => return course,
+            Err(e1) => {
+                // ATTEMPT 2: List Format (- id: ...)
+                match serde_yml::from_str::<Vec<Quest>>(&content) {
+                    Ok(quests) => return Course { quests },
+                    Err(e2) => {
+                        // ATTEMPT 3: Single Object (id: ...)
+                        match serde_yml::from_str::<Quest>(&content) {
+                            Ok(quest) => {
+                                return Course {
+                                    quests: vec![quest],
+                                };
+                            }
+                            Err(e3) => {
+                                // CRASH HERE so we can see the error
+                                panic!(
+                                    "\n\n[YAML PARSE ERROR]\nFile: {:?}\nAttempt 1 (Course): {}\nAttempt 2 (List): {}\nAttempt 3 (Single): {}\n\n",
+                                    path, e1, e2, e3
+                                );
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -118,6 +142,7 @@ fn default_true() -> bool {
 // --- TIER 2: THE SEASON ---
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Quest {
+    #[serde(alias = "name")]
     pub id: String,
     pub title: String,
     #[serde(default = "default_true")]

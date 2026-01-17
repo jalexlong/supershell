@@ -43,7 +43,7 @@ jobs:
           cp target/${{ matrix.target }}/release/${{ matrix.artifact_name }} dist/supershell
 
           # Copy Assets
-          cp quests.yaml dist/
+          cp -r library dist/
           cp install.sh dist/
           cp uninstall.sh dist/
           cp README.md dist/

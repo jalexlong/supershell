@@ -14,7 +14,6 @@ pub struct GameState {
 
 impl GameState {
     /// Initialize defaults.
-    /// NOTE: You should change "bootcamp" to match the first ID in your YAML.
     pub fn new() -> Self {
         Self {
             current_course: String::new(),

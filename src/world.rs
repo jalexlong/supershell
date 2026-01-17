@@ -2,7 +2,7 @@ use crate::actions::SetupAction;
 use directories::UserDirs;
 use std::fs;
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 pub struct WorldEngine {
     root_path: PathBuf,

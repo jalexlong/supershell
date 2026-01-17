@@ -17,8 +17,7 @@ quests:
           First, we must establish your senses in the dark.
 
         setup_actions:
-          - type: RemovePath
-            path: "workspace"
+          - type: ResetWorld
 
         outro: |
           Vision returned. Coordinates locked.
