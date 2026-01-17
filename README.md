@@ -48,6 +48,13 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📜 Release History
 
+## v0.4.0 - The Stability Update
+
+* **Universal YAML Loader:** The engine now intelligently parses quest files in multiple formats (Wrapped Object, List, or Single Object), preventing crashes when loading user-created content.
+* **Graceful Degradation:** Optional fields in Quest/Chapter definitions (like `setup_actions`) are now handled gracefully. Missing fields no longer cause the application to panic or fail silently.
+* **Startup Fixes:** Resolved an issue where a fresh installation would initialize with an empty Quest ID, causing the game to boot into a "do nothing" state. The default is now set to `01_awakening`.
+* **Error Visibility:** File system errors (permissions, missing directories) during the library scan are now logged to stderr as `[CRITICAL ERROR]` instead of being swallowed silently.
+
 ### v0.3.1 (The Distribution Patch)
 - **Fixed:** Critical installer bug on macOS regarding `Read-only file system` errors.
 - **Fixed:** Improved shell detection to correctly identify Zsh vs Bash based on user login.
