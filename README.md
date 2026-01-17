@@ -48,6 +48,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📜 Release History
 
+### v0.3.1 (The Distribution Patch)
+- **Fixed:** Critical installer bug on macOS regarding `Read-only file system` errors.
+- **Fixed:** Improved shell detection to correctly identify Zsh vs Bash based on user login.
+- **Fixed:** Aligned `install.sh` data paths with Rust's native `directories` crate on macOS.
+
 ### v0.3.0 (The Architecture Update)
 - **Breaking:** Complete engine rewrite to 4-tier hierarchy (Quest -> Chapter -> Task).
 - **Breaking:** Renamed `Checkpoint` to `Task` in internal logic.
