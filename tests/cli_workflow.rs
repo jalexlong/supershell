@@ -43,6 +43,7 @@ quests:
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_supershell"));
 
     cmd.env("XDG_DATA_HOME", &data_home)
+        .env("SUPERSHELL_TEST_MODE", "1")
         .arg("--check")
         .arg("echo hello"); // Matches the 'pattern' in our mock quest
 

@@ -5,6 +5,7 @@ use crossterm::{
     style::{Attribute, Color, Print, ResetColor, SetAttribute, SetForegroundColor},
     terminal::{Clear, ClearType, disable_raw_mode, enable_raw_mode, size},
 };
+use std::env;
 use std::io::{Write, stdout};
 use std::thread;
 use std::time::Duration;
@@ -44,6 +45,13 @@ impl Drop for TerminalGuard {
 
 // --- THE RENDERER ---
 pub fn play_cutscene(text: &str) {
+    // If we are testing, print plain text and exit IMMEDIATELY
+    // This prevents enabling raw mode (which crashes tests) and prevents waiting for Enter.
+    if env::var("SUPERSHELL_TEST_MODE").is_ok() {
+        println!("\n{}\n", text);
+        return;
+    }
+
     // A. Initialize the Guard (Enables Raw Mode immediately)
     let _guard = TerminalGuard::new();
     let mut stdout = stdout();
