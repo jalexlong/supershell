@@ -1,6 +1,7 @@
 quests:
   - id: "01_awakening"
     title: "MODULE 01: THE AWAKENING"
+    construct: false
     chapters:
       - title: "Orientation"
         intro: |

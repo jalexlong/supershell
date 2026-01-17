@@ -111,11 +111,17 @@ pub struct NextStepInfo {
     pub objective: String,
 }
 
+fn default_true() -> bool {
+    true
+}
+
 // --- TIER 2: THE SEASON ---
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Quest {
     pub id: String,
     pub title: String,
+    #[serde(default = "default_true")]
+    pub construct: bool,
     pub chapters: Vec<Chapter>,
 }
 

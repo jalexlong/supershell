@@ -74,7 +74,7 @@ fn main() {
         }
 
         for (i, (_, name)) in courses.iter().enumerate() {
-            println!("║  [{:2}] {:<32} ║", i + 1, name);
+            println!("║  [{:2}] {:<30} ║", i + 1, name);
         }
         println!("╚══════════════════════════════════════╝");
         print!(">> SELECT MODULE_ ");
@@ -253,11 +253,28 @@ fn main() {
             return;
         }
 
-        if let Some((_, chapter, task)) = course.get_active_content(
+        if let Some((quest, chapter, task)) = course.get_active_content(
             &game.current_quest_id,
             game.current_chapter_index,
             game.current_task_index,
         ) {
+            // --- CHECK LOCATION ---
+            if quest.construct {
+                let current_dir = std::env::current_dir().unwrap_or_default();
+                let user_home = directories::UserDirs::new()
+                    .unwrap()
+                    .home_dir()
+                    .to_path_buf();
+                let construct_path = user_home.join("Construct");
+
+                if !current_dir.starts_with(&construct_path) {
+                    println!("\r\n[WARNING: SIGNAL UNSTABLE]");
+                    println!("You are currently outside the Construct.");
+                    println!("Return to base to receive instructions.");
+                    println!(">> REQUIRED: cd ~/Construct");
+                    return;
+                }
+            }
             // Optional: Replay intro if at the very start of a chapter
             if game.current_task_index == 0 {
                 play_cutscene(&chapter.intro);
