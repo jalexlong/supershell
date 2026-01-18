@@ -1,13 +1,15 @@
 [package]
 name = "supershell"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2024"
 authors = ["J. Alex Long <jalexlong@proton.me"]
-description = "A gamified terminal tutor that teaches CLI skills via interactive quests."
+description = "A terminal-based RPG that teachers command line skills and cybersecurity concepts."
 license = "MIT"
 repository = "https://github.com/jalexlong/supershell"
-keywords = ["cli", "education", "game", "tutorial"]
-categories = ["command-line-utilities", "simulation"]
+homepage = "https://github.com/jalexlong/supershell"
+readme = "README.md"
+keywords = ["cli", "education", "game", "tutorial", "cybersecurity", "rpg"]
+categories = ["command-line-utilities", "games"]
 exclude = ["images/*", ".github/*"]
 
 [dependencies]
@@ -19,6 +21,7 @@ serde_yml = "0.0.12"
 crossterm = "0.29.0"
 textwrap = "0.16.2"
 directories = "6.0.0"
+include_dir = "0.7.4"
 
 [dev-dependencies]
 assert_cmd = "2"

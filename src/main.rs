@@ -6,6 +6,7 @@ mod world;
 
 use clap::Parser;
 use directories::ProjectDirs;
+use include_dir::{Dir, include_dir};
 use quest::{Course, Library};
 use state::GameState;
 use std::fs;
@@ -26,6 +27,9 @@ struct Cli {
     hint: bool,
 }
 
+// EMBED THE LIBRARY FOLDER
+static DEFAULT_LIBRARY: Dir = include_dir!("$CARGO_MANIFEST_DIR/library");
+
 fn main() {
     let args = Cli::parse();
 
@@ -37,9 +41,24 @@ fn main() {
     let save_path = data_dir.join("save.json");
     let library_path = data_dir.join("library");
 
-    // Ensure directories exists
+    // Ensure save_path directories exists
     if let Some(parent) = save_path.parent() {
         fs::create_dir_all(parent).ok();
+    }
+
+    // Auto-extract assets
+    if !library_path.exists() {
+        println!(">> [SYSTEM] Initializing Construct environment...");
+
+        // Create the library directory
+        fs::create_dir_all(&library_path).expect("Failed to create library directory");
+
+        // Extract the embedded files to the real path
+        DEFAULT_LIBRARY
+            .extract(&library_path)
+            .expect("Failed to extract default library");
+
+        println!(">> [SYSTEM] Core modules installed to: {:?}", library_path);
     }
 
     // 2. LOAD STATE

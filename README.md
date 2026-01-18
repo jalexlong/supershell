@@ -45,33 +45,22 @@ Supershell adheres to the XDG Base Directory Specification:
 
 ## 🛠️ Installation
 
-### Prerequisites
-
-* **Rust** (Cargo) installed.
-* **Zsh** or **Bash** shell.
-
-### Step 1: Build
-
-Clone the repo and build the release binary:
+### Option 1: The Rust Way (Recommended)
+If you have Rust installed, you can grab the game directly from crates.io:
 
 ```bash
-cargo build --release
-
+cargo install supershell
+supershell
 ```
 
-### Step 2: Install
-
-Run the provided install script. This will:
-
-1. Copy the binary to a local path (e.g., `~/.local/bin`).
-2. Copy the quest library to your data folder (`~/.local/share/supershell`).
-3. Add the **Shell Hook** to your `.zshrc` or `.bashrc`.
-
-```bash
-chmod +x install.sh
-./install.sh
-
-```
+### Option 2: Standalone Binary
+1. Download the latest release for your OS from the [Releases Page](https://github.com/jalexlong/supershell/releases).
+2. Extract the archive.
+3. Run the binary:
+   ```bash
+   ./supershell
+   ```
+*(Note: The game will automatically install its game files to your system on the first run.)*
 
 > **Note on the Shell Hook:**
 > The installer adds a small function to your shell config. This function runs `supershell --check "$HISTORY"` after every command you type, allowing the game to react to your actions in real-time.
@@ -135,6 +124,21 @@ rm -rf ~/.local/share/supershell
 ```
 
 ## 📜 Release History
+
+# v0.4.1: The "Self-Extracting" Update
+
+**Summary:**
+This release radically simplifies installation. The `supershell` binary now carries the entire game library inside itself. When you run it for the first time, it automatically installs the necessary assets to your system.
+
+**New Features:**
+* 📦 **Self-Extracting Binary:** The `library/` folder is now embedded in the executable. No external installation scripts are required.
+* 🚀 **Crates.io Support:** You can now install the full game with a single command: `cargo install supershell`.
+* 🛠️ **Auto-Repair:** If the game detects the `library` folder is missing (e.g., accidental deletion), it will automatically restore the default quests on the next launch.
+
+**Changes:**
+* Removed `install.sh` and `uninstall.sh` (deprecated).
+* Simplified distribution artifacts to just the binary and README.
+* Updated internal path resolution to handle embedded asset extraction.
 
 ## v0.4.0 - The Stability Update
 
