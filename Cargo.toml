@@ -8,7 +8,7 @@ license = "MIT"
 repository = "https://github.com/jalexlong/supershell"
 homepage = "https://github.com/jalexlong/supershell"
 readme = "README.md"
-keywords = ["cli", "education", "game", "tutorial", "cybersecurity", "rpg"]
+keywords = ["cli", "education", "game", "tutorial", "cybersecurity"]
 categories = ["command-line-utilities", "games"]
 exclude = ["images/*", ".github/*"]
 
