@@ -1,3 +1,7 @@
+title: "Module 2: The Archive"
+author: "System Administrator"
+version: "1.0.0"
+
 quests:
   - id: "02_archive"
     title: "MODULE 02: THE ARCHIVE"

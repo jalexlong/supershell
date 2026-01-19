@@ -24,16 +24,21 @@ impl Library {
                 // Check for .yaml or .yml
                 if let Some(ext) = path.extension() {
                     if ext == "yaml" || ext == "yml" {
-                        let name = path
-                            .file_stem()
-                            .and_then(|n| n.to_str())
-                            .unwrap_or("Unknown")
-                            .to_string();
-                        courses.push((path, name));
+                        let course = Course::load(&path);
+
+                        // Fallback to filename if title is "Untitled Course" (optional)
+                        let display_name = if course.title == "Untitled Course" {
+                            path.file_stem().unwrap().to_string_lossy().to_string()
+                        } else {
+                            course.title
+                        };
+
+                        courses.push((path, display_name));
                     }
                 }
             }
         }
+        // Sort by title alphabetically
         courses.sort_by(|a, b| a.1.cmp(&b.1));
         courses
     }
@@ -42,29 +47,71 @@ impl Library {
 // --- TIER 1: THE COURSE ---
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Course {
+    // METADATA
+    #[serde(default = "default_title")]
+    pub title: String,
+    #[serde(default = "default_author")]
+    pub author: String,
+    #[serde(default = "default_version")]
+    pub version: String, // e.g., "1.0.0"
+
+    // CONTENT
     pub quests: Vec<Quest>,
+}
+
+// These helper functions allow old YAML files to load without crashing
+fn default_title() -> String {
+    "Untitled Course".to_string()
+}
+
+fn default_author() -> String {
+    "Anonymous".to_string()
+}
+
+fn default_version() -> String {
+    "0.0.0".to_string()
 }
 
 impl Course {
     pub fn load(path: &Path) -> Self {
         if !path.exists() {
-            return Course { quests: vec![] };
+            return Course {
+                title: default_title(),
+                author: default_author(),
+                version: default_version(),
+                quests: vec![],
+            };
         }
 
         let content = fs::read_to_string(path).unwrap_or_default();
 
-        // ATTEMPT 1: Standard "Wrapped" Format (quests: ...)
+        // ATTEMPT 1: Standard "Wrapped" Format (v0.5.0 Standard)
+        // This looks for: { title: "...", quests: [...] }
+        // The #serde(default)] attributes on the struct handle missing fields here.
         match serde_yml::from_str::<Course>(&content) {
             Ok(course) => return course,
             Err(e1) => {
-                // ATTEMPT 2: List Format (- id: ...)
+                // ATTEMPT 2: Legacy List Format (v0.4.0)
+                // This looks for: [ {id: ... }, { id: ...} ]
                 match serde_yml::from_str::<Vec<Quest>>(&content) {
-                    Ok(quests) => return Course { quests },
+                    Ok(quests) => {
+                        // MANUAL UPGRADE: Wrap the old list in the new struct
+                        return Course {
+                            title: default_title(),
+                            author: default_author(),
+                            version: default_version(),
+                            quests,
+                        };
+                    }
                     Err(e2) => {
-                        // ATTEMPT 3: Single Object (id: ...)
+                        // ATTEMPT 3: Legacy Single Object (v0.1.0)
+                        // This looks for: { id: ..., chapters: ... }
                         match serde_yml::from_str::<Quest>(&content) {
                             Ok(quest) => {
                                 return Course {
+                                    title: default_title(),
+                                    author: default_author(),
+                                    version: default_version(),
                                     quests: vec![quest],
                                 };
                             }
@@ -135,10 +182,6 @@ pub struct NextStepInfo {
     pub objective: String,
 }
 
-fn default_true() -> bool {
-    true
-}
-
 // --- TIER 2: THE SEASON ---
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Quest {
@@ -148,6 +191,10 @@ pub struct Quest {
     #[serde(default = "default_true")]
     pub construct: bool,
     pub chapters: Vec<Chapter>,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 // --- TIER 3: THE EPISODE ---
@@ -168,7 +215,8 @@ pub struct Task {
     pub instruction: String,
     pub objective: String,
     pub success_msg: String,
-    pub hint: Option<String>,
+    #[serde(default)]
+    pub hint: String,
     pub conditions: Vec<Condition>,
 }
 

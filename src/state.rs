@@ -6,6 +6,8 @@ use std::path::Path;
 pub struct GameState {
     #[serde(default)]
     pub current_course: String,
+    #[serde(default)]
+    pub course_version: String,
     pub current_quest_id: String,
     pub current_chapter_index: usize,
     pub current_task_index: usize,
@@ -17,6 +19,7 @@ impl GameState {
     pub fn new() -> Self {
         Self {
             current_course: String::new(),
+            course_version: String::new(),
             current_quest_id: String::new(),
             current_chapter_index: 0,
             current_task_index: 0,

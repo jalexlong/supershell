@@ -1,3 +1,7 @@
+title: "Module 1: The Awakening"
+author: "System Administrator"
+version: "1.0.0"
+
 quests:
   - id: "01_awakening"
     title: "MODULE 01: THE AWAKENING"
