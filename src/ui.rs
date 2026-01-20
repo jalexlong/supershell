@@ -12,90 +12,169 @@ use std::time::Duration;
 use textwrap::fill;
 
 // --- THE SAFETY NET ---
-// We create a struct just to handle the terminal state.
-// When this variable goes out of scope (at the end of the function),
-// the 'drop' function fires automatically.
 struct TerminalGuard;
 
 impl TerminalGuard {
     fn new() -> Self {
         enable_raw_mode().expect("Failed to enable raw mode");
         let mut stdout = stdout();
-        execute!(stdout, Hide, MoveTo(0, 0)).unwrap(); // Hide cursor
+        execute!(stdout, Hide, MoveTo(0, 0)).unwrap();
         Self
     }
 }
 
-// This runs AUTOMATICALLY when the cutscene ends or crashes
 impl Drop for TerminalGuard {
     fn drop(&mut self) {
         let mut stdout = stdout();
-        disable_raw_mode().unwrap_or(()); // Force raw mode off
+        disable_raw_mode().unwrap_or(());
         execute!(
             stdout,
-            Show, // Bring cursor back
+            Show,
             ResetColor,
             SetAttribute(Attribute::Reset),
-            Clear(ClearType::All), // Clean up our mess
-            MoveTo(0, 0)           // Reset position
+            Clear(ClearType::All),
+            MoveTo(0, 0)
         )
         .unwrap_or(());
     }
 }
 
+// --- HELPER: DRAW THE BOX WITH TITLE ---
+// Strategy #2: "Chunking" - We create a container with a labeled header
+fn draw_box(x: u16, y: u16, width: u16, height: u16, title: &str) {
+    let mut stdout = stdout();
+
+    // Box Styling (Matrix/Hacker Theme)
+    let border_color = Color::Green;
+    let title_color = Color::White;
+
+    let top_left = '┌';
+    let top_right = '┐';
+    let bottom_left = '└';
+    let bottom_right = '┘';
+    let horizontal = '─';
+    let vertical = '│';
+
+    execute!(stdout, SetForegroundColor(border_color)).unwrap();
+
+    // 1. Draw Top Border with Title
+    execute!(stdout, MoveTo(x, y)).unwrap();
+    print!("{}", top_left);
+
+    // Strategy #1: Visual Signposting
+    // We print a short line, then the Title in a different color, then the rest of the line
+    print!("{}{}", horizontal, horizontal); // Little dash before title
+
+    execute!(
+        stdout,
+        SetForegroundColor(title_color),
+        SetAttribute(Attribute::Bold)
+    )
+    .unwrap();
+    print!(" {} ", title); // The Title (e.g., " 📜 MISSION BRIEF ")
+    execute!(
+        stdout,
+        SetForegroundColor(border_color),
+        SetAttribute(Attribute::Reset)
+    )
+    .unwrap();
+
+    // Calculate remaining dash length
+    // Width - corners(2) - dashes(2) - title_len - padding(2)
+    let title_len = title.chars().count() as u16;
+    let used_width = 2 + 2 + title_len + 2;
+    let remaining_width = if width > used_width {
+        width - used_width
+    } else {
+        0
+    };
+
+    print!(
+        "{}",
+        horizontal.to_string().repeat(remaining_width as usize)
+    );
+    print!("{}", top_right);
+
+    // 2. Draw Side Borders
+    for i in 1..height - 1 {
+        execute!(stdout, MoveTo(x, y + i)).unwrap();
+        print!("{}", vertical);
+        execute!(stdout, MoveTo(x + width - 1, y + i)).unwrap();
+        print!("{}", vertical);
+    }
+
+    // 3. Draw Bottom Border
+    execute!(stdout, MoveTo(x, y + height - 1)).unwrap();
+    print!(
+        "{}{}{}",
+        bottom_left,
+        horizontal.to_string().repeat((width - 2) as usize),
+        bottom_right
+    );
+
+    stdout.flush().unwrap();
+}
+
 // --- THE RENDERER ---
 pub fn play_cutscene(text: &str) {
-    // If we are testing, print plain text and exit IMMEDIATELY
-    // This prevents enabling raw mode (which crashes tests) and prevents waiting for Enter.
+    // Testing Bypass
     if env::var("SUPERSHELL_TEST_MODE").is_ok() {
         println!("\n{}\n", text);
         return;
     }
 
-    // A. Initialize the Guard (Enables Raw Mode immediately)
     let _guard = TerminalGuard::new();
     let mut stdout = stdout();
 
-    // WRAPPING
-    let (cols, _) = size().unwrap_or((80, 24));
+    // 1. CALCULATE DIMENSIONS
+    let (cols, rows) = size().unwrap_or((80, 24));
 
-    // Calculate a safe width (Terminal Width - 4 columns for padding)
-    // We stick to a max of 80 chars for readability, even on wide monitors.
-    let wrap_width = if cols > 4 {
-        (cols - 4) as usize
-    } else {
-        cols as usize
-    };
+    // Box width: 80% of screen or max 80 chars
+    let box_width = std::cmp::min((cols as f32 * 0.8) as u16, 80);
+    // Inner width for text (Width - 4 for borders/padding)
+    let text_width = box_width - 4;
 
-    // 'fill' intelligently wraps the text at word boundaries
-    let wrapped_text = fill(text, wrap_width);
+    // Wrap text
+    let wrapped_content = fill(text, text_width as usize);
+    let content_lines: Vec<&str> = wrapped_content.split('\n').collect();
 
-    // Set the Mood (Hacker Green)
+    // Height = content lines + 2 (top/bottom padding) + 2 (borders)
+    let box_height = (content_lines.len() as u16) + 4;
+
+    // Center logic
+    let start_x = (cols - box_width) / 2;
+    let start_y = (rows.saturating_sub(box_height)) / 2;
+
+    // 2. CLEAR SCREEN
     execute!(
         stdout,
         Clear(ClearType::All),
-        MoveTo(0, 0),
-        SetForegroundColor(Color::Green),
-        SetAttribute(Attribute::Bold)
+        SetForegroundColor(Color::Green), // Default text color
     )
     .unwrap();
 
-    // The Typewriter Loop
-    let mut skipped = false;
+    // 3. DRAW THE HUD
+    // We use a fixed title for the cutscene.
+    // You can change "📜 MISSION BRIEF" to whatever fits your lore.
+    draw_box(start_x, start_y, box_width, box_height, "📜 MISSION BRIEF");
 
-    for char in wrapped_text.chars() {
-        // PRINT LOGIC
+    // 4. TYPEWRITER EFFECT
+    let mut skipped = false;
+    let mut cursor_x = start_x + 2;
+    let mut cursor_y = start_y + 2;
+
+    execute!(stdout, MoveTo(cursor_x, cursor_y)).unwrap();
+
+    for char in wrapped_content.chars() {
         if char == '\n' {
-            execute!(stdout, Print("\r\n")).unwrap();
+            cursor_y += 1;
+            execute!(stdout, MoveTo(cursor_x, cursor_y)).unwrap();
         } else {
-            // Otherwise, print normally
             print!("{}", char);
             stdout.flush().unwrap();
         }
 
-        // CHECK FOR SKIP (Non-blocking check)
         if !skipped {
-            // Check if key is pressed (Non-blocking)
             if poll(Duration::from_secs(0)).unwrap() {
                 if let Event::Key(key) = read().unwrap() {
                     if key.kind == KeyEventKind::Press && key.code == KeyCode::Enter {
@@ -103,24 +182,27 @@ pub fn play_cutscene(text: &str) {
                     }
                 }
             }
-            // THE DELAY
-            // We only sleep if the user hasn't skipped yet.
-            // If skipped is true, this block is ignored, and the loop
-            // spins as fast as the CPU allows (instantly filling the text).
+            // Strategy #4: Typewriter Speed (25ms is a good reading speed)
             thread::sleep(Duration::from_millis(25));
         }
     }
 
-    // PROMPT
+    // 5. PROMPT
+    let prompt = ">> PRESS [ENTER] TO CONTINUE_";
+    if cursor_y < start_y + box_height - 1 {
+        cursor_y += 2;
+    }
+
+    // Position prompt centered-ish or aligned left inside box
     execute!(
         stdout,
-        Print("\r\n\r\n"),
+        MoveTo(start_x + 2, cursor_y),
         SetForegroundColor(Color::DarkGrey),
-        Print(">> PRESS [ENTER] TO CONTINUE_")
+        Print(prompt)
     )
     .unwrap();
 
-    // Loop until Enter is pressed
+    // Wait for input
     loop {
         if let Event::Key(key) = read().unwrap() {
             if key.kind == KeyEventKind::Press && key.code == KeyCode::Enter {
