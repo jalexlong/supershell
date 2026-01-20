@@ -342,7 +342,6 @@ fn handle_check_command(
     world: &WorldEngine,
 ) {
     // 1. Setup Logic (Lazy Init)
-    // Runs scenario setup if we are at the very start of a chapter
     if game.current_task_index == 0 {
         if let Some(quest) = course.quests.iter().find(|q| q.id == game.current_quest_id) {
             if let Some(chapter) = quest.chapters.get(game.current_chapter_index) {
@@ -354,6 +353,7 @@ fn handle_check_command(
     }
 
     // 2. Validation Logic
+    // We get the current task to check conditions
     if let Some((quest, chapter, task)) = course.get_active_content(
         &game.current_quest_id,
         game.current_chapter_index,
@@ -365,37 +365,62 @@ fn handle_check_command(
             println!("\r\n"); // Spacer
             println!(">> [SUCCESS] {}", task.success_msg);
 
-            // Look ahead for next step info
-            let next_step_info = course.find_next_step(
-                &game.current_quest_id,
-                game.current_chapter_index,
-                game.current_task_index,
-            );
-
+            // Advance the state immediately
             game.advance_task();
 
-            // Handle Transitions
+            // 3. Handle Transitions & UI Updates
+            // Check if we just finished the chapter
             if game.current_task_index >= chapter.tasks.len() {
-                play_cutscene(&chapter.outro);
+                // A. Play Outro
+                ui::play_cutscene(&chapter.outro);
+
+                // B. Move to Next Chapter
                 game.advance_chapter();
 
                 if game.current_chapter_index >= quest.chapters.len() {
                     println!(">> [QUEST COMPLETE] {}", quest.title);
                     game.is_finished = true;
                 } else {
-                    // Pre-load next chapter setup
+                    // C. Setup New Chapter
                     let next_chapter = &quest.chapters[game.current_chapter_index];
+
                     if !next_chapter.setup_actions.is_empty() {
                         println!(">> [SYSTEM] Reconfiguring Construct...");
                         world.build_scenario(&next_chapter.setup_actions);
                     }
-                    play_cutscene(&next_chapter.intro);
+
+                    // D. Play Intro for New Chapter
+                    ui::play_chapter_intro(&next_chapter.title, &next_chapter.intro);
+
+                    // E. Show First Task of New Chapter (Instant Box)
+                    if let Some(first_task) = next_chapter.tasks.first() {
+                        ui::draw_status_card(
+                            "NEW MODULE",
+                            &next_chapter.title,
+                            &first_task.instruction,
+                            &first_task.objective,
+                            1, // First task
+                            next_chapter.tasks.len(),
+                        );
+                    }
                 }
-            } else if let Some(info) = next_step_info {
-                // Peek at next task
-                println!("\r\n[NEXT OBJECTIVE]");
-                println!("INSTRUCTION: {}", info.instruction);
-                println!("OBJECTIVE:    {}", info.objective);
+            } else {
+                // Same Chapter, Next Task
+                // We need to fetch the NEW task details to display them
+                if let Some((_, _, next_task)) = course.get_active_content(
+                    &game.current_quest_id,
+                    game.current_chapter_index,
+                    game.current_task_index, // Already advanced above
+                ) {
+                    ui::draw_status_card(
+                        "MISSION UPDATE",
+                        &chapter.title,
+                        &next_task.instruction,
+                        &next_task.objective,
+                        game.current_task_index + 1,
+                        chapter.tasks.len(),
+                    );
+                }
             }
 
             game.save(save_path.to_str().unwrap());
@@ -404,7 +429,6 @@ fn handle_check_command(
 }
 
 // --- VALIDATION TOOL ---
-
 fn perform_validation(file_path: &str) {
     let path = PathBuf::from(file_path);
     println!(">> [SYSTEM] Validating module: {:?}", path);
