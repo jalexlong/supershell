@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
@@ -11,6 +12,10 @@ pub struct GameState {
     pub current_quest_id: String,
     pub current_chapter_index: usize,
     pub current_task_index: usize,
+    #[serde(default)]
+    pub flags: HashMap<String, bool>,
+    #[serde(default)]
+    pub variables: HashMap<String, i32>,
     pub is_finished: bool,
 }
 
@@ -23,6 +28,8 @@ impl GameState {
             current_quest_id: String::new(),
             current_chapter_index: 0,
             current_task_index: 0,
+            flags: HashMap::new(),
+            variables: HashMap::new(),
             is_finished: false,
         }
     }
@@ -54,5 +61,31 @@ impl GameState {
     pub fn advance_chapter(&mut self) {
         self.current_chapter_index += 1;
         self.current_task_index = 0;
+    }
+
+    /// Set a boolean flag (e.g., "tutorial_complete" -> true)
+    pub fn set_flag(&mut self, key: &str, value: bool) {
+        self.flags.insert(key.to_string(), value);
+    }
+
+    /// Check a flag (defaults ot false if not set)
+    pub fn get_flag(&self, key: &str) -> bool {
+        *self.flags.get(key).unwrap_or(&false)
+    }
+
+    /// Set an integer variable (e.g., "credits" -> 50)
+    pub fn set_var(&mut self, key: &str, value: i32) {
+        self.variables.insert(key.to_string(), value);
+    }
+
+    /// Get a variable (defaults to 0 if not set)
+    pub fn get_var(&self, key: &str) -> i32 {
+        *self.variables.get(key).unwrap_or(&0)
+    }
+
+    /// Modify a variable (e.g., add 10 points)
+    pub fn mod_var(&mut self, key: &str, amount: i32) {
+        let current = self.get_var(key);
+        self.variables.insert(key.to_string(), current + amount);
     }
 }

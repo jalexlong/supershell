@@ -7,7 +7,7 @@ mod world;
 use clap::Parser;
 use directories::ProjectDirs;
 use include_dir::{Dir, include_dir};
-use quest::{Course, Library};
+use quest::{Condition, Course, Library, Reward};
 use state::GameState;
 use std::fs;
 use std::io::{self, Write};
@@ -359,13 +359,22 @@ fn handle_check_command(
         game.current_chapter_index,
         game.current_task_index,
     ) {
-        let all_met = task.conditions.iter().all(|c| c.is_met(&user_cmd));
+        let all_met = task.conditions.iter().all(|c| c.is_met(&user_cmd, game));
 
         if all_met {
             println!("\r\n"); // Spacer
             println!(">> [SUCCESS] {}", task.success_msg);
 
-            // Advance the state immediately
+            // Before we advance, we must pay the user (set flags/vars)
+            for reward in &task.rewards {
+                match reward {
+                    Reward::SetFlag { key, value } => game.set_flag(key, *value),
+                    Reward::SetVar { key, value } => game.set_var(key, *value),
+                    Reward::AddVar { key, amount } => game.mod_var(key, *amount),
+                }
+            }
+
+            // Advance the state
             game.advance_task();
 
             // 3. Handle Transitions & UI Updates

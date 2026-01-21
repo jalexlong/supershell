@@ -1,11 +1,14 @@
 use crate::actions::SetupAction;
+use crate::state::GameState;
 use directories::UserDirs;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
+
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 
 pub struct Library {
     pub root_dir: PathBuf,
@@ -47,15 +50,12 @@ impl Library {
 // --- TIER 1: THE COURSE ---
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Course {
-    // METADATA
     #[serde(default = "default_title")]
     pub title: String,
     #[serde(default = "default_author")]
     pub author: String,
     #[serde(default = "default_version")]
     pub version: String, // e.g., "1.0.0"
-
-    // CONTENT
     pub quests: Vec<Quest>,
 }
 
@@ -218,6 +218,16 @@ pub struct Task {
     #[serde(default)]
     pub hint: String,
     pub conditions: Vec<Condition>,
+    #[serde(default)]
+    pub rewards: Vec<Reward>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(tag = "type")]
+pub enum Reward {
+    SetFlag { key: String, value: bool },
+    SetVar { key: String, value: i32 },
+    AddVar { key: String, amount: i32 },
 }
 
 // --- LOGIC: CONDITIONS ---
@@ -237,16 +247,20 @@ pub enum Condition {
     IsFile { path: String },
     IsExecutable { path: String },
 
-    // LOCATION CHECKS
-    WorkingDir { path: String },
-
     // CONTENT CHECKS
     FileContains { path: String, pattern: String },
     FileNotContains { path: String, pattern: String },
     FileEmpty { path: String },
 
     // ENVIRONMENT CHECKS
+    WorkingDir { path: String },
     EnvVar { name: String, value: String },
+
+    // GAME STATE CHECKS
+    FlagIsTrue { key: String },
+    VarEquals { key: String, value: i32 },
+    VarGreaterThan { key: String, value: i32 },
+    VarLessThan { key: String, value: i32 },
 }
 
 impl Condition {
@@ -259,7 +273,7 @@ impl Condition {
         }
     }
 
-    pub fn is_met(&self, user_command: &str) -> bool {
+    pub fn is_met(&self, user_command: &str, state: &GameState) -> bool {
         match self {
             Condition::CommandMatches { pattern } => {
                 let re = Regex::new(pattern).unwrap_or_else(|_| Regex::new("").unwrap());
@@ -331,6 +345,20 @@ impl Condition {
                 Ok(val) => val == *value,
                 Err(_) => false,
             },
+            Condition::FlagIsTrue { key } => state.get_flag(key),
+            Condition::VarEquals { key, value } => state.get_var(key) == *value,
+            Condition::VarGreaterThan { key, value } => state.get_var(key) > *value,
+            Condition::VarLessThan { key, value } => state.get_var(key) < *value,
         }
+    }
+}
+
+// Helper to handle ~/ paths
+fn expand_path(path: &str) -> String {
+    if path.starts_with("~/") {
+        let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+        path.replace("~", &home)
+    } else {
+        path.to_string()
     }
 }
