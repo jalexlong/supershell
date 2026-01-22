@@ -1,0 +1,89 @@
+title: "Protocol 0: Awakening"
+author: "The Architect"
+version: "1.0.0"
+
+quests:
+  - id: "quest_01"
+    title: "System Initialization"
+    construct: true # Enforces being inside ~/Construct
+    chapters:
+      - title: "The White Room"
+        intro: |
+          [SYSTEM BOOT SEQUENCE INITIATED...]
+          [LOADING CONSCIOUSNESS...]
+
+          You wake up in a digital void. The cursor blinks at you like a heartbeat.
+          There is nothing here but a single text file.
+
+        # 1. SETUP: Create the file they need to interact with
+        setup_actions:
+          - type: ResetWorld
+          - type: CreateFile
+            path: "manifest.txt"
+            content: "PROJECT: SUPERSHELL\nSTATUS: DISCONNECTED\n\nTo begin, you must initialize the directory structure."
+
+        tasks:
+          # TASK 1: Test 'ls'
+          # This tests if the alias ls='_g ls' works.
+          - instruction: "Survey the environment."
+            objective: "List the files in the current directory."
+            hint: "Type 'ls' and hit Enter."
+            conditions:
+              - type: CommandMatches
+                pattern: "^ls(\\s+.*)?$"
+            success_msg: "Optical sensors calibrated. File 'manifest.txt' detected."
+            rewards: []
+
+          # TASK 2: Test 'cat'
+          # This tests if we can read arguments (manifest.txt).
+          - instruction: "Analyze the data."
+            objective: "Read the content of 'manifest.txt'."
+            hint: "Use 'cat manifest.txt'."
+            conditions:
+              - type: CommandMatches
+                pattern: "^cat\\s+manifest\\.txt$"
+            success_msg: "Data stream received. Mission parameters updated."
+            rewards: []
+
+        outro: |
+          [SYSTEM NOTICE]
+          Basic Input/Output systems are functional.
+          Proceeding to Navigation Modules.
+
+      - title: "Navigation Protocols"
+        intro: |
+          The environment is shifting. A new directory has materialized.
+
+        # SETUP: Create a folder to CD into
+        setup_actions:
+          - type: CreateDir
+            path: "Memory_Bank"
+          - type: CreateFile
+            path: "Memory_Bank/fragment.dat"
+            content: "0x4F 0x4B 0x21"
+
+        tasks:
+          # TASK 3: Test 'cd'
+          # This is critical. If 'cd' fails, the user is stuck.
+          - instruction: "Enter the new sector."
+            objective: "Change directory into 'Memory_Bank'."
+            hint: "Type 'cd Memory_Bank'."
+            conditions:
+              - type: CommandMatches
+                pattern: "^cd\\s+Memory_Bank/?$"
+            success_msg: "Location update confirmed."
+            rewards: []
+
+          # TASK 4: Test 'ls' inside a subdir
+          - instruction: "Verify sector contents."
+            objective: "List files in the new directory."
+            hint: "Type 'ls'."
+            conditions:
+              - type: CommandMatches
+                pattern: "^ls(\\s+.*)?$"
+            success_msg: "Fragment detected."
+            rewards: []
+
+        outro: |
+          [DIAGNOSTIC COMPLETE]
+          Neural Link is stable. Welcome to Supershell.
