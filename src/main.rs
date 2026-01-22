@@ -33,12 +33,15 @@ struct Cli {
     validate: Option<String>,
     #[arg(long)]
     menu: bool,
+    #[arg(long)]
+    status: bool,
+    #[arg(long)]
+    refresh: bool,
 }
 
 // --- APP CONTEXT ---
-
 struct AppContext {
-    data_dir: std::path::PathBuf,
+    _data_dir: std::path::PathBuf,
     library_path: std::path::PathBuf,
     save_path: std::path::PathBuf,
 }
@@ -53,7 +56,7 @@ fn main() {
         .expect("Could not determine home directory");
 
     let ctx = AppContext {
-        data_dir: proj_dirs.data_dir().to_path_buf(),
+        _data_dir: proj_dirs.data_dir().to_path_buf(),
         library_path: proj_dirs.data_dir().join("library"),
         save_path: proj_dirs.data_dir().join("save.json"),
     };
@@ -64,13 +67,12 @@ fn main() {
         return;
     }
 
-    // Ensure Library Exists
-    if !ctx.library_path.exists() {
-        std::fs::create_dir_all(&ctx.library_path).expect("Failed to create library dir");
-        DEFAULT_LIBRARY
-            .extract(&ctx.library_path)
-            .expect("Failed to extract default library");
-    }
+    // ALWAYS force extraction to ensure the library is up to date with your source code.
+    // We create the directory if it's missing, then overwrite the files.
+    std::fs::create_dir_all(&ctx.library_path).expect("Failed to create library dir");
+    DEFAULT_LIBRARY
+        .extract(&ctx.library_path)
+        .expect("Failed to extract default library");
 
     // 3. LOAD GAME STATE
     let mut game = if args.reset {
@@ -130,8 +132,10 @@ fn main() {
     // 6. RUN GAME LOOP
     if let Some(cmd) = args.check {
         handle_check_command(cmd, &mut game, &course, &ctx.save_path, &world);
-    } else if args.menu {
-        // Already handled above
+    } else if args.status {
+        handle_status_display(&game, &course);
+    } else if args.refresh {
+        handle_refresh_sequence(&game, &course);
     } else {
         // DEFAULT: Launch the Infection
         shell::launch_infected_session();
@@ -181,6 +185,79 @@ fn reset_game(save_path: &Path) -> GameState {
 }
 
 // --- GAMEPLAY HANDLERS ---
+fn perform_validation(path_str: &str) {
+    let path = std::path::Path::new(path_str);
+    if !path.exists() {
+        println!(">> [ERROR] File not found: {}", path_str);
+        return;
+    }
+
+    let content = match std::fs::read_to_string(path) {
+        Ok(c) => c,
+        Err(e) => {
+            println!(">> [ERROR] Could not read file: {}", e);
+            return;
+        }
+    };
+
+    match serde_yml::from_str::<Course>(&content) {
+        Ok(course) => {
+            println!(">> [SUCCESS] YAML Syntax is valid.");
+            println!(">> Title:   {}", course.title);
+            println!(">> Author:  {}", course.author);
+            println!(">> Version: {}", course.version);
+        }
+        Err(e) => {
+            println!(">> [FAIL] YAML Parsing Error:");
+            println!("{}", e);
+        }
+    }
+}
+
+fn handle_refresh_sequence(game: &GameState, course: &Course) {
+    // 1. PLAY INTRO (If new chapter)
+    if game.current_task_index == 0 {
+        if let Some((_, chapter, _)) = course.get_active_content(
+            &game.current_quest_id,
+            game.current_chapter_index,
+            game.current_task_index,
+        ) {
+            ui::play_cutscene(&chapter.intro);
+
+            // 2. CLEAR SCREEN
+            // Only clear if we played an intro, so the Status Card pops fresh
+            print!("\x1b[2J\x1b[H");
+        }
+    } else {
+        // Newline if no clear screen needed
+        println!();
+    }
+
+    // 3. SHOW STATUS
+    handle_status_display(game, course);
+}
+
+fn handle_status_display(game: &GameState, course: &Course) {
+    if game.is_finished {
+        println!(">> [SYSTEM] Quest Complete. Run 'supershell --menu' for more.");
+        return;
+    }
+
+    if let Some((quest, chapter, task)) = course.get_active_content(
+        &game.current_quest_id,
+        game.current_chapter_index,
+        game.current_task_index,
+    ) {
+        ui::draw_status_card(
+            &quest.title,
+            &chapter.title,
+            &task.instruction,
+            &task.objective,
+            game.current_task_index + 1,
+            chapter.tasks.len(),
+        );
+    }
+}
 
 fn handle_check_command(
     user_cmd: String,
@@ -257,77 +334,32 @@ fn handle_check_command(
             ui::play_cutscene(&chapter.outro);
             game.advance_chapter();
 
-            if game.current_chapter_index >= quest.chapters.len() {
-                println!(">> [QUEST COMPLETE] {}", quest.title);
-                game.is_finished = true;
-            } else {
+            // World Building for NEXT chapter
+            if game.current_chapter_index < quest.chapters.len() {
                 let next_chapter = &quest.chapters[game.current_chapter_index];
                 if !next_chapter.setup_actions.is_empty() {
                     println!(">> [SYSTEM] Reconfiguring Construct...");
                     world.build_scenario(&next_chapter.setup_actions);
                 }
-                ui::play_chapter_intro(&next_chapter.title, &next_chapter.intro);
-                if let Some(first_task) = next_chapter.tasks.first() {
-                    ui::draw_status_card(
-                        "NEW MODULE",
-                        &next_chapter.title,
-                        &first_task.instruction,
-                        &first_task.objective,
-                        1,
-                        next_chapter.tasks.len(),
-                    );
-                }
+            } else {
+                // Game Over / Victory
+                game.is_finished = true;
+                println!("\n\x1b[1;32m>> [SYSTEM] ALL MODULES COMPLETE. DISCONNECTING...\x1b[0m");
+                std::process::exit(0)
             }
         } else {
-            if let Some((_, _, next_task)) = course.get_active_content(
-                &game.current_quest_id,
-                game.current_chapter_index,
-                game.current_task_index,
-            ) {
-                ui::draw_status_card(
-                    "MISSION UPDATE",
-                    &chapter.title,
-                    &next_task.instruction,
-                    &next_task.objective,
-                    game.current_task_index + 1,
-                    chapter.tasks.len(),
-                );
-            }
+            // If we didn't play a cutscene, we should pause so the user
+            // sees the "Success" message before the screen clears.
+            println!("\n\x1b[0;90m[ PRESS ENTER TO CONTINUE ]\x1b[0m");
+            let mut s = String::new();
+            std::io::stdin().read_line(&mut s).unwrap();
         }
 
         game.save(save_path.to_str().unwrap());
-        std::process::exit(0);
+        // Return Exit Code 2 to tell Bash to refresh the UI
+        std::process::exit(2);
     }
 
-    // Fallback
+    // Default: No change, Exit 0
     std::process::exit(0);
-}
-
-fn perform_validation(path_str: &str) {
-    let path = std::path::Path::new(path_str);
-    if !path.exists() {
-        println!(">> [ERROR] File not found: {}", path_str);
-        return;
-    }
-
-    let content = match std::fs::read_to_string(path) {
-        Ok(c) => c,
-        Err(e) => {
-            println!(">> [ERROR] Could not read file: {}", e);
-            return;
-        }
-    };
-
-    match serde_yml::from_str::<Course>(&content) {
-        Ok(course) => {
-            println!(">> [SUCCESS] YAML Syntax is valid.");
-            println!(">> Title:   {}", course.title);
-            println!(">> Author:  {}", course.author);
-            println!(">> Version: {}", course.version);
-        }
-        Err(e) => {
-            println!(">> [FAIL] YAML Parsing Error:");
-            println!("{}", e);
-        }
-    }
 }

@@ -208,7 +208,7 @@ pub fn play_cutscene(text: &str) {
 
 /// Displays an animated Chapter intro with a loading effect.
 /// Usage: Use when the user enters a new Chapter.
-pub fn play_chapter_intro(chapter_title: &str, description: &str) {
+pub fn _play_chapter_intro(chapter_title: &str, description: &str) {
     let content = vec![
         format!("DATA LOADING..."),
         String::from(""),
