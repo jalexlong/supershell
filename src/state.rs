@@ -45,10 +45,19 @@ impl GameState {
     }
 
     pub fn save(&self, path: &str) {
-        // Atomic save: Write to tmp then rename to prevent potential data loss
+        // 1. Create a temporary path
         let tmp_path = format!("{}.tmp", path);
+
+        // 2. Serialize to string (Memory check)
         let json = serde_json::to_string_pretty(self).expect("Failed to serialize");
+
+        // 3. Write to the temporary file (The dangerous part)
+        // If we crash here, only the .tmp file is broken.
         fs::write(&tmp_path, json).expect("Failed to write tmp file");
+
+        // 4. Rename (The Atomic Swap)
+        // On POSIX systems (Linux/Mac), this operation is atomic.
+        // It instantly swaps the file pointer. It either happens fully, or not at all.
         fs::rename(tmp_path, path).expect("Failed to commit save");
     }
 

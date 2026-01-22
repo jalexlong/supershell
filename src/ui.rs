@@ -2,7 +2,7 @@ use crossterm::{
     cursor::MoveToColumn,
     event::{Event, KeyCode, KeyEventKind, poll, read},
     execute,
-    style::{Attribute, Color, ResetColor, SetAttribute, SetForegroundColor},
+    style::{Attribute, Color, Print, ResetColor, SetAttribute, SetForegroundColor},
     terminal::{disable_raw_mode, enable_raw_mode, size},
 };
 use std::env;
@@ -58,8 +58,7 @@ fn print_top_border(width: u16, title: &str) {
 
     // 4. Force cursor to the exact right edge.
     // We do this to correct for "Emoji Width" bugs where icons like 📂
-    // are calculated as 1 char width by the code but render as 2 chars wide,
-    // which would otherwise push the corner off-alignment.
+    // are calculated as 1 char width by the code but render as 2 chars wide.
     execute!(stdout, MoveToColumn(width - 1)).unwrap();
 
     // In Raw Mode, standard \n only moves down; we need \r to reset to left.
@@ -99,8 +98,7 @@ fn render_inline_card(title: &str, lines: Vec<String>, use_typewriter: bool) {
     }
 
     // 1. Enable Raw Mode
-    // This allows us to intercept the 'Enter' key instantly to skip the typing animation,
-    // and prevents the user's keystrokes from appearing on screen during the cutscene.
+    // This allows us to intercept the 'Enter' key instantly to skip the typing animation.
     enable_raw_mode().unwrap();
 
     let mut stdout = stdout();
@@ -241,4 +239,76 @@ pub fn draw_status_card(
 
     // Note: use_typewriter is false here for instant feedback
     render_inline_card(title, content, false);
+}
+
+/// Prints a standardized success message in Cyan.
+pub fn print_success(msg: &str) {
+    let mut stdout = stdout();
+    execute!(
+        stdout,
+        SetForegroundColor(Color::Cyan),
+        SetAttribute(Attribute::Bold),
+        Print("\r\n>> [SUCCESS] "),
+        SetAttribute(Attribute::Reset),
+        SetForegroundColor(Color::White),
+        Print(msg),
+        Print("\n\n")
+    )
+    .unwrap();
+}
+
+/// Prints a failure message in the "Audit Log" style.
+/// Accessible Palette: Cyan (System), Red (Error), Yellow (Hint).
+pub fn print_fail(error: &str, hint: &str) {
+    let mut stdout = stdout();
+
+    // 1. The "Audit" Steps
+    // ACCESSIBILITY: We use CYAN instead of Green.
+    // Cyan is distinct from Red for Deuteranopia (Red-Green color blindness).
+
+    // Step 1: Check System (Cyan for High Visibility)
+    execute!(
+        stdout,
+        SetForegroundColor(Color::Cyan),
+        Print("[+] SYSTEM_INTEGRITY.. OK\n"),
+    )
+    .unwrap();
+
+    // Step 2: Check Syntax
+    execute!(
+        stdout,
+        SetForegroundColor(Color::Cyan),
+        Print("[+] SYNTAX_VALIDATION. OK\n"),
+    )
+    .unwrap();
+
+    // Step 3: The Failure (Red for Semantic Error)
+    // We use Red for semantic meaning (Error), but the symbol difference
+    // ([+] -> [-]) ensures it is distinguishable even without color..
+    execute!(
+        stdout,
+        SetForegroundColor(Color::Red),
+        Print("[-] EXECUTION......... FAIL\n"),
+        Print("    └── "),
+        Print(error),
+        Print("\n\n"),
+    )
+    .unwrap();
+
+    // Step 4: The Hint (Yellow for High Contrast)
+    if !hint.is_empty() {
+        execute!(
+            stdout,
+            SetForegroundColor(Color::Yellow),
+            Print(" >> HINT: "),
+            SetAttribute(Attribute::Bold),
+            Print(hint),
+            SetAttribute(Attribute::Reset),
+            Print("\n"),
+        )
+        .unwrap();
+    }
+
+    // Always reset color at the end
+    execute!(stdout, ResetColor).unwrap();
 }

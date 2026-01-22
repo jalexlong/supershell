@@ -7,7 +7,7 @@ mod world;
 use clap::Parser;
 use directories::ProjectDirs;
 use include_dir::{Dir, include_dir};
-use quest::{Condition, Course, Library, Reward};
+use quest::{Condition, ConditionType, Course, Library, Reward, ValidationResult};
 use state::GameState;
 use std::fs;
 use std::io::{self, Write};
@@ -239,7 +239,7 @@ fn resolve_course_path(game: &GameState, lib: &Library) -> Option<PathBuf> {
 
 fn show_menu(lib: &Library) -> Option<PathBuf> {
     println!("\n╔══════════════════════════════════════╗");
-    println!("║            S U P E R S H E L L       ║");
+    println!("║             S U P E R S H E L L      ║");
     println!("╠══════════════════════════════════════╣");
 
     let courses = lib.list_available_courses();
@@ -342,6 +342,7 @@ fn handle_check_command(
     world: &WorldEngine,
 ) {
     // 1. Setup Logic (Lazy Init)
+    // Runs scenario setup if this is the start of a chapter
     if game.current_task_index == 0 {
         if let Some(quest) = course.quests.iter().find(|q| q.id == game.current_quest_id) {
             if let Some(chapter) = quest.chapters.get(game.current_chapter_index) {
@@ -353,87 +354,125 @@ fn handle_check_command(
     }
 
     // 2. Validation Logic
-    // We get the current task to check conditions
     if let Some((quest, chapter, task)) = course.get_active_content(
         &game.current_quest_id,
         game.current_chapter_index,
         game.current_task_index,
     ) {
-        let all_met = task.conditions.iter().all(|c| c.is_met(&user_cmd, game));
+        // --- PASS 1: SYNTAX CHECK ---
+        // Filter for syntax rules (Regex patterns).
+        // If the command doesn't even match the expected structure, fail immediately.
+        // This prevents logic checks (like "do you have the key") from firing on typos.
+        let syntax_check = task.conditions.iter()
+            .filter(|c| matches!(c.condition_type, ConditionType::CommandMatches { .. }))
+            .all(|c| matches!(c.check(&user_cmd, game), ValidationResult::Valid));
 
-        if all_met {
-            println!("\r\n"); // Spacer
-            println!(">> [SUCCESS] {}", task.success_msg);
+        if !syntax_check {
+            // UI: Display visual failure for Syntax
+            ui::print_fail(
+                "Command pattern mismatch.",
+                "Check spelling and arguments."
+            );
+            return; // STOP. Do not check logic.
+        }
 
-            // Before we advance, we must pay the user (set flags/vars)
-            for reward in &task.rewards {
-                match reward {
-                    Reward::SetFlag { key, value } => game.set_flag(key, *value),
-                    Reward::SetVar { key, value } => game.set_var(key, *value),
-                    Reward::AddVar { key, amount } => game.mod_var(key, *amount),
-                }
+        // --- PASS 2: LOGIC CHECK ---
+        // Syntax is correct. Now check environmental/state conditions.
+        // (e.g., Do files exist? Are flags set?)
+        for condition in &task.conditions {
+            // Skip CommandMatches because we already validated them in Pass 1
+            if matches!(condition.condition_type, ConditionType::CommandMatches { .. }) {
+                continue;
             }
 
-            // Advance the state
-            game.advance_task();
+            match condition.check(&user_cmd, game) {
+                ValidationResult::Valid => continue, // Keep checking next condition
+                ValidationResult::LogicError(msg) => {
+                    // UI: Display visual failure for Logic (Audit Log)
+                    // Uses the custom error message defined in YAML
+                    ui::print_fail(&msg, "Review system requirements.");
+                    return; // STOP. Logic failed.
+                },
+                _ => {} // Should not happen given logic above
+            }
+        }
 
-            // 3. Handle Transitions & UI Updates
-            // Check if we just finished the chapter
-            if game.current_task_index >= chapter.tasks.len() {
-                // A. Play Outro
-                ui::play_cutscene(&chapter.outro);
+        // --- SUCCESS ---
+        // If we reach this point, ALL conditions (Syntax + Logic) are valid.
 
-                // B. Move to Next Chapter
-                game.advance_chapter();
+        println!("\r\n"); // Spacer
+        ui::print_success(&task.success_msg);
 
-                if game.current_chapter_index >= quest.chapters.len() {
-                    println!(">> [QUEST COMPLETE] {}", quest.title);
-                    game.is_finished = true;
-                } else {
-                    // C. Setup New Chapter
-                    let next_chapter = &quest.chapters[game.current_chapter_index];
+        // A. Process Rewards (Pay the player)
+        // Set flags or variables that future tasks might depend on.
+        for reward in &task.rewards {
+            match reward {
+                Reward::SetFlag { key, value } => game.set_flag(key, *value),
+                Reward::SetVar { key, value } => game.set_var(key, *value),
+                Reward::AddVar { key, amount } => game.mod_var(key, *amount),
+            }
+        }
 
-                    if !next_chapter.setup_actions.is_empty() {
-                        println!(">> [SYSTEM] Reconfiguring Construct...");
-                        world.build_scenario(&next_chapter.setup_actions);
-                    }
+        // B. Advance the State
+        game.advance_task();
 
-                    // D. Play Intro for New Chapter
-                    ui::play_chapter_intro(&next_chapter.title, &next_chapter.intro);
+        // C. Handle Transitions (Cutscenes & Chapter Progress)
+        if game.current_task_index >= chapter.tasks.len() {
+            // 1. Play Chapter Outro
+            ui::play_cutscene(&chapter.outro);
 
-                    // E. Show First Task of New Chapter (Instant Box)
-                    if let Some(first_task) = next_chapter.tasks.first() {
-                        ui::draw_status_card(
-                            "NEW MODULE",
-                            &next_chapter.title,
-                            &first_task.instruction,
-                            &first_task.objective,
-                            1, // First task
-                            next_chapter.tasks.len(),
-                        );
-                    }
-                }
+            // 2. Move to Next Chapter
+            game.advance_chapter();
+
+            if game.current_chapter_index >= quest.chapters.len() {
+                // Quest Complete
+                println!(">> [QUEST COMPLETE] {}", quest.title);
+                game.is_finished = true;
             } else {
-                // Same Chapter, Next Task
-                // We need to fetch the NEW task details to display them
-                if let Some((_, _, next_task)) = course.get_active_content(
-                    &game.current_quest_id,
-                    game.current_chapter_index,
-                    game.current_task_index, // Already advanced above
-                ) {
+                // 3. Setup New Chapter
+                let next_chapter = &quest.chapters[game.current_chapter_index];
+
+                if !next_chapter.setup_actions.is_empty() {
+                    println!(">> [SYSTEM] Reconfiguring Construct...");
+                    world.build_scenario(&next_chapter.setup_actions);
+                }
+
+                // Play New Chapter Intro
+                ui::play_chapter_intro(&next_chapter.title, &next_chapter.intro);
+
+                // Show First Task of New Chapter
+                if let Some(first_task) = next_chapter.tasks.first() {
                     ui::draw_status_card(
-                        "MISSION UPDATE",
-                        &chapter.title,
-                        &next_task.instruction,
-                        &next_task.objective,
-                        game.current_task_index + 1,
-                        chapter.tasks.len(),
+                        "NEW MODULE",
+                        &next_chapter.title,
+                        &first_task.instruction,
+                        &first_task.objective,
+                        1,
+                        next_chapter.tasks.len(),
                     );
                 }
             }
-
-            game.save(save_path.to_str().unwrap());
+        } else {
+            // Same Chapter, Next Task
+            // Fetch the NEW task details to display them immediately
+            if let Some((_, _, next_task)) = course.get_active_content(
+                &game.current_quest_id,
+                game.current_chapter_index,
+                game.current_task_index, // Already advanced
+            ) {
+                ui::draw_status_card(
+                    "MISSION UPDATE",
+                    &chapter.title,
+                    &next_task.instruction,
+                    &next_task.objective,
+                    game.current_task_index + 1,
+                    chapter.tasks.len(),
+                );
+            }
         }
+
+        // D. Commit to Disk
+        game.save(save_path.to_str().unwrap());
     }
 }
 
@@ -455,7 +494,7 @@ fn perform_validation(file_path: &str) {
         }
     };
 
-    match serde_yml::from_str::<Course>(&content) {
+    match serde_yaml::from_str::<Course>(&content) {
         Ok(course) => {
             println!(">> [SUCCESS] YAML Syntax is valid.");
             println!(">> Title:   {}", course.title);
