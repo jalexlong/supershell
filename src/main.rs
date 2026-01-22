@@ -11,7 +11,6 @@ use include_dir::{Dir, include_dir};
 use quest::{ConditionType, Course, Library, Reward, ValidationResult};
 use state::GameState;
 use std::path::Path;
-use ui::play_cutscene;
 use world::WorldEngine;
 
 // --- CONSTANTS & EMBEDDED ASSETS ---
@@ -28,16 +27,10 @@ static DEFAULT_LIBRARY: Dir = include_dir!("$CARGO_MANIFEST_DIR/library");
 struct Cli {
     #[arg(short, long)]
     check: Option<String>,
-
-    #[arg(long)]
-    hint: bool,
-
     #[arg(long)]
     reset: bool,
-
     #[arg(long)]
     validate: Option<String>,
-
     #[arg(long)]
     menu: bool,
 }
@@ -135,9 +128,7 @@ fn main() {
     }
 
     // 6. RUN GAME LOOP
-    if args.hint {
-        handle_hint(&game, &course);
-    } else if let Some(cmd) = args.check {
+    if let Some(cmd) = args.check {
         handle_check_command(cmd, &mut game, &course, &ctx.save_path, &world);
     } else if args.menu {
         // Already handled above
@@ -190,18 +181,6 @@ fn reset_game(save_path: &Path) -> GameState {
 }
 
 // --- GAMEPLAY HANDLERS ---
-
-fn handle_hint(game: &GameState, course: &Course) {
-    if let Some((_, _, task)) = course.get_active_content(
-        &game.current_quest_id,
-        game.current_chapter_index,
-        game.current_task_index,
-    ) {
-        ui::print_hint(&task.hint);
-    } else {
-        println!(">> [SYSTEM] No active task.");
-    }
-}
 
 fn handle_check_command(
     user_cmd: String,
@@ -339,7 +318,7 @@ fn perform_validation(path_str: &str) {
         }
     };
 
-    match serde_yaml::from_str::<Course>(&content) {
+    match serde_yml::from_str::<Course>(&content) {
         Ok(course) => {
             println!(">> [SUCCESS] YAML Syntax is valid.");
             println!(">> Title:   {}", course.title);
