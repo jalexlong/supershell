@@ -2,24 +2,6 @@
 
 ## 📜 Release History
 
-## [v0.5.0] - The Infrastructure Update
-**Released:** 2026-01-18
-
-### 🚀 New Features
-- **Smart Updates:** The engine now detects if your `library/` folder is outdated compared to the binary. It automatically extracts new core quests without deleting your custom files.
-- **Validator Tool:** Content creators can now run `supershell --validate my_quest.yaml` to check for missing IDs, empty chapters, or broken indentation.
-- **Metadata Support:** Quests can now include `title`, `author`, and `version` in the YAML header.
-- **Hint Schema:** Added the underlying data structure for the upcoming Hint System.
-
-### ⚡ Improvements
-- **Menu:** Now displays formatted titles (e.g., "Linux 101: Basics") instead of filenames (`linux_basics.yaml`).
-- **Resilience:** The engine can now load legacy v0.4.0 quest lists by wrapping them in a default container automatically.
-
-### 🐛 Fixes
-- Fixed an issue where string formatting in error logs caused a type mismatch panic.
-
----
-
 # v0.4.1: The "Self-Extracting" Update
 
 **Summary:**
