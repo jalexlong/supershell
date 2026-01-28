@@ -1,4 +1,4 @@
-// quest.rs
+// content.rs
 
 use crate::state::GameState;
 use log::{debug, error, warn};
@@ -13,8 +13,9 @@ use std::path::{Path, PathBuf};
 
 /// Represents a single task the user must complete.
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Task {
-    pub objective: String,
+pub struct Objective {
+    #[serde(rename = "objective")]
+    pub title: String,
     pub description: String,
     pub success_msg: String,
     pub conditions: Vec<Condition>,
@@ -25,6 +26,8 @@ pub struct Task {
 pub struct Condition {
     #[serde(flatten)]
     pub condition_type: ConditionType,
+    #[serde(default)]
+    pub negate: bool,
 }
 
 /// The specific types of checks we can perform.
@@ -35,6 +38,7 @@ pub enum ConditionType {
     CommandMatches { pattern: String },
     WorkingDir { path: String },
     FileExists { path: String },
+    FileContentMatches { path: String, pattern: String },
 }
 
 /// A simple enum to communicate success/failure back to main.rs
@@ -44,10 +48,9 @@ pub enum ValidationResult {
 }
 
 impl Condition {
-    /// The "Logic Engine". Takes user input + game state and returns Pass/Fail.
     pub fn check(&self, user_cmd: &str, _game: &GameState) -> ValidationResult {
-        let is_valid = match &self.condition_type {
-            // LOGIC: Check if the user typed the correct command
+        // 1. Core Logic
+        let result = match &self.condition_type {
             ConditionType::CommandMatches { pattern } => {
                 let re = Regex::new(pattern).unwrap();
                 let matched = re.is_match(user_cmd);
@@ -57,8 +60,6 @@ impl Condition {
                 );
                 matched
             }
-
-            // LOGIC: Check if the user is in the correct folder
             ConditionType::WorkingDir { path } => {
                 let current = env::current_dir()
                     .unwrap_or_default()
@@ -72,16 +73,26 @@ impl Condition {
                 );
                 matched
             }
-
-            // LOGIC: Check if a specific file exists
             ConditionType::FileExists { path } => {
                 let exists = Path::new(path).exists();
                 debug!("Condition [FileExists]: Path='{}' Exists={}", path, exists);
                 exists
             }
+            ConditionType::FileContentMatches { path, pattern } => {
+                if let Ok(content) = fs::read_to_string(path) {
+                    let re = Regex::new(pattern).unwrap_or_else(|_| Regex::new(".*").unwrap());
+                    // NOTE: Add debug!() call here later
+                    re.is_match(&content)
+                } else {
+                    false
+                }
+            }
         };
 
-        if is_valid {
+        // 2. Negation Logic
+        let final_result = if self.negate { !result } else { result };
+
+        if final_result {
             ValidationResult::Valid
         } else {
             ValidationResult::Invalid("Condition not met".into())
@@ -101,30 +112,25 @@ impl Library {
     }
 
     /// Scans the library folder for .yaml files (Quests)
-    pub fn list_available_courses(&self) -> Vec<(PathBuf, String)> {
-        let mut courses = Vec::new();
-
-        // Safety check: Does directory exist?
+    pub fn list_modules(&self) -> Vec<(PathBuf, String)> {
+        let mut modules = Vec::new();
         if let Ok(entries) = fs::read_dir(&self.root_dir) {
-            // Flatten removes Err results, giving us only valid entries
             for entry in entries.flatten() {
                 let path = entry.path();
-                // We only care about .yaml files
                 if let Some(ext) = path.extension() {
                     if ext == "yaml" || ext == "yml" {
-                        // Try to load the course to get its title
-                        match Course::load(&path) {
-                            Ok(course) => {
-                                let display_name = if course.title.is_empty() {
+                        match Module::load(&path) {
+                            Ok(module) => {
+                                let display_name = if module.title.is_empty() {
                                     path.file_stem().unwrap().to_string_lossy().to_string()
                                 } else {
-                                    course.title
+                                    module.title
                                 };
-                                courses.push((path, display_name));
+                                modules.push((path, display_name));
                             }
                             Err(e) => {
                                 // Important: Log corrupt files so we know to fix them
-                                warn!("Failed to load course file {:?}: {}", path, e);
+                                warn!("Failed to load module {:?}: {}", path, e);
                             }
                         }
                     }
@@ -132,48 +138,48 @@ impl Library {
             }
         }
         // Alphabetize the list
-        courses.sort_by(|a, b| a.1.cmp(&b.1));
-        courses
+        modules.sort_by(|a, b| a.1.cmp(&b.1));
+        modules
     }
 
     /// Finds a specific course by name
-    pub fn get_course(&self, course_name: &str) -> Option<Course> {
+    pub fn get_module(&self, module_name: &str) -> Option<Module> {
         // 1. Try finding it directly by filename
-        let path = self.root_dir.join(format!("{}.yaml", course_name));
+        let path = self.root_dir.join(format!("{}.yaml", module_name));
         if path.exists() {
-            return Course::load(&path).ok();
+            return Module::load(&path).ok();
         }
 
         // 2. Fallback: Search inside files (slower but safer)
-        self.list_available_courses()
+        self.list_modules()
             .into_iter()
-            .find(|(p, _)| p.file_stem().unwrap().to_string_lossy() == course_name)
-            .and_then(|(p, _)| Course::load(&p).ok())
+            .find(|(p, _)| p.file_stem().unwrap().to_string_lossy() == module_name)
+            .and_then(|(p, _)| Module::load(&p).ok())
     }
 }
 
 /// Represents an entire Level (Course)
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Course {
+pub struct Module {
     #[serde(default)]
     pub title: String,
     #[serde(default)]
     pub intro: String,
     #[serde(default)]
     pub outro: String,
-    pub chapters: Vec<Chapter>,
+    pub missions: Vec<Mission>,
     #[serde(default)] // If missing in YAML, use empty list
     pub setup_actions: Vec<crate::actions::SetupAction>,
 }
 
-impl Course {
+impl Module {
     /// Helper to read a file and parse YAML into a Struct
     pub fn load(path: &Path) -> Result<Self, Box<dyn std::error::Error>> {
         let content = fs::read_to_string(path)?;
         match serde_yml::from_str(&content) {
             Ok(c) => Ok(c),
             Err(e) => {
-                error!("YAML Deserialization Error in {:?}: {}", path, e);
+                error!("YAML Error in {:?}: {}", path, e);
                 Err(Box::new(e))
             }
         }
@@ -182,12 +188,11 @@ impl Course {
 
 /// Represents a Chapter (Level) within a Course
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Chapter {
+pub struct Mission {
     pub title: String,
     pub intro: String,
     pub outro: String,
-    pub tasks: Vec<Task>,
-    // Crucial for "World Engine" to know what folders to create!
+    pub objectives: Vec<Objective>,
     #[serde(default)]
     pub setup_actions: Vec<crate::actions::SetupAction>,
 }

@@ -6,12 +6,12 @@ use std::path::Path;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GameState {
     #[serde(default)]
-    pub current_course: String,
+    pub current_module: String,
     #[serde(default)]
-    pub course_version: String,
-    pub current_quest_id: String,
-    pub current_chapter_index: usize,
-    pub current_task_index: usize,
+    pub module_version: String,
+    pub current_mission_index: usize,
+    pub current_objective_index: usize,
+
     #[serde(default)]
     pub flags: HashMap<String, bool>,
     #[serde(default)]
@@ -23,11 +23,10 @@ impl GameState {
     /// Initialize defaults.
     pub fn new() -> Self {
         Self {
-            current_course: String::new(),
-            course_version: String::new(),
-            current_quest_id: String::new(),
-            current_chapter_index: 0,
-            current_task_index: 0,
+            current_module: String::new(),
+            module_version: String::new(),
+            current_mission_index: 0,
+            current_objective_index: 0,
             flags: HashMap::new(),
             variables: HashMap::new(),
             is_finished: false,
@@ -45,31 +44,21 @@ impl GameState {
     }
 
     pub fn save(&self, path: &str) {
-        // 1. Create a temporary path
         let tmp_path = format!("{}.tmp", path);
-
-        // 2. Serialize to string (Memory check)
         let json = serde_json::to_string_pretty(self).expect("Failed to serialize");
-
-        // 3. Write to the temporary file (The dangerous part)
-        // If we crash here, only the .tmp file is broken.
         fs::write(&tmp_path, json).expect("Failed to write tmp file");
-
-        // 4. Rename (The Atomic Swap)
-        // On POSIX systems (Linux/Mac), this operation is atomic.
-        // It instantly swaps the file pointer. It either happens fully, or not at all.
         fs::rename(tmp_path, path).expect("Failed to commit save");
     }
 
     /// Increments the checkpoint index
-    pub fn advance_task(&mut self) {
-        self.current_task_index += 1;
+    pub fn advance_objective(&mut self) {
+        self.current_objective_index += 1;
     }
 
     /// Moves the user to the start (index 0) of a new chapter
-    pub fn advance_chapter(&mut self) {
-        self.current_chapter_index += 1;
-        self.current_task_index = 0;
+    pub fn advance_mission(&mut self) {
+        self.current_mission_index += 1;
+        self.current_objective_index = 0;
     }
 
     /// Set a boolean flag (e.g., "tutorial_complete" -> true)

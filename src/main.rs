@@ -1,17 +1,17 @@
 // main.rs
 
 pub mod actions;
-mod quest;
+mod content;
 mod shell;
 mod state;
 mod ui;
 mod world;
 
 use clap::Parser;
+use content::{Library, ValidationResult};
 use directories::ProjectDirs;
 use include_dir::{Dir, include_dir};
 use log::{LevelFilter, debug, error, info, warn};
-use quest::{Library, ValidationResult};
 use simplelog::{Config, SimpleLogger, WriteLogger};
 use state::GameState;
 use std::fs::OpenOptions;
@@ -135,73 +135,73 @@ fn handle_check_command(cmd: &str, app: &AppContext, world: &WorldEngine) {
     let mut game = GameState::load(app.save_path.to_str().unwrap());
     let library = Library::new(app.library_path.clone());
 
-    // Auto-select first course if playing a new game
-    if game.current_course.is_empty() {
-        let courses = library.list_available_courses();
-        if let Some((path, _)) = courses.first() {
+    // Auto-select first module if playing a new game
+    if game.current_module.is_empty() {
+        let modules = library.list_modules();
+        if let Some((path, _)) = modules.first() {
             let id = path.file_stem().unwrap().to_string_lossy().to_string();
-            info!("New Game Detected. Auto-loading course: {}", id);
-            game.current_course = id;
+            info!("New Game Detected. Auto-loading module: {}", id);
+            game.current_module = id;
         }
     }
 
-    let course = library
-        .get_course(&game.current_course)
-        .expect("Course data corrupt");
+    let module = library
+        .get_module(&game.current_module)
+        .expect("module data corrupt");
 
     // Safety check for bounds
-    if game.current_chapter_index >= course.chapters.len() {
-        info!("Campaign Complete. No further checks required.");
+    if game.current_mission_index >= module.missions.len() {
+        info!("Module Complete.");
         return;
     }
 
-    let chapter = &course.chapters[game.current_chapter_index];
-    let task = &chapter.tasks[game.current_task_index];
+    let mission = &module.missions[game.current_mission_index];
+    let objective = &mission.objectives[game.current_objective_index];
 
     // --- Check Conditions ---
-    let mut is_task_complete = false;
-
-    for condition in &task.conditions {
+    let mut is_complete = false;
+    for condition in &objective.conditions {
         if let ValidationResult::Valid = condition.check(cmd, &game) {
-            is_task_complete = true;
-            debug!("Condition Met: Task '{}' validated.", task.objective);
+            is_complete = true;
+            debug!("Condition Met: Objective '{}' validated.", objective.title);
             break;
         }
     }
 
     // --- Render UI ---
     ui::render_mission_hud(
-        &chapter.title,
-        task,
-        game.current_task_index + 1,
-        chapter.tasks.len(),
+        &mission.title,
+        objective,
+        game.current_objective_index + 1,
+        mission.objectives.len(),
     );
 
     // --- Update State on Success ---
-    if is_task_complete {
-        info!("Task Completion Verified: [{}]", task.objective);
-        println!("\n>> \x1b[1;32mSUCCESS: {}\x1b[0m", task.success_msg);
+    if is_complete {
+        info!("objective Completion Verified: [{}]", objective.title);
+        println!("\n>> \x1b[1;32mSUCCESS: {}\x1b[0m", objective.success_msg);
 
-        game.advance_task();
+        game.advance_objective();
 
-        // Check if Chapter is Done
-        if game.current_task_index >= chapter.tasks.len() {
-            ui::play_cutscene(&chapter.outro);
-            game.advance_chapter();
+        // Check if mission is Done
+        if game.current_objective_index >= mission.objectives.len() {
+            info!("Mission Complete: [{}]", mission.title);
+            ui::play_cutscene(&mission.outro);
+            game.advance_mission();
 
-            // Run Setup for Next Chapter
-            if game.current_chapter_index < course.chapters.len() {
-                let next_chapter = &course.chapters[game.current_chapter_index];
-                if !next_chapter.setup_actions.is_empty() {
+            // Run Setup for Next mission
+            if game.current_mission_index < module.missions.len() {
+                let next_mission = &module.missions[game.current_mission_index];
+                if !next_mission.setup_actions.is_empty() {
                     info!(
-                        "Executing World Setup for Chapter {}",
-                        game.current_chapter_index + 1
+                        "Executing World Setup for Mission {}",
+                        game.current_mission_index + 1
                     );
-                    println!(">> [SYSTEM] Reconfiguring Construct...");
-                    world.build_scenario(&next_chapter.setup_actions);
+                    // println!(">> [SYSTEM] Reconfiguring Construct...");
+                    world.build_scenario(&next_mission.setup_actions);
                 }
             } else {
-                info!("Course Completion Verified.");
+                info!("Module Completion Verified.");
                 println!("\n\x1b[1;32m>> [SYSTEM] ALL MODULES COMPLETE.\x1b[0m");
                 game.is_finished = true;
             }

@@ -1,6 +1,6 @@
 // ui.rs
 
-use crate::quest::Task;
+use crate::content::Objective;
 use crossterm::{
     cursor::{MoveDown, MoveToColumn, MoveUp},
     event::{Event, KeyCode, read},
@@ -23,8 +23,8 @@ const TEXT_DELAY: u64 = 30;
 
 /// Renders the animated HUD box
 pub fn render_mission_hud(
-    chapter_title: &str,
-    task: &Task,
+    mission_title: &str,
+    objective: &Objective,
     step_current: usize,
     step_total: usize,
 ) {
@@ -34,9 +34,9 @@ pub fn render_mission_hud(
     // We format strings first to know the height of the box
     let content = vec![
         "".to_string(), // Spacer
-        format!("🎯 OBJECTIVE: {}", task.objective),
+        format!("🎯 OBJECTIVE: {}", objective.title),
         "".to_string(), // Spacer
-        format!("💡 HINT: {}", task.description),
+        format!("💡 HINT: {}", objective.description),
         "".to_string(), // Spacer
         format!("[Progress: {}/{}]", step_current, step_total),
     ];
@@ -44,7 +44,7 @@ pub fn render_mission_hud(
     let box_height = content.len();
 
     // 2. PHASE 1: Draw the Wireframe (Empty Box)
-    let header = format!("Module: {}", chapter_title);
+    let header = format!("Module: {}", mission_title);
     print_top_border(WIDTH, &header);
 
     for _ in 0..box_height {
