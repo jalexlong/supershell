@@ -1,140 +1,93 @@
-id: "module_01" # <--- FIXED: Added unique Course ID
 title: "Module 1: Awakening"
 version: "1.0.0"
 description: "Boot up your system and learn to move."
 
-# WORLD SETUP
-setup_actions:
-  - type: ResetWorld
-  - type: CreateDir
-    path: "Memory_Bank"
-  - type: CreateDir
-    path: "Memory_Bank/Sector_A"
-  - type: CreateFile
-    path: "Memory_Bank/Sector_A/welcome_packet.txt"
-    content: |
-      SYSTEM MESSAGE:
-      Welcome, Unit 734.
+intro: |
+  [POWER ON] ...
+  [LOADING CORE] ... 100%
 
-      If you are reading this, your data processor (cat) is functional.
-      You are currently in a safe memory sector.
+  Hello, User. Welcome to the Construct.
+  Your visual sensors are offline. It is pitch black.
 
-      Your mission is to explore the Construct and repair broken nodes.
-      Good luck.
+  We need to activate your scanner.
+  The command for this is 'ls' (List Segments).
 
 chapters:
   # --- CHAPTER 1: SIGHT (ls) ---
   - title: "System Boot"
-    intro: |
-      [POWER ON] ...
-      [LOADING CORE] ... 100%
-
-      Hello, User. Welcome to the Construct.
-
-      Currently, your visual sensors are offline. It is pitch black.
-      You are standing in a digital room, but you cannot see the walls.
-
-      We need to activate your scanner.
-      The command for this is 'ls' (List Segments).
+    intro: "" # Optional, since course intro handles the start
+    setup_actions:
+      - type: ResetWorld
+      - type: CreateDir
+        path: "Memory_Bank"
+      - type: CreateDir
+        path: "Memory_Bank/Sector_A"
+      - type: CreateFile
+        path: "Memory_Bank/Sector_A/welcome_packet.txt"
+        content: |
+          SYSTEM MESSAGE:
+          Welcome, Unit 734.
+          Mission: Repair broken nodes.
     tasks:
       - objective: "Activate Visual Sensors"
-        description: "Type 'ls' to scan your surroundings."
-        instruction: "Run the 'ls' command to see files."
+        description: "Run the 'ls' command to see files."
         success_msg: "Sensors Online. Environment visible."
-        check_mode: Command
-        command: "^ls.*"
-        conditions: []
+        conditions:
+          # Matches "ls", "ls -l", "ls -a", etc.
+          - type: CommandMatches
+            pattern: "^ls.*"
 
     outro: |
       [SENSORS ONLINE]
-
       Excellent. The darkness clears.
       You should see a blue item named 'Memory_Bank'.
-
-      In this world, Blue items are Folders (places you can go).
-      White items are Files (things you can read).
 
   # --- CHAPTER 2: MOVEMENT (cd) ---
   - title: "Motor Functions"
     intro: |
       Now that you can see, let's test your motor functions.
-
-      You are currently 'outside' the Memory_Bank.
       To enter a folder, we use the Change Directory command: 'cd'.
-
-      Think of it like teleporting into a room.
     tasks:
       - objective: "Enter the Memory Bank"
-        description: "Move into the Memory_Bank folder."
-        instruction: "Type 'cd Memory_Bank' to enter the folder."
+        description: "Type 'cd Memory_Bank' to enter the folder."
         success_msg: "Transfer Complete. You are inside the Memory Bank."
-        check_mode: Condition
-        command: ""
         conditions:
+          # We check TWO things:
+          # 1. Did they type the command?
+          - type: CommandMatches
+            pattern: "^cd.*"
+          # 2. Are they actually in the right folder?
           - type: WorkingDir
             path: "Memory_Bank$"
+
     outro: |
       [LOCATION UPDATED]
-
       You are now inside the Memory_Bank.
-      Notice how your command prompt changed?
-      It tells you exactly where you are standing.
 
-  # --- CHAPTER 3: EXPLORATION (ls + cd) ---
-  - title: "The Labyrinth"
+  # --- CHAPTER 3: DATA INPUT (cat) ---
+  - title: "Data Processing"
     intro: |
-      You are doing well. But this room looks empty.
-
-      Always remember: Just because you entered a room, doesn't mean you automatically see what's inside.
-
-      You must scan (ls) *every time* you enter a new place.
+      You are doing well.
+      Run 'ls' again. You should see 'Sector_A'.
+      Go inside 'Sector_A' and look for a file.
     tasks:
-      - objective: "Scan the Room"
-        description: "Run 'ls' to find the next sector."
-        instruction: "Use 'ls' to see what is in this folder."
-        success_msg: "Sub-directory 'Sector_A' located."
-        check_mode: Command
-        command: "^ls.*"
-        conditions: []
-
-      - objective: "Enter Sector A"
-        description: "Enter 'Sector_A'."
-        instruction: "Use 'cd Sector_A' to go deeper."
-        success_msg: "Entered Sector_A."
-        check_mode: Condition
-        command: ""
+      - objective: "Locate the Data Packet"
+        description: "Navigate to Sector_A."
+        success_msg: "Sector_A reached."
         conditions:
           - type: WorkingDir
             path: "Sector_A$"
-    outro: |
-      Perfect. You found the hidden sector.
-      There is a file here waiting for you.
 
-  # --- CHAPTER 4: DATA INPUT (cat) ---
-  - title: "Data Processing"
-    intro: |
-      Scan the room one last time.
-      Do you see 'welcome_packet.txt'?
-
-      It's not a folder (it's not blue). You can't go inside it.
-      But you can read it.
-
-      To read a file, we use 'cat' (Concatenate).
-      Think of it as feeding the file into your brain.
-    tasks:
       - objective: "Read the Data Packet"
-        description: "Read the file using 'cat welcome_packet.txt'"
-        instruction: "Type 'cat welcome_packet.txt' to read it."
+        description: "Use 'cat welcome_packet.txt' to read the file."
         success_msg: "Data Packet Decoded."
-        check_mode: Command
-        command: "^cat.*welcome.*"
-        conditions: []
+        conditions:
+          - type: CommandMatches
+            pattern: "^cat.*welcome.*"
+
     outro: |
       [DATA RECEIVED]
-
       Congratulations, Unit 734.
       Visuals: ONLINE.
       Motors: ONLINE.
       Processor: ONLINE.
-
-      You are ready for the outside world.

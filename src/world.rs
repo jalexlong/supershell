@@ -1,5 +1,8 @@
+// world.rs
+
 use crate::actions::SetupAction;
 use directories::UserDirs;
+use log::{debug, error, info};
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
@@ -24,8 +27,10 @@ impl WorldEngine {
     /// Run this once on startup to ensure the "Construct" folder exists
     pub fn initialize(&self) {
         if !self.root_path.exists() {
-            println!(">> [WORLD] Initializing Construct at {:?}", self.root_path);
-            fs::create_dir_all(&self.root_path).expect("Failed to create world root.");
+            info!("Initializing Construct Environment at {:?}", self.root_path);
+            if let Err(e) = fs::create_dir_all(&self.root_path) {
+                error!("Critical Failure: Unable to create Construct root. {}", e);
+            }
         }
     }
 
@@ -35,24 +40,23 @@ impl WorldEngine {
             match action {
                 SetupAction::CreateDir { path } => {
                     let target = self.safe_path(path);
-                    fs::create_dir_all(target).unwrap_or_else(|e| {
-                        eprintln!("Failed to create dir: {}", e);
-                    });
+                    debug!("Action [CreateDir]: {:?}", target);
+                    if let Err(e) = fs::create_dir_all(target) {
+                        error!("Action Failed [CreateDir]: {}", e);
+                    }
                 }
                 SetupAction::CreateFile { path, content } => {
                     let target = self.safe_path(path);
-
-                    // Ensure parent directory exists first!
-                    if let Some(parent) = target.parent() {
-                        fs::create_dir_all(parent).ok();
+                    debug!("Action [CreateFile]: {:?}", target);
+                    if let Err(e) =
+                        fs::File::create(&target).and_then(|mut f| f.write_all(content.as_bytes()))
+                    {
+                        error!("Action Failed [CreateFile]: {}", e);
                     }
-
-                    let mut file = fs::File::create(target).expect("Failed to create file");
-                    file.write_all(content.as_bytes())
-                        .expect("Failed to write content");
                 }
                 SetupAction::RemovePath { path } => {
                     let target = self.safe_path(path);
+                    debug!("Action [RemovePath]: {:?}", target);
                     if target.exists() {
                         if target.is_dir() {
                             fs::remove_dir_all(target).ok();
@@ -62,14 +66,16 @@ impl WorldEngine {
                     }
                 }
                 SetupAction::ResetWorld => {
+                    info!("Action [ResetWorld]: Purging Construct directory.");
                     if self.root_path.ends_with("Construct") && self.root_path.exists() {
-                        for entry in fs::read_dir(&self.root_path).unwrap() {
-                            let entry = entry.unwrap();
-                            let path = entry.path();
-                            if path.is_dir() {
-                                fs::remove_dir_all(path).ok();
-                            } else {
-                                fs::remove_file(path).ok();
+                        if let Ok(entries) = fs::read_dir(&self.root_path) {
+                            for entry in entries.flatten() {
+                                let path = entry.path();
+                                if path.is_dir() {
+                                    fs::remove_dir_all(path).ok();
+                                } else {
+                                    fs::remove_file(path).ok();
+                                }
                             }
                         }
                     }
