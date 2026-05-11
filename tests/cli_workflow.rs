@@ -1,11 +1,11 @@
-use assert_cmd::Command;
+use assert_cmd::prelude::*;
 use tempfile::TempDir;
 
 #[test]
 fn test_intro_first_task_completes() {
     let temp = TempDir::new().expect("failed to create temp dir");
 
-    let mut reset = Command::cargo_bin("supershell").unwrap();
+    let mut reset = assert_cmd::cargo::cargo_bin_cmd!("supershell");
     reset
         .env("SUPERSHELL_TEST_MODE", "1")
         .env("XDG_DATA_HOME", temp.path())
@@ -14,7 +14,7 @@ fn test_intro_first_task_completes() {
         .assert()
         .success();
 
-    let mut cmd = Command::cargo_bin("supershell").unwrap();
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("supershell");
     cmd.env("SUPERSHELL_TEST_MODE", "1")
         .env("XDG_DATA_HOME", temp.path())
         .arg("--check")
