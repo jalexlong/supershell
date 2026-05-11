@@ -1,4 +1,5 @@
 pub mod actions;
+mod paths;
 mod quest;
 mod shell;
 mod state;
@@ -6,11 +7,11 @@ mod ui;
 mod world; // <--- The new module
 
 use clap::Parser;
-use directories::ProjectDirs;
 use include_dir::{Dir, include_dir};
+use paths::build_app_context;
 use quest::{ConditionType, Course, Library, Reward, ValidationResult};
 use state::GameState;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use world::WorldEngine;
 
 // --- CONSTANTS & EMBEDDED ASSETS ---
@@ -37,33 +38,6 @@ struct Cli {
     status: bool,
     #[arg(long)]
     refresh: bool,
-}
-
-// --- APP CONTEXT ---
-struct AppContext {
-    _data_dir: std::path::PathBuf,
-    library_path: std::path::PathBuf,
-    save_path: std::path::PathBuf,
-}
-
-fn build_app_context() -> AppContext {
-    let data_dir = if std::env::var("SUPERSHELL_TEST_MODE").is_ok() {
-        std::env::var_os("XDG_DATA_HOME")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| std::env::temp_dir().join("supershell-test"))
-            .join("supershell")
-    } else {
-        let proj_dirs = ProjectDirs::from("com", "jalexlong", "supershell")
-            .expect("Could not determine home directory");
-
-        proj_dirs.data_dir().to_path_buf()
-    };
-
-    AppContext {
-        _data_dir: data_dir.clone(),
-        library_path: data_dir.join("library"),
-        save_path: data_dir.join("save.json"),
-    }
 }
 
 // --- MAIN ENTRY POINT ---
