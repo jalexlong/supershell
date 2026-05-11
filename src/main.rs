@@ -7,7 +7,7 @@ mod state;
 mod ui;
 mod world; // <--- The new module
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::Parser;
 use engine::{
     Progression, advance_progress, apply_rewards, is_command_relevant, validate_task_logic,
@@ -68,10 +68,11 @@ fn run() -> Result<()> {
 
     // ALWAYS force extraction to ensure the library is up to date with your source code.
     // We create the directory if it's missing, then overwrite the files.
-    std::fs::create_dir_all(&ctx.library_path).expect("Failed to create library dir");
+    std::fs::create_dir_all(&ctx.library_path).context("Failed to create library dir")?;
+
     DEFAULT_LIBRARY
         .extract(&ctx.library_path)
-        .expect("Failed to extract default library");
+        .context("Failed to extract default library")?;
 
     // 3. LOAD GAME STATE
     let mut game = if args.reset {
