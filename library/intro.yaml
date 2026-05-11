@@ -41,9 +41,9 @@ chapters:
         description: "Type 'ls' to scan your surroundings."
         instruction: "Run the 'ls' command to see files."
         success_msg: "Sensors Online. Environment visible."
-        check_mode: Command
-        command: "^ls.*"
-        conditions: []
+        conditions:
+          - type: CommandMatches
+            pattern: "^ls(\\s.*)?$"
 
     outro: |
       [SENSORS ONLINE]
@@ -68,9 +68,9 @@ chapters:
         description: "Move into the Memory_Bank folder."
         instruction: "Type 'cd Memory_Bank' to enter the folder."
         success_msg: "Transfer Complete. You are inside the Memory Bank."
-        check_mode: Condition
-        command: ""
         conditions:
+          - type: CommandMatches
+            pattern: "^cd\\s+Memory_Bank\\s*$"
           - type: WorkingDir
             path: "Memory_Bank$"
     outro: |
@@ -101,9 +101,9 @@ chapters:
         description: "Enter 'Sector_A'."
         instruction: "Use 'cd Sector_A' to go deeper."
         success_msg: "Entered Sector_A."
-        check_mode: Condition
-        command: ""
         conditions:
+          - type: CommandMatches
+            pattern: "^cd\\s+Sector_A\\s*$"
           - type: WorkingDir
             path: "Sector_A$"
     outro: |
@@ -126,9 +126,9 @@ chapters:
         description: "Read the file using 'cat welcome_packet.txt'"
         instruction: "Type 'cat welcome_packet.txt' to read it."
         success_msg: "Data Packet Decoded."
-        check_mode: Command
-        command: "^cat.*welcome.*"
-        conditions: []
+        conditions:
+          - type: CommandMatches
+            pattern: "^cat\\s+welcome_packet\\.txt\\s*$"
     outro: |
       [DATA RECEIVED]
 
