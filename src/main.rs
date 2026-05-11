@@ -1,4 +1,5 @@
 pub mod actions;
+mod engine;
 mod paths;
 mod quest;
 mod shell;
@@ -7,9 +8,10 @@ mod ui;
 mod world; // <--- The new module
 
 use clap::Parser;
+use engine::{is_command_relevant, validate_task_logic};
 use include_dir::{Dir, include_dir};
 use paths::build_app_context;
-use quest::{ConditionType, Course, Library, Reward, ValidationResult};
+use quest::{Course, Library, Reward};
 use state::GameState;
 use std::path::Path;
 use world::WorldEngine;
@@ -271,34 +273,15 @@ fn handle_check_command(
     ) {
         // --- PASS 1: RELEVANCE (Permissive) ---
         // If it doesn't match the regex, allow it to run silently (Exit 0)
-        let is_relevant = task
-            .conditions
-            .iter()
-            .filter(|c| matches!(c.condition_type, ConditionType::CommandMatches { .. }))
-            .any(|c| matches!(c.check(&user_cmd, game), ValidationResult::Valid));
-
-        if !is_relevant {
+        if !is_command_relevant(&user_cmd, task, game) {
             std::process::exit(0);
         }
 
         // --- PASS 2: LOGIC (Strict) ---
         // It matches regex. If logic fails (wrong permissions), BLOCK it (Exit 1).
-        for condition in &task.conditions {
-            if matches!(
-                condition.condition_type,
-                ConditionType::CommandMatches { .. }
-            ) {
-                continue;
-            }
-
-            match condition.check(&user_cmd, game) {
-                ValidationResult::Valid => continue,
-                ValidationResult::LogicError(msg) => {
-                    ui::print_fail(&msg, "Review system requirements.");
-                    std::process::exit(1);
-                }
-                _ => {}
-            }
+        if let Err(msg) = validate_task_logic(&user_cmd, task, game) {
+            ui::print_fail(&msg, "Review system requirements.");
+            std::process::exit(1);
         }
 
         // --- SUCCESS ---
