@@ -1,87 +1,234 @@
-# System Architecture
+# Supershell Architecture
 
-## 1. High-Level Overview
+## 1. Overview
 
-Supershell operates as a "Sidecar" to the user's shell. It does not replace `zsh` or `bash`. Instead, it hooks into the shell's `precmd` (or equivalent) lifecycle event to inspect commands *after* they run but *before* the prompt returns.
+Supershell is a gamified command-line learning system. It teaches shell concepts through quests, objectives, narrative feedback, and stateful progression.
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant Shell (ZSH/Bash)
-    participant Supershell (Rust)
-    participant FileSystem
+The current v0.5 implementation uses a **transient shell architecture**. Instead of permanently modifying the user's shell startup files through legacy hooks, Supershell launches a guided shell session and evaluates relevant commands through its Rust runtime.
 
-    User->>Shell: Types "rm file.txt"
-    Shell->>FileSystem: Executes command
-    FileSystem-->>Shell: Returns result
-    Shell->>Supershell: Hook triggers: `supershell --check "rm file.txt"`
-    
-    rect rgb(30, 30, 30)
-        Note right of Supershell: The Game Logic
-        Supershell->>Supershell: Load State (JSON)
-        Supershell->>Supershell: Validate Conditions (Regex/FS)
-        
-        alt Task Complete
-            Supershell->>Supershell: Update State (Task++)
-            Supershell-->>User: Render "Success Card" (Stdout)
-        else Task Failed (Critical)
-            Supershell-->>User: Render "Glitch Text" (Stdout)
-        end
-    end
-    
-    Supershell-->>Shell: Exit
-    Shell-->>User: Returns control to prompt
+The long-term design goal remains:
+
+```text
+real shell behavior first, game overlay second
 ```
 
-## 2. Core Components
+Supershell should enhance the terminal experience without making the user's normal shell fragile.
 
-### 2.1 The Shell Injector (`hooks/`)
-* **Role:** The only part of the system written in Shell Script (`.zsh`, `.bash`).
-* **Responsibility:**
-    * Capture the last command typed.
-    * Pass it to the Rust binary.
-    * Ensure the binary does not block the user (must run fast).
+## 2. Runtime Flow
 
-### 2.2 The State Manager (`src/state.rs`)
-* **Persistence:** JSON file stored in `~/.config/supershell/save.json`.
-* **Data Structure:**
-    * `current_task_id` (String): The pointer to the active objective.
-    * `flags` (`HashMap<String, bool>`): Tracks narrative choices (e.g., `has_read_readme: true`).
-    * `variables` (`HashMap<String, i32>`): Tracks counters (e.g., `suspicion: 20`).
+The simplified runtime loop is:
 
-### 2.3 The Logic Engine (`src/quest.rs`)
-The engine evaluates a vector of `Conditions` against the current reality.
-* **`CommandMatches`:** Regex check against the *command string* (did they type `rm`?).
-* **`FileExists` / `FileContains`:** Physical check against the *file system* (did the file actually disappear?).
-* **`FlagIsTrue`:** check against *internal state* (did they unlock this previously?).
+```text
+Launch Supershell
+  -> initialize paths
+  -> extract bundled quest library
+  -> load save state
+  -> resolve active course
+  -> initialize Construct world
+  -> launch guided shell or handle CLI command
+```
 
-### 2.4 The World Engine (`src/world.rs`)
-* **Sandbox:** `~/Construct`.
-* **Capabilities:**
-    * **Initialization:** Creates the directory structure defined in YAML.
-    * **Sanitization:** Prevents YAML from referencing paths outside `~/Construct`.
-    * **Reset:** Can wipe and rebuild `~/Construct` instantly if the user enters a broken state.
+When checking a command:
 
-### 2.5 The UI Engine (`src/ui.rs`)
-* **Dependencies:** `crossterm`, `textwrap`.
-* **Components:**
-    * `RenderInlineCard`: Draws borders and text wrapping.
-    * `GlitchEffect`: Randomizes character rendering for failure states.
-* **Constraint:** Must never clear the screen (preserve user context).
+```text
+command string
+  -> active task
+  -> relevance conditions
+  -> strict validation conditions
+  -> rewards
+  -> state transition
+  -> save state
+  -> UI refresh signal
+```
 
-## 3. Data Flow
+## 3. Major Components
 
-1.  **Input:** User types a command.
-2.  **Execution:** The OS executes the command.
-3.  **Interception:** The Shell Hook calls `supershell --check <CMD>`.
-4.  **Loading:** `supershell` loads `course.yaml` and `save.json`.
-5.  **Evaluation:**
-    * Find the current `Task`.
-    * Iterate through `Task.conditions`.
-    * If `CommandMatches` is required, check `<CMD>`.
-    * If `FileExists` is required, check disk.
-6.  **Transition:**
-    * If ALL conditions met -> `state.current_task_index++`.
-    * Process `Rewards` (Set flags, add variables).
-    * Save `save.json`.
-7.  **Output:** Render the "Success" UI to stdout.
+### 3.1 CLI Entry Point
+
+File:
+
+```text
+src/main.rs
+```
+
+Responsibilities:
+
+- parse CLI arguments
+- construct application paths
+- extract bundled quest content
+- load or reset save state
+- resolve the active course
+- dispatch to status, menu, refresh, validation, check, or shell-launch behavior
+
+Current CLI flags include:
+
+```text
+--check
+--reset
+--validate
+--menu
+--status
+--refresh
+```
+
+### 3.2 Transient Shell
+
+File:
+
+```text
+src/shell.rs
+```
+
+Responsibilities:
+
+- launch a guided shell session
+- provide the interactive environment where Supershell can observe user commands
+- preserve the user's ability to run normal shell commands
+
+This replaces the older design that depended on persistent shell startup hooks.
+
+### 3.3 Quest Engine
+
+File:
+
+```text
+src/quest.rs
+```
+
+Responsibilities:
+
+- define the course, quest, chapter, task, condition, and reward data models
+- load YAML quest content
+- validate command and state conditions
+- support stateful rewards such as flags and variables
+
+The current engine uses a two-pass validation model:
+
+1. **Relevance pass** — determine whether the command applies to the current task.
+2. **Logic pass** — verify additional requirements such as state, filesystem, or world conditions.
+
+### 3.4 State Manager
+
+File:
+
+```text
+src/state.rs
+```
+
+Responsibilities:
+
+- load save data from JSON
+- create a default state when no save exists
+- persist progress
+- preserve flags and variables
+- use atomic write behavior through temporary-file write followed by rename
+
+The save layer must ensure its parent directory exists before writing.
+
+### 3.5 UI Renderer
+
+File:
+
+```text
+src/ui.rs
+```
+
+Responsibilities:
+
+- render mission status
+- render success and failure messages
+- display cutscene text
+- support test-mode behavior for non-interactive test runs
+
+The UI should avoid making the shell unusable if rendering fails.
+
+### 3.6 World Engine
+
+File:
+
+```text
+src/world.rs
+```
+
+Responsibilities:
+
+- initialize the Construct
+- create scenario files and folders
+- apply YAML-defined setup actions
+- keep generated mission content inside the intended sandbox
+
+The Construct currently lives at:
+
+```text
+~/Construct
+```
+
+### 3.7 Bundled Quest Library
+
+Directory:
+
+```text
+library/
+```
+
+Responsibilities:
+
+- provide built-in quest YAML files
+- serve as the default lesson library
+- get embedded into the Rust binary and extracted at runtime
+
+The current introductory module is:
+
+```text
+library/intro.yaml
+```
+
+## 4. Persistence Model
+
+Supershell stores save data in the operating system's application data directory.
+
+Normal runtime:
+
+```text
+<platform data dir>/supershell/save.json
+```
+
+Test runtime:
+
+```text
+$XDG_DATA_HOME/supershell/save.json
+```
+
+The test-mode path is intentionally isolated so automated tests do not touch real user state.
+
+## 5. Design Priorities
+
+The project should optimize for:
+
+1. **Safety** — Supershell must not break the user's normal terminal.
+2. **Clarity** — the engine should stay understandable to educators and contributors.
+3. **Data-driven content** — lesson changes should usually happen in YAML, not Rust.
+4. **Testability** — command checking, state transitions, and persistence should be covered by regression tests.
+5. **Classroom reliability** — failures should be recoverable, explainable, and non-destructive.
+
+## 6. Near-Term Stabilization Goals
+
+Before adding more features, the project should focus on:
+
+- expanding CLI workflow tests
+- making state persistence return `Result` instead of panicking
+- separating command evaluation from UI rendering
+- reducing `main.rs` orchestration complexity
+- documenting the YAML schema
+- validating Construct path safety
+- preserving fail-open behavior in shell-adjacent paths
+
+## 7. Future Architecture Direction
+
+A future simplified engine should move toward this shape:
+
+```text
+Event + GameState + Course -> Actions + Updated GameState
+```
+
+That would allow Supershell to keep a flexible content system while making the Rust core smaller and easier to test.
