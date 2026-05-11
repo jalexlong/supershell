@@ -134,7 +134,8 @@ fn run() -> Result<()> {
 
     // 6. RUN GAME LOOP
     if let Some(cmd) = args.check {
-        handle_check_command(cmd, &mut game, &course, &ctx.save_path, &world);
+        let exit_code = handle_check_command(cmd, &mut game, &course, &ctx.save_path, &world);
+        std::process::exit(exit_code);
     } else if args.status {
         handle_status_display(&game, &course);
     } else if args.refresh {
@@ -269,7 +270,7 @@ fn handle_check_command(
     course: &Course,
     save_path: &Path,
     world: &WorldEngine,
-) {
+) -> i32 {
     // 1. Setup Logic (Lazy Init)
     if game.current_task_index == 0 {
         if let Some(quest) = course.quests.iter().find(|q| q.id == game.current_quest_id) {
@@ -289,14 +290,14 @@ fn handle_check_command(
         // --- PASS 1: RELEVANCE (Permissive) ---
         // If it doesn't match the regex, allow it to run silently (Exit 0)
         if !is_command_relevant(&user_cmd, task, game) {
-            std::process::exit(0);
+            return 0;
         }
 
         // --- PASS 2: LOGIC (Strict) ---
         // It matches regex. If logic fails (wrong permissions), BLOCK it (Exit 1).
         if let Err(msg) = validate_task_logic(&user_cmd, task, game) {
             ui::print_fail(&msg, "Review system requirements.");
-            std::process::exit(1);
+            return 1;
         }
 
         // --- SUCCESS ---
@@ -334,16 +335,16 @@ fn handle_check_command(
                 game.save(save_path.to_str().unwrap())
                     .expect("Failed to save game state");
 
-                std::process::exit(0)
+                return 0;
             }
         }
 
         game.save(save_path.to_str().unwrap())
             .expect("Failed to save game state");
         // Return Exit Code 2 to tell Bash to refresh the UI
-        std::process::exit(2);
+        return 2;
     }
 
     // Default: No change, Exit 0
-    std::process::exit(0);
+    0
 }
