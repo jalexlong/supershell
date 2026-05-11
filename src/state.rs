@@ -44,27 +44,28 @@ impl GameState {
         }
     }
 
-    pub fn save(&self, path: &str) {
+    pub fn save(&self, path: &str) -> std::io::Result<()> {
         // 1. Ensure the save directory exists.
         // This matters after --reset, in fresh installs, and in test environments.
         if let Some(parent) = std::path::Path::new(path).parent() {
-            fs::create_dir_all(parent).expect("Failed to create save directory");
+            fs::create_dir_all(parent)?;
         }
 
-        // 2. Create a temporary path
+        // 2. Create a temporary path.
         let tmp_path = format!("{}.tmp", path);
 
-        // 3. Serialize to string (Memory check)
-        let json = serde_json::to_string_pretty(self).expect("Failed to serialize");
+        // 3. Serialize to string.
+        let json = serde_json::to_string_pretty(self).map_err(std::io::Error::other)?;
 
-        // 4. Write to the temporary file (The dangerous part)
+        // 4. Write to the temporary file.
         // If we crash here, only the .tmp file is broken.
-        fs::write(&tmp_path, json).expect("Failed to write tmp file");
+        fs::write(&tmp_path, json)?;
 
-        // 5. Rename (The Atomic Swap)
-        // On POSIX systems (Linux/Mac), this operation is atomic.
-        // It instantly swaps the file pointer. It either happens fully, or not at all.
-        fs::rename(tmp_path, path).expect("Failed to commit save");
+        // 5. Rename into place.
+        // On POSIX systems, this operation is atomic.
+        fs::rename(tmp_path, path)?;
+
+        Ok(())
     }
 
     /// Increments the checkpoint index

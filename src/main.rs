@@ -82,7 +82,8 @@ fn main() {
             game.current_chapter_index = 0;
             game.current_task_index = 0;
             game.is_finished = false;
-            game.save(ctx.save_path.to_str().unwrap());
+            game.save(ctx.save_path.to_str().unwrap())
+                .expect("Failed to save game state");
         }
     }
 
@@ -105,7 +106,8 @@ fn main() {
     // Version Sync
     if game.course_version != course.version {
         game.course_version = course.version.clone();
-        game.save(ctx.save_path.to_str().unwrap());
+        game.save(ctx.save_path.to_str().unwrap())
+            .expect("Failed to save game state");
     }
 
     let world = WorldEngine::new();
