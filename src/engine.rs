@@ -1,4 +1,4 @@
-use crate::quest::{Condition, ConditionType, Task, ValidationResult};
+use crate::quest::{Condition, ConditionType, Reward, Task, ValidationResult};
 use crate::state::GameState;
 
 pub fn is_command_relevant(user_cmd: &str, task: &Task, game: &GameState) -> bool {
@@ -22,6 +22,16 @@ pub fn validate_task_logic(user_cmd: &str, task: &Task, game: &GameState) -> Res
     }
 
     Ok(())
+}
+
+pub fn apply_rewards(game: &mut GameState, rewards: &[Reward]) {
+    for reward in rewards {
+        match reward {
+            Reward::SetFlag { key, value } => game.set_flag(key, *value),
+            Reward::SetVar { key, value } => game.set_var(key, *value),
+            Reward::AddVar { key, amount } => game.mod_var(key, *amount),
+        }
+    }
 }
 
 fn is_command_match_condition(condition: &Condition) -> bool {
@@ -108,4 +118,40 @@ mod tests {
 
         assert_eq!(validate_task_logic("ls", &task, &game), Ok(()));
     }
+}
+
+#[test]
+fn apply_rewards_sets_flags() {
+    let mut game = GameState::new();
+
+    apply_rewards(
+        &mut game,
+        &[Reward::SetFlag {
+            key: "scanner_enabled".to_string(),
+            value: true,
+        }],
+    );
+
+    assert!(game.get_flag("scanner_enabled"));
+}
+
+#[test]
+fn apply_rewards_sets_and_adds_variables() {
+    let mut game = GameState::new();
+
+    apply_rewards(
+        &mut game,
+        &[
+            Reward::SetVar {
+                key: "credits".to_string(),
+                value: 10,
+            },
+            Reward::AddVar {
+                key: "credits".to_string(),
+                amount: 5,
+            },
+        ],
+    );
+
+    assert_eq!(game.get_var("credits"), 15);
 }

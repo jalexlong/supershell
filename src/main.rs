@@ -8,10 +8,10 @@ mod ui;
 mod world; // <--- The new module
 
 use clap::Parser;
-use engine::{is_command_relevant, validate_task_logic};
+use engine::{apply_rewards, is_command_relevant, validate_task_logic};
 use include_dir::{Dir, include_dir};
 use paths::build_app_context;
-use quest::{Course, Library, Reward};
+use quest::{Course, Library};
 use state::GameState;
 use std::path::Path;
 use world::WorldEngine;
@@ -292,13 +292,7 @@ fn handle_check_command(
         ui::print_success(&task.success_msg);
 
         // Rewards
-        for reward in &task.rewards {
-            match reward {
-                Reward::SetFlag { key, value } => game.set_flag(key, *value),
-                Reward::SetVar { key, value } => game.set_var(key, *value),
-                Reward::AddVar { key, amount } => game.mod_var(key, *amount),
-            }
-        }
+        apply_rewards(game, &task.rewards);
 
         game.advance_task();
 
