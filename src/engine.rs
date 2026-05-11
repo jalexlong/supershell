@@ -1,6 +1,13 @@
 use crate::quest::{Condition, ConditionType, Reward, Task, ValidationResult};
 use crate::state::GameState;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Progression {
+    NextTask,
+    NextChapter,
+    ModuleComplete,
+}
+
 pub fn is_command_relevant(user_cmd: &str, task: &Task, game: &GameState) -> bool {
     task.conditions
         .iter()
@@ -31,6 +38,27 @@ pub fn apply_rewards(game: &mut GameState, rewards: &[Reward]) {
             Reward::SetVar { key, value } => game.set_var(key, *value),
             Reward::AddVar { key, amount } => game.mod_var(key, *amount),
         }
+    }
+}
+
+pub fn advance_progress(
+    game: &mut GameState,
+    chapter_task_count: usize,
+    quest_chapter_count: usize,
+) -> Progression {
+    game.advance_task();
+
+    if game.current_task_index < chapter_task_count {
+        return Progression::NextTask;
+    }
+
+    game.advance_chapter();
+
+    if game.current_chapter_index < quest_chapter_count {
+        Progression::NextChapter
+    } else {
+        game.is_finished = true;
+        Progression::ModuleComplete
     }
 }
 
@@ -154,4 +182,40 @@ fn apply_rewards_sets_and_adds_variables() {
     );
 
     assert_eq!(game.get_var("credits"), 15);
+}
+
+#[test]
+fn advance_progress_moves_to_next_task_when_chapter_has_more_tasks() {
+    let mut game = GameState::new();
+
+    let progression = advance_progress(&mut game, 2, 1);
+
+    assert_eq!(progression, Progression::NextTask);
+    assert_eq!(game.current_task_index, 1);
+    assert_eq!(game.current_chapter_index, 0);
+    assert!(!game.is_finished);
+}
+
+#[test]
+fn advance_progress_moves_to_next_chapter_when_chapter_is_complete() {
+    let mut game = GameState::new();
+
+    let progression = advance_progress(&mut game, 1, 2);
+
+    assert_eq!(progression, Progression::NextChapter);
+    assert_eq!(game.current_task_index, 0);
+    assert_eq!(game.current_chapter_index, 1);
+    assert!(!game.is_finished);
+}
+
+#[test]
+fn advance_progress_marks_module_complete_when_final_chapter_is_complete() {
+    let mut game = GameState::new();
+
+    let progression = advance_progress(&mut game, 1, 1);
+
+    assert_eq!(progression, Progression::ModuleComplete);
+    assert_eq!(game.current_task_index, 0);
+    assert_eq!(game.current_chapter_index, 1);
+    assert!(game.is_finished);
 }

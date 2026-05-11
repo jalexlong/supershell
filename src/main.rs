@@ -8,7 +8,9 @@ mod ui;
 mod world; // <--- The new module
 
 use clap::Parser;
-use engine::{apply_rewards, is_command_relevant, validate_task_logic};
+use engine::{
+    Progression, advance_progress, apply_rewards, is_command_relevant, validate_task_logic,
+};
 use include_dir::{Dir, include_dir};
 use paths::build_app_context;
 use quest::{Course, Library};
@@ -294,32 +296,32 @@ fn handle_check_command(
         // Rewards
         apply_rewards(game, &task.rewards);
 
-        game.advance_task();
+        let progression = advance_progress(game, chapter.tasks.len(), quest.chapters.len());
 
         // Handle Transitions
-        if game.current_task_index >= chapter.tasks.len() {
-            ui::play_cutscene(&chapter.outro);
-            game.advance_chapter();
+        match progression {
+            Progression::NextTask => {
+                // If we didn't play a cutscene, we should pause so the user
+                // sees the "Success" message before the screen clears.
+                println!("\n\x1b[0;90m[ PRESS ENTER TO CONTINUE ]\x1b[0m");
+                let mut s = String::new();
+                std::io::stdin().read_line(&mut s).unwrap();
+            }
+            Progression::NextChapter => {
+                ui::play_cutscene(&chapter.outro);
 
-            // World Building for NEXT chapter
-            if game.current_chapter_index < quest.chapters.len() {
+                // World Building for NEXT chapter
                 let next_chapter = &quest.chapters[game.current_chapter_index];
                 if !next_chapter.setup_actions.is_empty() {
                     println!(">> [SYSTEM] Reconfiguring Construct...");
                     world.build_scenario(&next_chapter.setup_actions);
                 }
-            } else {
-                // Game Over / Victory
-                game.is_finished = true;
+            }
+            Progression::ModuleComplete => {
+                ui::play_cutscene(&chapter.outro);
                 println!("\n\x1b[1;32m>> [SYSTEM] ALL MODULES COMPLETE. DISCONNECTING...\x1b[0m");
                 std::process::exit(0)
             }
-        } else {
-            // If we didn't play a cutscene, we should pause so the user
-            // sees the "Success" message before the screen clears.
-            println!("\n\x1b[0;90m[ PRESS ENTER TO CONTINUE ]\x1b[0m");
-            let mut s = String::new();
-            std::io::stdin().read_line(&mut s).unwrap();
         }
 
         game.save(save_path.to_str().unwrap())
