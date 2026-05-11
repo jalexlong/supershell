@@ -116,7 +116,8 @@ fn main() {
     if game.current_quest_id.is_empty() {
         if let Some(first_quest) = course.quests.first() {
             game.current_quest_id = first_quest.id.clone();
-            game.save(ctx.save_path.to_str().unwrap());
+            game.save(ctx.save_path.to_str().unwrap())
+                .expect("Failed to save game state");
         }
     }
 
@@ -327,7 +328,8 @@ fn handle_check_command(
             std::io::stdin().read_line(&mut s).unwrap();
         }
 
-        game.save(save_path.to_str().unwrap());
+        game.save(save_path.to_str().unwrap())
+            .expect("Failed to save game state");
         // Return Exit Code 2 to tell Bash to refresh the UI
         std::process::exit(2);
     }
