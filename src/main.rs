@@ -7,6 +7,7 @@ mod state;
 mod ui;
 mod world; // <--- The new module
 
+use anyhow::Result;
 use clap::Parser;
 use engine::{
     Progression, advance_progress, apply_rewards, is_command_relevant, validate_task_logic,
@@ -47,6 +48,13 @@ struct Cli {
 // --- MAIN ENTRY POINT ---
 
 fn main() {
+    if let Err(err) = run() {
+        eprintln!(">> [ERROR] {err}");
+        std::process::exit(1);
+    }
+}
+
+fn run() -> Result<()> {
     let args = Cli::parse();
 
     // 1. SETUP PATHS
@@ -55,7 +63,7 @@ fn main() {
     // 2. SYSTEM OPERATIONS
     if let Some(path_str) = args.validate {
         perform_validation(&path_str);
-        return;
+        return Ok(());
     }
 
     // ALWAYS force extraction to ensure the library is up to date with your source code.
@@ -94,13 +102,13 @@ fn main() {
         Some(p) => p,
         None => {
             eprintln!(">> [ERROR] No module selected. Run 'supershell --menu'.");
-            return;
+            return Ok(());
         }
     };
 
     if !course_path.exists() {
         eprintln!(">> [ERROR] Module file missing: {:?}", course_path);
-        return;
+        return Ok(());
     }
 
     let course = Course::load(&course_path);
@@ -134,6 +142,7 @@ fn main() {
         // DEFAULT: Launch the Infection
         shell::launch_infected_session();
     }
+    Ok(())
 }
 
 // --- HELPER FUNCTIONS ---
