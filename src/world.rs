@@ -80,18 +80,55 @@ impl WorldEngine {
                     }
                 }
                 SetupAction::ResetWorld => {
-                    if self.root_path.ends_with("Construct") && self.root_path.exists() {
-                        for entry in fs::read_dir(&self.root_path).unwrap() {
-                            let entry = entry.unwrap();
-                            let path = entry.path();
-                            if path.is_dir() {
-                                fs::remove_dir_all(path).ok();
-                            } else {
-                                fs::remove_file(path).ok();
-                            }
-                        }
-                    }
+                    self.reset_world();
                 }
+            }
+        }
+    }
+
+    fn reset_world(&self) {
+        if !self.root_path.ends_with("Construct") {
+            eprintln!(
+                ">> [WORLD] Refusing to reset suspicious world root: {:?}",
+                self.root_path
+            );
+            return;
+        }
+
+        if !self.root_path.exists() {
+            return;
+        }
+
+        let entries = match fs::read_dir(&self.root_path) {
+            Ok(entries) => entries,
+            Err(err) => {
+                eprintln!(
+                    ">> [WORLD] Failed to read Construct directory {:?}: {}",
+                    self.root_path, err
+                );
+                return;
+            }
+        };
+
+        for entry in entries {
+            let entry = match entry {
+                Ok(entry) => entry,
+                Err(err) => {
+                    eprintln!(">> [WORLD] Failed to inspect Construct entry: {err}");
+                    continue;
+                }
+            };
+
+            let path = entry.path();
+
+            let result = if path.is_dir() {
+                fs::remove_dir_all(&path)
+            } else {
+                fs::remove_file(&path)
+            };
+
+            if let Err(err) = result {
+                eprintln!(">> [WORLD] Failed to remove {:?}: {}", path, err);
             }
         }
     }
