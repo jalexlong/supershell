@@ -134,8 +134,8 @@ fn run() -> Result<()> {
 
     // 6. RUN GAME LOOP
     if let Some(cmd) = args.check {
-        let exit_code = handle_check_command(cmd, &mut game, &course, &ctx.save_path, &world);
-        std::process::exit(exit_code);
+        let outcome = handle_check_command(cmd, &mut game, &course, &ctx.save_path, &world);
+        std::process::exit(outcome.exit_code());
     } else if args.status {
         handle_status_display(&game, &course);
     } else if args.refresh {
@@ -148,6 +148,22 @@ fn run() -> Result<()> {
 }
 
 // --- HELPER FUNCTIONS ---
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CheckCommandOutcome {
+    NoChange,
+    LogicFailure,
+    RefreshUi,
+}
+
+impl CheckCommandOutcome {
+    fn exit_code(self) -> i32 {
+        match self {
+            CheckCommandOutcome::NoChange => 0,
+            CheckCommandOutcome::LogicFailure => 1,
+            CheckCommandOutcome::RefreshUi => 2,
+        }
+    }
+}
 
 fn resolve_course_path(game: &GameState, lib: &Library) -> Option<std::path::PathBuf> {
     if !game.current_course.is_empty() {
@@ -280,7 +296,7 @@ fn handle_check_command(
     course: &Course,
     save_path: &Path,
     world: &WorldEngine,
-) -> i32 {
+) -> CheckCommandOutcome {
     // 1. Setup Logic (Lazy Init)
     if game.current_task_index == 0 {
         if let Some(quest) = course.quests.iter().find(|q| q.id == game.current_quest_id) {
@@ -300,14 +316,14 @@ fn handle_check_command(
         // --- PASS 1: RELEVANCE (Permissive) ---
         // If it doesn't match the regex, allow it to run silently (Exit 0)
         if !is_command_relevant(&user_cmd, task, game) {
-            return 0;
+            return CheckCommandOutcome::NoChange;
         }
 
         // --- PASS 2: LOGIC (Strict) ---
         // It matches regex. If logic fails (wrong permissions), BLOCK it (Exit 1).
         if let Err(msg) = validate_task_logic(&user_cmd, task, game) {
             ui::print_fail(&msg, "Review system requirements.");
-            return 1;
+            return CheckCommandOutcome::LogicFailure;
         }
 
         // --- SUCCESS ---
@@ -344,17 +360,17 @@ fn handle_check_command(
 
                 save_game_state(game, save_path);
 
-                return 0;
+                return CheckCommandOutcome::RefreshUi;
             }
         }
 
         if !save_game_state(game, save_path) {
-            return 0;
+            return CheckCommandOutcome::NoChange;
         }
         // Return Exit Code 2 to tell Bash to refresh the UI
-        return 2;
+        return CheckCommandOutcome::RefreshUi;
     }
 
     // Default: No change, Exit 0
-    0
+    CheckCommandOutcome::NoChange
 }
