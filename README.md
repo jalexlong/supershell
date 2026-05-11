@@ -1,139 +1,147 @@
-# SuperShell 🐚 🚀
+# Supershell
 
-**SuperShell** is a terminal-based RPG that turns your command line into a video game. 
+**Supershell** is a terminal-based learning RPG that teaches command-line skills through real shell interaction, quests, objectives, rewards, and narrative feedback.
 
-It runs silently in the background of your actual shell (Zsh/Bash). As you navigate your file system and run real commands, SuperShell tracks your progress, unlocks chapters, and guides you through a sci-fi narrative—all while teaching you actual CLI skills.
+The current v0.5 architecture launches a transient guided shell session instead of relying on legacy shell startup hooks. The goal is to preserve the user's real shell behavior while letting Supershell observe relevant commands, validate objectives, and refresh the mission display when progress changes.
 
-## 🎮 How to Play
+## Current Status
 
-### 1. The Game
-Start the game by launching the first mission:
-```bash
-supershell
-```
-### 2. The Menu
-Or start the game by opening the mission selector:
-```bash
-supershell --menu
-```
+Supershell is in active development.
 
-### 3. Hints
-If you're stuck on a certain task, try to get a hint from the system.
-```bash
-supershell --hint
-```
+The current stabilization target is:
 
-## 🚀 How it Works
-SuperShell monitors your terminal activity via a shell hook. When you complete a task defined in a quest's YAML file located in the `library/` directory, the engine provides immediate feedback, plays narrative cutscenes, and advances the quest state.
+- reliable local development workflow
+- deterministic quest loading
+- safe save-state handling
+- YAML-driven lesson content
+- transient shell session support
+- regression tests for reset, status, and command-check behavior
 
-## 🛠 Features
-- **Hierarchical Design:** Lessons are organized into Quests (Seasons), Chapters (Episodes), and atomic Tasks.
-- **Narrative-Driven:** Separate fields for "Flavor Text" and "Technical Objectives."
-- **Persistent State:** Progress is saved automatically to your system's standard data directory.
-- **Hybrid Validation:** Uses a mix of system checks (`IsDirectory`, `PathMissing`) and Regex pattern matching to verify objectives.
+## How to Run
 
-## ⌨️ Commands
-- `supershell`: Displays the current chapter title and your active objective.
-- `supershell --menu`: Opens the course selector to switch modules.
-- `supershell --hint`: Displays a hint for your current task.
-- `supershell --validate <file>`: Checks a quest YAML file for errors (useful for content creators).
-- `supershell --reset`: Wipes all progress and restarts the engine.
-
-## 📂 Data Locations
-Supershell stores game data in your operating system's standard application support directory.
-
-### Linux
-* **Content:** `~/.local/share/supershell/library/`
-* **Save Data:** `~/.local/share/supershell/save.json`
-
-### MacOS
-* **Content:** `~/Library/Application Support/com.jalexlong.supershell/library/`
-* **Save Data:** `~/Library/Application Support/com.jalexlong.supershell/save.json`
-
-> **Note for Mac Users:** You can quickly access this folder by opening Finder, pressing `Cmd+Shift+G`, and pasting the path above.
-## 🛠️ Installation
-
-### Option 1: The Rust Way (Recommended)
-If you have Rust installed, you can grab the game directly from crates.io:
+From the repository root:
 
 ```bash
-cargo install supershell
-supershell
+cargo run
 ```
 
-### Option 2: Standalone Binary
-1. Download the latest release for your OS from the [Releases Page](https://github.com/jalexlong/supershell/releases).
-2. Extract the archive.
-3. Run the binary:
-   ```bash
-   ./supershell
-   ```
-*(Note: The game will automatically install its game files to your system on the first run.)*
+This launches the guided Supershell session.
 
-> **Note on the Shell Hook:**
-> The installer adds a small function to your shell config. This function runs `supershell --check "$HISTORY"` after every command you type, allowing the game to react to your actions in real-time.
+To view the current mission status directly:
 
----
+```bash
+cargo run -- --status
+```
 
-## 📂 The Construct
+To open the module selector:
 
-Most missions take place inside a safe, sandboxed directory called **The Construct**:
+```bash
+cargo run -- --menu
+```
+
+To reset progress:
+
+```bash
+cargo run -- --reset --status
+```
+
+To validate a quest YAML file:
+
+```bash
+cargo run -- --validate library/intro.yaml
+```
+
+To simulate a command check during development:
+
+```bash
+cargo run -- --check "ls"
+```
+
+## Development Commands
+
+Run the standard local quality gate before committing:
+
+```bash
+cargo fmt --check
+cargo check
+cargo test
+```
+
+During active editing, you can allow formatting to update files:
+
+```bash
+cargo fmt
+cargo check
+cargo test
+```
+
+## Core Concepts
+
+Supershell is built around a small loop:
+
+```text
+User command -> Supershell check -> Quest conditions -> State update -> UI refresh
+```
+
+The major pieces are:
+
+- `src/main.rs` — CLI entry point and application flow
+- `src/shell.rs` — transient shell session support
+- `src/quest.rs` — YAML quest model and condition validation
+- `src/state.rs` — persistent save data
+- `src/ui.rs` — terminal rendering and feedback
+- `src/world.rs` — Construct setup and scenario-building
+- `library/intro.yaml` — bundled introductory quest content
+
+## Quest Content
+
+Quest content is YAML-driven. Lessons are organized as:
+
+```text
+Course -> Quests -> Chapters -> Tasks
+```
+
+Tasks use conditions to determine whether the user has completed an objective.
+
+Example:
+
+```yaml
+tasks:
+  - objective: "List the files in the current directory."
+    instruction: "Use ls to scan the room."
+    success_msg: "Sensors Online."
+    conditions:
+      - type: CommandMatches
+        pattern: "^ls(\\s.*)?$"
+```
+
+## Save Data
+
+Supershell stores progress in the operating system's standard application data directory.
+
+During tests, Supershell uses an isolated test data directory so test runs do not touch real user save data.
+
+## The Construct
+
+Many missions take place inside a generated sandbox directory called **The Construct**:
 
 ```text
 ~/Construct
-
 ```
 
-The game will automatically generate files, folders, and puzzles inside this directory. You can delete it at any time; the game will rebuild it when you load a mission.
+The world engine can create files, folders, and puzzle scenarios inside this directory based on YAML setup actions.
 
-## 🧱 Creating Custom Quests
+## Project Direction
 
-SuperShell is data-driven. You can write your own missions using YAML files in the `library/` folder.
+The long-term goal is a stable, classroom-ready cybersecurity education tool that:
 
-**Example Quest Structure:**
+- teaches real command-line skills
+- keeps lesson content data-driven
+- avoids breaking the user's normal shell
+- fails safely when something goes wrong
+- supports narrative-driven learning
+- remains maintainable for educators and contributors
 
-```yaml
-quests:
-  - id: "03_permissions"
-    title: "Module 03: Security"
-    construct: true  # Requires user to be in ~/Construct
-    chapters:
-      - title: "The Locked Door"
-        intro: "You encounter a file you cannot read..."
-        setup_actions:
-          - type: CreateFile
-            path: "secret.data"
-            content: "TOP SECRET"
-        tasks:
-          - description: "Change permissions"
-            objective: "chmod +r secret.data"
-            conditions:
-              - type: CommandMatches
-                pattern: "^chmod \\+r"
+## License
 
-```
-
----
-
-## 🐛 Troubleshooting
-
-**"The game isn't reacting!"**
-
-1. Ensure you have selected a mission via `supershell --menu`.
-2. Restart your terminal to ensure the shell hook is loaded.
-3. Check if you are inside `~/Construct` (if the mission requires it).
-
-**"I want to uninstall"**
-Remove the `supershell` binary and delete the lines added to your `.zshrc` or `.bashrc`.
-
-```bash
-rm -rf ~/.local/share/supershell
-```
-
-## 📦 Changelog
-View the full history of changes and updates in [CHANGELOG.md](CHANGELOG.md).
-
-Latest: **v0.5.0 (The Infrastructure Update)** - Added auto-updates, quest validation tools, and metadata support.
-
-## ⚖️ License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See `LICENSE` for details.
