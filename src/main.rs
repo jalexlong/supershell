@@ -10,7 +10,7 @@ use directories::ProjectDirs;
 use include_dir::{Dir, include_dir};
 use quest::{ConditionType, Course, Library, Reward, ValidationResult};
 use state::GameState;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use world::WorldEngine;
 
 // --- CONSTANTS & EMBEDDED ASSETS ---
@@ -46,20 +46,33 @@ struct AppContext {
     save_path: std::path::PathBuf,
 }
 
+fn build_app_context() -> AppContext {
+    let data_dir = if std::env::var("SUPERSHELL_TEST_MODE").is_ok() {
+        std::env::var_os("XDG_DATA_HOME")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| std::env::temp_dir().join("supershell-test"))
+            .join("supershell")
+    } else {
+        let proj_dirs = ProjectDirs::from("com", "jalexlong", "supershell")
+            .expect("Could not determine home directory");
+
+        proj_dirs.data_dir().to_path_buf()
+    };
+
+    AppContext {
+        _data_dir: data_dir.clone(),
+        library_path: data_dir.join("library"),
+        save_path: data_dir.join("save.json"),
+    }
+}
+
 // --- MAIN ENTRY POINT ---
 
 fn main() {
     let args = Cli::parse();
 
     // 1. SETUP PATHS
-    let proj_dirs = ProjectDirs::from("com", "jalexlong", "supershell")
-        .expect("Could not determine home directory");
-
-    let ctx = AppContext {
-        _data_dir: proj_dirs.data_dir().to_path_buf(),
-        library_path: proj_dirs.data_dir().join("library"),
-        save_path: proj_dirs.data_dir().join("save.json"),
-    };
+    let ctx = build_app_context();
 
     // 2. SYSTEM OPERATIONS
     if let Some(path_str) = args.validate {
