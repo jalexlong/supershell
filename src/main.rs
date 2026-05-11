@@ -189,6 +189,16 @@ fn reset_game(save_path: &Path) -> GameState {
     GameState::new()
 }
 
+fn save_game_state(game: &GameState, save_path: &Path) -> bool {
+    match game.save(save_path.to_str().unwrap()) {
+        Ok(()) => true,
+        Err(err) => {
+            eprintln!(">> [WARN] Failed to save game state: {err}");
+            false
+        }
+    }
+}
+
 // --- GAMEPLAY HANDLERS ---
 fn perform_validation(path_str: &str) {
     let path = std::path::Path::new(path_str);
@@ -332,15 +342,15 @@ fn handle_check_command(
                 ui::play_cutscene(&chapter.outro);
                 println!("\n\x1b[1;32m>> [SYSTEM] ALL MODULES COMPLETE. DISCONNECTING...\x1b[0m");
 
-                game.save(save_path.to_str().unwrap())
-                    .expect("Failed to save game state");
+                save_game_state(game, save_path);
 
                 return 0;
             }
         }
 
-        game.save(save_path.to_str().unwrap())
-            .expect("Failed to save game state");
+        if !save_game_state(game, save_path) {
+            return 0;
+        }
         // Return Exit Code 2 to tell Bash to refresh the UI
         return 2;
     }
