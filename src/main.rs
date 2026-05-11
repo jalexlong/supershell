@@ -320,6 +320,10 @@ fn handle_check_command(
             Progression::ModuleComplete => {
                 ui::play_cutscene(&chapter.outro);
                 println!("\n\x1b[1;32m>> [SYSTEM] ALL MODULES COMPLETE. DISCONNECTING...\x1b[0m");
+
+                game.save(save_path.to_str().unwrap())
+                    .expect("Failed to save game state");
+
                 std::process::exit(0)
             }
         }
