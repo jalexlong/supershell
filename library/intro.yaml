@@ -1,29 +1,31 @@
-title: "Module 1: Awakening"
+title: "Module 1: Reactivation"
 author: "Supershell Team"
 version: "1.0.0"
 
 quests:
-  - id: "awakening"
-    title: "Awakening"
+  - id: "reactivation"
+    title: "Cold Start"
     construct: true
 
     chapters:
-      - title: "System Boot"
+      - title: "Emergency Light"
         intro: |
-          [POWER ON]
-          ...
-          [LOADING CORE]
-          ...
-          100%
+          [ARK TRAINING INTERFACE]
+          Status: degraded
+          Operator profile: incomplete
+          Archivist process: online
 
-          Hello, User. Welcome to the Construct.
+          Operator, listen carefully.
 
-          Currently, your visual sensors are offline. It is pitch black.
-          You are standing in a digital room, but you cannot see the walls.
+          You are awake inside a damaged training area aboard the Ark. The lights are low, the air is still, and your console is waiting for input.
 
-          We need to activate your scanner.
+          This place is not empty. It is only unscanned.
 
-          The command for this is `ls`, which lists the visible segments in your current location.
+          In Supershell, directories are places. Files are objects, items, or things. Commands are actions.
+
+          Your first action is `ls`.
+
+          The `ls` command lists what is visible in your current place. Use it to scan the area.
 
         setup_actions:
           - type: ResetWorld
@@ -34,50 +36,58 @@ quests:
           - type: CreateFile
             path: "Memory_Bank/Sector_A/welcome_packet.txt"
             content: |
-              SYSTEM MESSAGE:
+              ARK WELCOME PACKET
+              ------------------
 
-              Welcome, Unit 734.
+              Operator Candidate,
 
-              If you are reading this, your data processor is functional.
+              If you are reading this, your console, location tracking, and file inspection systems are working.
 
-              You are currently in a safe memory sector.
-              Your mission is to explore the Construct and repair broken nodes.
+              You are aboard the Ark: a damaged training vessel built to preserve knowledge and teach safe system operation.
 
-              Good luck.
+              Remember the first rule:
+
+              Observe before acting.
+
+              Directories are places.
+              Files are objects, items, or things.
+              Commands are actions.
+
+              You have taken your first steps. More of the Ark remains dark.
 
         tasks:
-          - objective: "Activate Visual Sensors"
-            description: "Use `ls` to scan your surroundings."
-            instruction: "Run the `ls` command to see files."
-            success_msg: "Sensors Online. Environment visible."
+          - objective: "Scan the Training Area"
+            description: "Use `ls` to scan your current place."
+            instruction: "Run `ls` to list what is visible here."
+            success_msg: "Scan complete. A place named `Memory_Bank` is visible."
             conditions:
               - type: CommandMatches
                 pattern: '^ls(\s.*)?$'
 
         outro: |
-          [SENSORS ONLINE]
+          [SCAN COMPLETE]
 
-          Excellent. The darkness clears.
+          The emergency light steadies.
 
-          You should see a blue item named `Memory_Bank`.
+          A place named `Memory_Bank` appears in the listing. That is a directory, which means it is somewhere you can go.
 
-          In this world, folders are places you can enter. Files are things you can read.
+          You have not opened a menu or used a fake game command. You used a real shell command to inspect your environment.
 
-      - title: "Motor Functions"
+      - title: "First Passage"
         intro: |
-          Now that you can see, let's test your motor functions.
+          The Archivist signal flickers, then returns.
 
-          You are currently outside the `Memory_Bank`.
+          The `Memory_Bank` is the next place you need to inspect. To move between places in the shell, use `cd`, which means "change directory."
 
-          To enter a folder, use the change-directory command: `cd`.
+          Think of `cd` as movement.
 
-          Think of it like moving into another room.
+          You are currently outside the `Memory_Bank`. Move into it now.
 
         tasks:
           - objective: "Enter the Memory Bank"
-            description: "Move into the Memory_Bank folder."
-            instruction: "Type `cd Memory_Bank` to enter the folder."
-            success_msg: "Transfer complete. You are inside the Memory Bank."
+            description: "Move into the `Memory_Bank` directory."
+            instruction: "Run `cd Memory_Bank` to enter the place named `Memory_Bank`."
+            success_msg: "Location changed. You are inside `Memory_Bank`."
             conditions:
               - type: CommandMatches
                 pattern: '^cd\s+Memory_Bank/?\s*$'
@@ -89,30 +99,31 @@ quests:
 
           You are now inside the `Memory_Bank`.
 
-          Notice how your command prompt changed? It tells you where you are standing.
+          Notice the prompt. In a real shell, your prompt often changes as you move. That is a clue. It helps you keep track of where you are.
 
-      - title: "The Labyrinth"
+          Movement and observation are separate actions. Entering a place does not automatically show everything inside it.
+
+      - title: "Survey the Room"
         intro: |
-          You are doing well.
+          The `Memory_Bank` is quiet.
 
-          But this room looks empty.
+          At first glance, it may seem empty. Do not assume that. On the Ark, careful Operators scan before making decisions.
 
-          Always remember: entering a room does not automatically show you what is inside.
-          You must scan with `ls` whenever you enter a new place.
+          Use `ls` again to inspect this new place.
 
         tasks:
-          - objective: "Scan the Room"
-            description: "Run `ls` to find the next sector."
-            instruction: "Use `ls` to see what is in this folder."
-            success_msg: "Sub-directory `Sector_A` located."
+          - objective: "Scan the Memory Bank"
+            description: "Use `ls` to inspect the `Memory_Bank`."
+            instruction: "Run `ls` to list what is visible in this place."
+            success_msg: "Scan complete. A deeper place named `Sector_A` is visible."
             conditions:
               - type: CommandMatches
                 pattern: '^ls(\s.*)?$'
 
           - objective: "Enter Sector A"
-            description: "Enter `Sector_A`."
-            instruction: "Use `cd Sector_A` to go deeper."
-            success_msg: "Entered Sector_A."
+            description: "Move into `Sector_A`."
+            instruction: "Run `cd Sector_A` to go deeper into the Ark."
+            success_msg: "Location changed. You are inside `Sector_A`."
             conditions:
               - type: CommandMatches
                 pattern: '^cd\s+Sector_A/?\s*$'
@@ -120,39 +131,48 @@ quests:
                 path: "Sector_A$"
 
         outro: |
-          Perfect.
+          [LOWER DECK ACCESS]
 
-          You found the hidden sector.
+          You found `Sector_A`.
 
-          There is a file here waiting for you.
+          Places can contain other places. That is one of the most important ideas in the shell.
 
-      - title: "Data Processing"
+          The Ark is built from paths. Learning to move through those paths is the first step toward understanding the system.
+
+      - title: "The First Object"
         intro: |
-          Scan the room one last time.
+          Sector_A contains the first recovered object.
 
-          You should see `welcome_packet.txt`.
+          It is not a place. You cannot enter it with `cd`.
 
-          It is not a folder. You cannot go inside it.
-          But you can read it.
+          It is a file: `welcome_packet.txt`.
 
-          To read a file, use `cat`.
+          Files are objects, items, or things. Some files contain readable text. To inspect a readable file, use `cat`.
+
+          Read the welcome packet now.
 
         tasks:
-          - objective: "Read the Data Packet"
-            description: "Read the file using `cat welcome_packet.txt`."
-            instruction: "Type `cat welcome_packet.txt` to read it."
-            success_msg: "Data Packet Decoded."
+          - objective: "Read the Welcome Packet"
+            description: "Read `welcome_packet.txt` using `cat`."
+            instruction: "Run `cat welcome_packet.txt` to read the object."
+            success_msg: "Welcome packet read. Basic Ark navigation is online."
             conditions:
               - type: CommandMatches
                 pattern: '^cat\s+welcome_packet\.txt\s*$'
 
         outro: |
-          [DATA RECEIVED]
+          [REACTIVATION COMPLETE]
 
-          Congratulations, Unit 734.
+          Good work, Operator.
 
-          Visuals: ONLINE.
-          Motors: ONLINE.
-          Processor: ONLINE.
+          You scanned a place with `ls`.
+          You moved between places with `cd`.
+          You inspected an object with `cat`.
 
-          You are ready for the outside world.
+          The Ark remains damaged, but your console is responding. You now know the first pattern:
+
+          Observe where you are.
+          Identify what is around you.
+          Choose an action carefully.
+
+          More systems are waiting.

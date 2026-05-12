@@ -59,7 +59,7 @@ fn intro_first_task_completes() {
         .assert()
         .code(2)
         .stdout(predicates::str::contains("[SUCCESS]"))
-        .stdout(predicates::str::contains("Sensors Online"));
+        .stdout(predicates::str::contains("Scan complete"));
 }
 
 #[test]
@@ -92,7 +92,7 @@ fn cd_task_uses_explicit_cwd() {
         .arg("ls")
         .assert()
         .code(2)
-        .stdout(predicates::str::contains("Sensors Online"));
+        .stdout(predicates::str::contains("Scan complete"));
 
     let memory_bank_cwd = temp.path().join("Construct").join("Memory_Bank");
 
@@ -106,7 +106,7 @@ fn cd_task_uses_explicit_cwd() {
         .arg("0")
         .assert()
         .code(2)
-        .stdout(predicates::str::contains("Transfer complete"));
+        .stdout(predicates::str::contains("Location changed"));
 }
 
 #[test]
@@ -126,7 +126,7 @@ fn failed_cd_command_does_not_complete_task() {
         .arg("ls")
         .assert()
         .code(2)
-        .stdout(predicates::str::contains("Sensors Online"));
+        .stdout(predicates::str::contains("Scan complete"));
 
     let memory_bank_cwd = temp.path().join("Construct").join("Memory_Bank");
 
@@ -147,6 +147,5 @@ fn failed_cd_command_does_not_complete_task() {
         .arg("--status")
         .assert()
         .success()
-        .stdout(predicates::str::contains("Motor Functions"))
         .stdout(predicates::str::contains("Enter the Memory Bank"));
 }
