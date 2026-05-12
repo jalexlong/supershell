@@ -10,12 +10,20 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  quality-gate:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
-      - name: Build
-        run: cargo build --verbose
+
+      - name: Check formatting
+        run: cargo fmt --check
+
+      - name: Check crate
+        run: cargo check
+
       - name: Run tests
-        run: cargo test --verbose
+        run: cargo test
+
+      - name: Validate bundled intro module
+        run: cargo run -- --validate library/intro.yaml
