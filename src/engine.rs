@@ -1,5 +1,6 @@
 use crate::quest::{Condition, ConditionType, Reward, Task, ValidationResult};
 use crate::state::GameState;
+use std::path::Path;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Progression {
@@ -15,13 +16,18 @@ pub fn is_command_relevant(user_cmd: &str, task: &Task, game: &GameState) -> boo
         .any(|condition| matches!(condition.check(user_cmd, game), ValidationResult::Valid))
 }
 
-pub fn validate_task_logic(user_cmd: &str, task: &Task, game: &GameState) -> Result<(), String> {
+pub fn validate_task_logic(
+    user_cmd: &str,
+    task: &Task,
+    game: &GameState,
+    cwd_override: Option<&Path>,
+) -> Result<(), String> {
     for condition in &task.conditions {
         if is_command_match_condition(condition) {
             continue;
         }
 
-        match condition.check(user_cmd, game) {
+        match condition.check_with_cwd(user_cmd, game, cwd_override) {
             ValidationResult::Valid => continue,
             ValidationResult::LogicError(message) => return Err(message),
             ValidationResult::SyntaxError => continue,
@@ -129,7 +135,7 @@ mod tests {
             flag_condition("scanner_enabled", "Scanner is not enabled."),
         ]);
 
-        let result = validate_task_logic("ls", &task, &game);
+        let result = validate_task_logic("ls", &task, &game, None);
 
         assert_eq!(result, Err("Scanner is not enabled.".to_string()));
     }
@@ -144,7 +150,7 @@ mod tests {
             flag_condition("scanner_enabled", "Scanner is not enabled."),
         ]);
 
-        assert_eq!(validate_task_logic("ls", &task, &game), Ok(()));
+        assert_eq!(validate_task_logic("ls", &task, &game, None), Ok(()));
     }
 }
 

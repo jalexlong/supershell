@@ -210,6 +210,15 @@ impl Condition {
     }
 
     pub fn check(&self, user_command: &str, state: &GameState) -> ValidationResult {
+        self.check_with_cwd(user_command, state, None)
+    }
+
+    pub fn check_with_cwd(
+        &self,
+        user_command: &str,
+        state: &GameState,
+        cwd_override: Option<&Path>,
+    ) -> ValidationResult {
         let is_valid = match &self.condition_type {
             ConditionType::CommandMatches { pattern } => {
                 let re = Regex::new(pattern).unwrap_or_else(|_| Regex::new("").unwrap());
@@ -288,10 +297,13 @@ impl Condition {
 
             // --- ENV CHECKS ---
             ConditionType::WorkingDir { path } => {
-                let current = env::current_dir()
+                let current = cwd_override
+                    .map(|cwd| cwd.to_path_buf())
+                    .or_else(|| env::current_dir().ok())
                     .unwrap_or_default()
                     .to_string_lossy()
                     .to_string();
+
                 Regex::new(path)
                     .map(|re| re.is_match(&current))
                     .unwrap_or(false)

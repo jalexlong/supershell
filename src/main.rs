@@ -17,7 +17,7 @@ use include_dir::{Dir, include_dir};
 use paths::build_app_context;
 use quest::{Course, Library};
 use state::GameState;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use world::WorldEngine;
 
 // --- CONSTANTS & EMBEDDED ASSETS ---
@@ -34,6 +34,8 @@ static DEFAULT_LIBRARY: Dir = include_dir!("$CARGO_MANIFEST_DIR/library");
 struct Cli {
     #[arg(short, long)]
     check: Option<String>,
+    #[arg(long)]
+    cwd: Option<PathBuf>,
     #[arg(long)]
     reset: bool,
     #[arg(long)]
@@ -134,8 +136,16 @@ fn run() -> Result<()> {
     }
 
     // 6. RUN GAME LOOP
+    let check_cwd = args.cwd.clone();
     if let Some(cmd) = args.check {
-        let outcome = handle_check_command(cmd, &mut game, &course, &ctx.save_path, &world);
+        let outcome = handle_check_command(
+            &cmd,
+            check_cwd.as_deref(),
+            &mut game,
+            &course,
+            &ctx.save_path,
+            &world,
+        );
         std::process::exit(outcome.exit_code());
     } else if args.status {
         handle_status_display(&game, &course);
@@ -292,7 +302,8 @@ fn handle_status_display(game: &GameState, course: &Course) {
 }
 
 fn handle_check_command(
-    user_cmd: String,
+    user_cmd: &str,
+    cwd_override: Option<&Path>,
     game: &mut GameState,
     course: &Course,
     save_path: &Path,
@@ -322,7 +333,7 @@ fn handle_check_command(
 
         // --- PASS 2: LOGIC (Strict) ---
         // It matches regex. If logic fails (wrong permissions), BLOCK it (Exit 1).
-        if let Err(msg) = validate_task_logic(&user_cmd, task, game) {
+        if let Err(msg) = validate_task_logic(&user_cmd, task, game, cwd_override) {
             ui::print_fail(&msg, "Review system requirements.");
             return CheckCommandOutcome::LogicFailure;
         }

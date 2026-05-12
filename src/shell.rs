@@ -36,7 +36,7 @@ function _g() {
 
     # B. Run the Game Check (Directly to Terminal)
     # We do NOT capture output. This allows Rust to handle input/output interactively.
-    "__BINARY_PATH__" --check "$cmd $*"
+    "__BINARY_PATH__" --check "$cmd $*" --cwd "$PWD"
 
     # C. Check the Signal
     # We check the exit code ($?) of the binary.
