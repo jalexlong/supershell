@@ -42,7 +42,7 @@ Expected result:
 
 ```text
 >> [SUCCESS] YAML Syntax is valid.
->> Title:   Module 1: Awakening
+>> Title:   Module 1: Reactivation
 >> Author:  Supershell Team
 >> Version: 1.0.0
 ```
@@ -60,7 +60,7 @@ Expected result:
 - save data is wiped
 - the intro module loads
 - the first task is shown
-- the active objective is `Activate Visual Sensors`
+- the active objective is `Scan the Training Area`
 
 ## Launch the Guided Shell
 
@@ -76,7 +76,7 @@ This starts the guided Supershell session.
 
 Run these commands inside the guided shell.
 
-### 1. Activate Visual Sensors
+### 1. Scan the Training Area
 
 ```bash
 ls
