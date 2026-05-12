@@ -1,9 +1,9 @@
 [package]
 name = "supershell"
-version = "0.4.1"
+version = "0.5.0"
 edition = "2024"
 authors = ["J. Alex Long <jalexlong@proton.me"]
-description = "A terminal-based RPG that teachers command line skills and cybersecurity concepts."
+description = "A terminal-based RPG that teaches command line skills and cybersecurity concepts."
 license = "MIT"
 repository = "https://github.com/jalexlong/supershell"
 homepage = "https://github.com/jalexlong/supershell"
@@ -22,6 +22,8 @@ crossterm = "0.29.0"
 textwrap = "0.16.2"
 directories = "6.0.0"
 include_dir = "0.7.4"
+tempfile = "3"
+anyhow = "1.0.102"
 
 [dev-dependencies]
 assert_cmd = "2"

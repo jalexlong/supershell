@@ -1,307 +1,405 @@
 pub mod actions;
+mod construct;
+mod engine;
+mod paths;
 mod quest;
+mod shell;
 mod state;
 mod ui;
 mod world;
 
+use anyhow::{Context, Result};
 use clap::Parser;
-use directories::ProjectDirs;
+use engine::{
+    Progression, advance_progress, apply_rewards, is_command_relevant, validate_task_logic,
+};
 use include_dir::{Dir, include_dir};
+use paths::build_app_context;
 use quest::{Course, Library};
 use state::GameState;
-use std::fs;
-use std::io::{self, Write};
-use std::path::PathBuf;
-use ui::play_cutscene;
+use std::path::{Path, PathBuf};
 use world::WorldEngine;
 
-#[derive(Parser)]
-struct Cli {
-    #[arg(long)]
-    check: Option<String>,
-    #[arg(long)]
-    reset: bool,
-    #[arg(long)]
-    menu: bool,
-    #[arg(long)]
-    hint: bool,
-}
+// --- CONSTANTS & EMBEDDED ASSETS ---
 
-// EMBED THE LIBRARY FOLDER
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 static DEFAULT_LIBRARY: Dir = include_dir!("$CARGO_MANIFEST_DIR/library");
 
+// --- CLI DEFINITION ---
+
+#[derive(Parser)]
+#[command(name = "Supershell")]
+#[command(version = VERSION)]
+#[command(about = "A terminal-based learning RPG", long_about = None)]
+struct Cli {
+    #[arg(short, long)]
+    check: Option<String>,
+
+    #[arg(long)]
+    cwd: Option<PathBuf>,
+
+    #[arg(long)]
+    command_status: Option<i32>,
+
+    #[arg(long)]
+    reset: bool,
+
+    #[arg(long)]
+    validate: Option<String>,
+
+    #[arg(long)]
+    menu: bool,
+
+    #[arg(long)]
+    status: bool,
+
+    #[arg(long)]
+    refresh: bool,
+}
+
+// --- MAIN ENTRY POINT ---
+
 fn main() {
+    if let Err(err) = run() {
+        eprintln!(">> [ERROR] {err}");
+        std::process::exit(1);
+    }
+}
+
+fn run() -> Result<()> {
     let args = Cli::parse();
 
-    // 1. PATH DISCOVERY
-    let proj_dirs = ProjectDirs::from("com", "jalexlong", "supershell")
-        .expect("Could not determine home directory");
+    // 1. SETUP PATHS
+    let ctx = build_app_context();
 
-    let data_dir = proj_dirs.data_dir();
-    let save_path = data_dir.join("save.json");
-    let library_path = data_dir.join("library");
-
-    // Ensure save_path directories exists
-    if let Some(parent) = save_path.parent() {
-        fs::create_dir_all(parent).ok();
+    // 2. SYSTEM OPERATIONS
+    if let Some(path_str) = args.validate {
+        perform_validation(&path_str);
+        return Ok(());
     }
 
-    // Auto-extract assets
-    if !library_path.exists() {
-        println!(">> [SYSTEM] Initializing Construct environment...");
+    // ALWAYS force extraction to ensure the library is up to date with your source code.
+    // We create the directory if it's missing, then overwrite the files.
+    std::fs::create_dir_all(&ctx.library_path).context("Failed to create library dir")?;
 
-        // Create the library directory
-        fs::create_dir_all(&library_path).expect("Failed to create library directory");
+    DEFAULT_LIBRARY
+        .extract(&ctx.library_path)
+        .context("Failed to extract default library")?;
 
-        // Extract the embedded files to the real path
-        DEFAULT_LIBRARY
-            .extract(&library_path)
-            .expect("Failed to extract default library");
+    // 3. LOAD GAME STATE
+    let mut game = if args.reset {
+        reset_game(&ctx.save_path)
+    } else {
+        GameState::load(ctx.save_path.to_str().unwrap())
+    };
 
-        println!(">> [SYSTEM] Core modules installed to: {:?}", library_path);
-    }
-
-    // 2. LOAD STATE
-    let mut game = GameState::load(save_path.to_str().unwrap());
-
-    // Handle Reset
-    if args.reset {
-        if save_path.exists() {
-            fs::remove_file(&save_path).expect("Failed to delete save file");
-            println!("\r\n>> [SYSTEM] Save state wiped.");
-        }
-        game = GameState::new();
-    }
-
-    // 3. COURSE RESOLUTION
-    let lib = Library::new(library_path.clone());
-    let courses = lib.list_available_courses();
-    let mut active_course_path: Option<PathBuf> = None;
+    // 4. RESOLVE COURSE
+    let lib = Library::new(ctx.library_path.clone());
+    let mut active_course_path = resolve_course_path(&game, &lib);
 
     if args.menu {
-        println!("\n╔══════════════════════════════════════╗");
-        println!("║           S U P E R S H E L L        ║");
-        println!("╠══════════════════════════════════════╣");
-
-        let lib = Library::new(library_path.clone());
-        let courses = lib.list_available_courses();
-
-        if courses.is_empty() {
-            println!("║  [ERROR] No courses found            ║");
-            println!("╚══════════════════════════════════════╝");
-            return;
-        }
-
-        for (i, (_, name)) in courses.iter().enumerate() {
-            println!("║  [{:2}] {:<30} ║", i + 1, name);
-        }
-        println!("╚══════════════════════════════════════╝");
-        print!(">> SELECT MODULE_ ");
-        io::stdout().flush().unwrap();
-
-        let mut input = String::new();
-        io::stdin().read_line(&mut input).unwrap();
-
-        if let Ok(choice) = input.trim().parse::<usize>() {
-            if choice > 0 && choice <= courses.len() {
-                let (path, name) = &courses[choice - 1];
-                println!(">> Loading Module: {}", name);
-
-                game.current_course = path.file_name().unwrap().to_string_lossy().to_string();
-                game.current_quest_id = String::new();
-                game.current_chapter_index = 0;
-                game.current_task_index = 0;
-                game.is_finished = false;
-                game.save(save_path.to_str().unwrap());
-
-                active_course_path = Some(path.clone());
-            } else {
-                println!(">> [ERROR] Invalid Selection.");
-                return;
-            }
-        } else {
-            return;
-        }
-    }
-    // B) No Menu Requested
-    else {
-        // Do we have a curent course?
-        if !game.current_course.is_empty() {
-            active_course_path = Some(library_path.join(&game.current_course));
-        } else if let Some((path, _)) = courses.first() {
-            // println!(">> [SYSTEM] Auto-loading Module: {}", name);
+        active_course_path = show_menu(&lib);
+        if let Some(ref path) = active_course_path {
             game.current_course = path.file_name().unwrap().to_string_lossy().to_string();
-            game.save(save_path.to_str().unwrap());
-            active_course_path = Some(path.clone());
+            game.current_quest_id = String::new();
+            game.current_chapter_index = 0;
+            game.current_task_index = 0;
+            game.is_finished = false;
+            game.save(ctx.save_path.to_str().unwrap())
+                .expect("Failed to save game state");
         }
     }
 
-    // 4. VALIDATE & LOAD
+    // 5. VALIDATE & LOAD COURSE
     let course_path = match active_course_path {
         Some(p) => p,
         None => {
-            if courses.is_empty() {
-                println!(">> [ERROR] No quests found in library.");
-                println!(">> Please reinstall or run 'supershell --reset'.");
-            } else {
-                println!(">> [ERROR] Could not load module. Run 'supershell --menu'.");
-            }
-            return;
+            eprintln!(">> [ERROR] No module selected. Run 'supershell --menu'.");
+            return Ok(());
         }
     };
 
     if !course_path.exists() {
-        println!(">> [ERROR] Module file missing: {:?}", course_path);
-        return;
+        eprintln!(">> [ERROR] Module file missing: {:?}", course_path);
+        return Ok(());
     }
 
-    // 5. RUN ENGINE
     let course = Course::load(&course_path);
+
+    // Version Sync
+    if game.course_version != course.version {
+        game.course_version = course.version.clone();
+        game.save(ctx.save_path.to_str().unwrap())
+            .expect("Failed to save game state");
+    }
+
     let world = WorldEngine::new();
     world.initialize();
 
-    // Auto-select first quest if none active
-    let quest_exists = course.quests.iter().any(|q| q.id == game.current_quest_id);
-    if game.current_quest_id.is_empty() || !quest_exists {
+    if game.current_quest_id.is_empty() {
         if let Some(first_quest) = course.quests.first() {
             game.current_quest_id = first_quest.id.clone();
-            game.current_chapter_index = 0;
-            game.current_task_index = 0;
-            game.is_finished = false;
-            game.save(save_path.to_str().unwrap());
+            game.save(ctx.save_path.to_str().unwrap())
+                .expect("Failed to save game state");
         }
     }
 
-    // New Game Setup Actions
-    if game.current_chapter_index == 0 && game.current_task_index == 0 {
+    // 6. RUN GAME LOOP
+    let check_cwd = args.cwd.clone();
+    let command_status = args.command_status;
+
+    if let Some(cmd) = args.check {
+        let outcome = handle_check_command(
+            &cmd,
+            check_cwd.as_deref(),
+            command_status,
+            &mut game,
+            &course,
+            &ctx.save_path,
+            &world,
+        );
+        std::process::exit(outcome.exit_code());
+    } else if args.status {
+        handle_status_display(&game, &course);
+    } else if args.refresh {
+        handle_refresh_sequence(&game, &course);
+    } else {
+        // DEFAULT: Launch the Infection
+        shell::launch_infected_session();
+    }
+    Ok(())
+}
+
+// --- HELPER FUNCTIONS ---
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CheckCommandOutcome {
+    NoChange,
+    LogicFailure,
+    RefreshUi,
+}
+
+impl CheckCommandOutcome {
+    fn exit_code(self) -> i32 {
+        match self {
+            CheckCommandOutcome::NoChange => 0,
+            CheckCommandOutcome::LogicFailure => 1,
+            CheckCommandOutcome::RefreshUi => 2,
+        }
+    }
+}
+
+fn resolve_course_path(game: &GameState, lib: &Library) -> Option<std::path::PathBuf> {
+    if !game.current_course.is_empty() {
+        let path = lib.root_dir.join(&game.current_course);
+        if path.exists() {
+            return Some(path);
+        }
+    }
+    // Default to intro if exists
+    let intro = lib.root_dir.join("intro.yaml");
+    if intro.exists() {
+        return Some(intro);
+    }
+    None
+}
+
+fn show_menu(lib: &Library) -> Option<std::path::PathBuf> {
+    let courses = lib.list_available_courses();
+    if courses.is_empty() {
+        println!(">> No modules found in {:?}", lib.root_dir);
+        return None;
+    }
+
+    println!("\n>> AVAILABLE MODULES:");
+    for (i, (_, name)) in courses.iter().enumerate() {
+        println!("   [{}] {}", i + 1, name);
+    }
+
+    // Simple selection logic for now
+    println!("\n>> Selecting module 1 by default (Menu UI WIP)");
+    courses.first().map(|(path, _)| path.clone())
+}
+
+fn reset_game(save_path: &Path) -> GameState {
+    if save_path.exists() {
+        std::fs::remove_file(save_path).expect("Failed to delete save file");
+    }
+    println!(">> [SYSTEM] Save Data Wiped.");
+    GameState::new()
+}
+
+fn save_game_state(game: &GameState, save_path: &Path) -> bool {
+    match game.save(save_path.to_str().unwrap()) {
+        Ok(()) => true,
+        Err(err) => {
+            eprintln!(">> [WARN] Failed to save game state: {err}");
+            false
+        }
+    }
+}
+
+// --- GAMEPLAY HANDLERS ---
+fn perform_validation(path_str: &str) {
+    let path = std::path::Path::new(path_str);
+    if !path.exists() {
+        println!(">> [ERROR] File not found: {}", path_str);
+        return;
+    }
+
+    let content = match std::fs::read_to_string(path) {
+        Ok(c) => c,
+        Err(e) => {
+            println!(">> [ERROR] Could not read file: {}", e);
+            return;
+        }
+    };
+
+    match serde_yml::from_str::<Course>(&content) {
+        Ok(course) => {
+            println!(">> [SUCCESS] YAML Syntax is valid.");
+            println!(">> Title:   {}", course.title);
+            println!(">> Author:  {}", course.author);
+            println!(">> Version: {}", course.version);
+        }
+        Err(e) => {
+            println!(">> [FAIL] YAML Parsing Error:");
+            println!("{}", e);
+        }
+    }
+}
+
+fn handle_refresh_sequence(game: &GameState, course: &Course) {
+    // 1. PLAY INTRO (If new chapter)
+    if game.current_task_index == 0 {
+        if let Some((_, chapter, _)) = course.get_active_content(
+            &game.current_quest_id,
+            game.current_chapter_index,
+            game.current_task_index,
+        ) {
+            ui::play_cutscene(&chapter.intro);
+
+            // 2. CLEAR SCREEN
+            // Only clear if we played an intro, so the Status Card pops fresh
+            print!("\x1b[2J\x1b[H");
+        }
+    } else {
+        // Newline if no clear screen needed
+        println!();
+    }
+
+    // 3. SHOW STATUS
+    handle_status_display(game, course);
+}
+
+fn handle_status_display(game: &GameState, course: &Course) {
+    if game.is_finished {
+        println!(">> [SYSTEM] Quest Complete. Run 'supershell --menu' for more.");
+        return;
+    }
+
+    if let Some((quest, chapter, task)) = course.get_active_content(
+        &game.current_quest_id,
+        game.current_chapter_index,
+        game.current_task_index,
+    ) {
+        ui::draw_status_card(
+            &quest.title,
+            &chapter.title,
+            &task.instruction,
+            &task.objective,
+            game.current_task_index + 1,
+            chapter.tasks.len(),
+        );
+    }
+}
+
+fn handle_check_command(
+    user_cmd: &str,
+    cwd_override: Option<&Path>,
+    command_status: Option<i32>,
+    game: &mut GameState,
+    course: &Course,
+    save_path: &Path,
+    world: &WorldEngine,
+) -> CheckCommandOutcome {
+    // 1. Setup Logic (Lazy Init)
+    if game.current_task_index == 0 {
         if let Some(quest) = course.quests.iter().find(|q| q.id == game.current_quest_id) {
-            if let Some(chapter) = quest.chapters.first() {
-                if args.check.is_none() && !chapter.setup_actions.is_empty() {
-                    // Only run setup if we haven't already (simple heuristic: are we at the very start?)
-                    // Ideally, we'd have a 'chapter_initialized' flag, but this works for now.
-                    // To prevent re-running on every 'status' check, we trust the idempotency of actions,
-                    // OR we only run it if this is strictly the manual 'supershell' command, not '--check'.
-                    println!(">> [SYSTEM] Initializing Construct...");
+            if let Some(chapter) = quest.chapters.get(game.current_chapter_index) {
+                if !chapter.setup_actions.is_empty() {
                     world.build_scenario(&chapter.setup_actions);
                 }
             }
         }
     }
 
-    if args.hint {
-        if let Some((_, _, task)) = course.get_active_content(
-            &game.current_quest_id,
-            game.current_chapter_index,
-            game.current_task_index,
-        ) {
-            println!("\r\n>> [SYSTEM HELP]");
-            match &task.hint {
-                Some(h) => println!("   {}", h),
-                None => println!("   No additional data available. Reread the instruction."),
-            }
-        } else {
-            println!(">> [ERROR] Cannot retrieve task data.");
+    if let Some((quest, chapter, task)) = course.get_active_content(
+        &game.current_quest_id,
+        game.current_chapter_index,
+        game.current_task_index,
+    ) {
+        // --- PASS 1: RELEVANCE (Permissive) ---
+        // If it doesn't match the regex, allow it to run silently (Exit 0)
+        if !is_command_relevant(&user_cmd, task, game) {
+            return CheckCommandOutcome::NoChange;
         }
-        return;
+
+        if command_status.is_some_and(|status| status != 0) {
+            return CheckCommandOutcome::NoChange;
+        }
+
+        // --- PASS 2: LOGIC (Strict) ---
+        // It matches regex. If logic fails (wrong permissions), BLOCK it (Exit 1).
+        if let Err(msg) = validate_task_logic(&user_cmd, task, game, cwd_override) {
+            ui::print_fail(&msg, "Review system requirements.");
+            return CheckCommandOutcome::LogicFailure;
+        }
+
+        // --- SUCCESS ---
+        println!("\r\n");
+        ui::print_success(&task.success_msg);
+
+        // Rewards
+        apply_rewards(game, &task.rewards);
+
+        let progression = advance_progress(game, chapter.tasks.len(), quest.chapters.len());
+
+        // Handle Transitions
+        match progression {
+            Progression::NextTask => {
+                // If we didn't play a cutscene, we should pause so the user
+                // sees the "Success" message before the screen clears.
+                println!("\n\x1b[0;90m[ PRESS ENTER TO CONTINUE ]\x1b[0m");
+                let mut s = String::new();
+                std::io::stdin().read_line(&mut s).unwrap();
+            }
+            Progression::NextChapter => {
+                ui::play_cutscene(&chapter.outro);
+
+                // World Building for NEXT chapter
+                let next_chapter = &quest.chapters[game.current_chapter_index];
+                if !next_chapter.setup_actions.is_empty() {
+                    println!(">> [SYSTEM] Reconfiguring Construct...");
+                    world.build_scenario(&next_chapter.setup_actions);
+                }
+            }
+            Progression::ModuleComplete => {
+                ui::play_cutscene(&chapter.outro);
+                println!("\n\x1b[1;32m>> [SYSTEM] ALL MODULES COMPLETE. DISCONNECTING...\x1b[0m");
+
+                save_game_state(game, save_path);
+
+                return CheckCommandOutcome::RefreshUi;
+            }
+        }
+
+        if !save_game_state(game, save_path) {
+            return CheckCommandOutcome::NoChange;
+        }
+        // Return Exit Code 2 to tell Bash to refresh the UI
+        return CheckCommandOutcome::RefreshUi;
     }
 
-    // 6. MAIN LOOP
-    if let Some(user_cmd) = args.check {
-        // --- CHECK MODE (Triggered by shell hook) ---
-        if let Some((quest, chapter, task)) = course.get_active_content(
-            &game.current_quest_id,
-            game.current_chapter_index,
-            game.current_task_index,
-        ) {
-            // Verify Conditions
-            let mut all_met = true;
-            for condition in &task.conditions {
-                if !condition.is_met(&user_cmd) {
-                    all_met = false;
-                    break;
-                }
-            }
-
-            if all_met {
-                println!("\r\n>> [SUCCESS] {}", task.success_msg);
-
-                // 1. Look ahead before advancing
-                let next_step_info = course.find_next_step(
-                    &game.current_quest_id,
-                    game.current_chapter_index,
-                    game.current_task_index,
-                );
-
-                // 2. Update the state (move the indices)
-                game.advance_task();
-
-                // 3. Handle transitions and cutscenes
-                if game.current_task_index >= chapter.tasks.len() {
-                    // Chapter Complete
-                    play_cutscene(&chapter.outro);
-                    game.advance_chapter();
-
-                    if game.current_chapter_index >= quest.chapters.len() {
-                        println!(">> [QUEST COMPLETE] {}", quest.title);
-                        game.is_finished = true;
-                    } else {
-                        // New Chapter Intro
-                        let next_chapter = &quest.chapters[game.current_chapter_index];
-                        if !next_chapter.setup_actions.is_empty() {
-                            println!(">> [SYSTEM] Reconfiguring Construct...");
-                            world.build_scenario(&next_chapter.setup_actions);
-                        }
-                        play_cutscene(&next_chapter.intro);
-                    }
-                }
-
-                // 4. Print the data (if found)
-                if let Some(info) = next_step_info {
-                    println!("\r\n[NEXT OBJECTIVE]");
-                    println!("INSTRUCTION: {}", info.instruction);
-                    println!("OBJECTIVE:   {}", info.objective);
-                }
-
-                game.save(save_path.to_str().unwrap());
-            }
-        }
-    } else {
-        // --- MANUAL MODE (Running `supershell` directly) ---
-        if game.is_finished {
-            println!(">> [SYSTEM] Quest Complete. Run 'supershell --menu' for more.");
-            return;
-        }
-
-        if let Some((quest, chapter, task)) = course.get_active_content(
-            &game.current_quest_id,
-            game.current_chapter_index,
-            game.current_task_index,
-        ) {
-            // --- CHECK LOCATION ---
-            if quest.construct {
-                let current_dir = std::env::current_dir().unwrap_or_default();
-                let user_home = directories::UserDirs::new()
-                    .unwrap()
-                    .home_dir()
-                    .to_path_buf();
-                let construct_path = user_home.join("Construct");
-
-                if !current_dir.starts_with(&construct_path) {
-                    println!("\r\n[WARNING: SIGNAL UNSTABLE]");
-                    println!("You are currently outside the Construct.");
-                    println!("Return to base to receive instructions.");
-                    println!(">> REQUIRED: cd ~/Construct");
-                    return;
-                }
-            }
-            // Optional: Replay intro if at the very start of a chapter
-            if game.current_task_index == 0 {
-                play_cutscene(&chapter.intro);
-            }
-
-            println!("\r\n[CURRENT STATUS: {}]", chapter.title);
-            println!("INSTRUCTION: {}", task.instruction);
-            println!("OBJECTIVE: {}", task.objective);
-        }
-    }
+    // Default: No change, Exit 0
+    CheckCommandOutcome::NoChange
 }
