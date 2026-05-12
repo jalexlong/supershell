@@ -121,10 +121,7 @@ fn render_inline_card(title: &str, raw_lines: Vec<String>, use_typewriter: bool)
     // If we are running in a CI/CD environment or automated test,
     // we don't want to mess with Raw Mode or delays. Just print simple text.
     if env::var("SUPERSHELL_TEST_MODE").is_ok() {
-        println!("[{}]", title);
-        for line in &raw_lines {
-            println!("{}", line);
-        }
+        render_plain_card(title, &raw_lines, false);
         return;
     }
 
@@ -137,14 +134,22 @@ fn render_inline_card(title: &str, raw_lines: Vec<String>, use_typewriter: bool)
 
     // 2. GEOMETRY CALCULATION
     // Get terminal size (cols, rows). Default to 80x24 if it fails.
-    let (term_cols, _) = size().unwrap_or((80, 24));
+    let (term_cols, term_rows) = size().unwrap_or((80, 24));
+
+    // If the terminal is too constrained, use a plain renderer.
+    // This avoids cursor-rewind bugs when bordered cards scroll in short panes,
+    // such as embedded editor terminals.
+    if term_cols < 50 || term_rows < 16 {
+        disable_raw_mode().ok();
+        render_plain_card(title, &raw_lines, use_typewriter);
+        return;
+    }
 
     // Calculate box width:
-    // - At least 40 columns (so it's not too skinny)
-    // - At most MAX_WIDTH (so it's not too wide)
-    // - At most the terminal width (so it doesn't crash on small screens)
-    let width = std::cmp::min(std::cmp::max(term_cols, 40), MAX_WIDTH);
-    let content_width = (width as usize).saturating_sub(4); // 2 chars for border + 2 chars for padding
+    // - At most MAX_WIDTH so wide monitors stay readable.
+    // - At most the terminal width so we never draw past the edge.
+    let width = std::cmp::min(term_cols, MAX_WIDTH);
+    let content_width = (width as usize).saturating_sub(4);
 
     // Wrap text logically before we draw a single pixel.
     // We use the `textwrap` crate to ensure words don't get cut in half.
@@ -252,6 +257,29 @@ fn render_inline_card(title: &str, raw_lines: Vec<String>, use_typewriter: bool)
     // CRITICAL: Always disable raw mode before exiting,
     // otherwise the user's terminal will be stuck in a weird state.
     disable_raw_mode().unwrap();
+}
+
+fn render_plain_card(title: &str, raw_lines: &[String], use_pause: bool) {
+    println!();
+    println!("== {} ==", title);
+
+    for raw_line in raw_lines {
+        if raw_line.is_empty() {
+            println!();
+            continue;
+        }
+
+        println!("{}", raw_line);
+    }
+
+    if use_pause {
+        println!();
+        println!(">> PRESS [ENTER] TO CONTINUE...");
+        let mut input = String::new();
+        let _ = std::io::stdin().read_line(&mut input);
+    } else {
+        println!();
+    }
 }
 
 // --- BORDER HELPERS ---
