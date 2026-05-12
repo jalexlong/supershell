@@ -131,6 +131,12 @@ Many missions take place inside a generated sandbox directory called **The Const
 
 The world engine can create files, folders, and puzzle scenarios inside this directory based on YAML setup actions.
 
+## Playtesting
+
+Manual playtesting instructions are available in [`docs/playtesting.md`](docs/playtesting.md).
+
+Run the playtest after changing quest content, shell behavior, UI rendering, or progression logic.
+
 ## Project Direction
 
 The long-term goal is a stable, classroom-ready cybersecurity education tool that:
