@@ -61,3 +61,48 @@ fn intro_first_task_completes() {
         .stdout(predicates::str::contains("[SUCCESS]"))
         .stdout(predicates::str::contains("Sensors Online"));
 }
+
+#[test]
+fn validate_intro_module_succeeds() {
+    let mut cmd = supershell();
+
+    cmd.arg("--validate")
+        .arg("library/intro.yaml")
+        .assert()
+        .success()
+        .stdout(predicates::str::contains("[SUCCESS]"))
+        .stdout(predicates::str::contains("YAML Syntax is valid"))
+        .stdout(predicates::str::contains("Version:"));
+}
+
+#[test]
+fn cd_task_uses_explicit_cwd() {
+    let temp = TempDir::new().expect("failed to create temp dir");
+
+    let mut reset = supershell();
+    test_env(&mut reset, &temp)
+        .arg("--reset")
+        .arg("--status")
+        .assert()
+        .success();
+
+    let mut complete_first_task = supershell();
+    test_env(&mut complete_first_task, &temp)
+        .arg("--check")
+        .arg("ls")
+        .assert()
+        .code(2)
+        .stdout(predicates::str::contains("Sensors Online"));
+
+    let memory_bank_cwd = temp.path().join("Construct").join("Memory_Bank");
+
+    let mut complete_cd_task = supershell();
+    test_env(&mut complete_cd_task, &temp)
+        .arg("--check")
+        .arg("cd Memory_Bank")
+        .arg("--cwd")
+        .arg(memory_bank_cwd)
+        .assert()
+        .code(2)
+        .stdout(predicates::str::contains("Transfer complete"));
+}
