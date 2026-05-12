@@ -80,7 +80,7 @@ quests:
             success_msg: "Transfer complete. You are inside the Memory Bank."
             conditions:
               - type: CommandMatches
-                pattern: '^cd\s+Memory_Bank\s*$'
+                pattern: '^cd\s+Memory_Bank/?\s*$'
               - type: WorkingDir
                 path: "Memory_Bank$"
 
@@ -115,7 +115,7 @@ quests:
             success_msg: "Entered Sector_A."
             conditions:
               - type: CommandMatches
-                pattern: '^cd\s+Sector_A\s*$'
+                pattern: '^cd\s+Sector_A/?\s*$'
               - type: WorkingDir
                 path: "Sector_A$"
 

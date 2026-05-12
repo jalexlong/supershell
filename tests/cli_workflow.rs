@@ -99,7 +99,7 @@ fn cd_task_uses_explicit_cwd() {
     let mut complete_cd_task = supershell();
     test_env(&mut complete_cd_task, &temp)
         .arg("--check")
-        .arg("cd Memory_Bank")
+        .arg("cd Memory_Bank/")
         .arg("--cwd")
         .arg(memory_bank_cwd)
         .assert()
