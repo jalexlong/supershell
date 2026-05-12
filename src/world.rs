@@ -1,8 +1,8 @@
 use crate::actions::SetupAction;
-use directories::UserDirs;
+use crate::construct::{default_construct_root, resolve_construct_path};
 use std::fs;
 use std::io::Write;
-use std::path::{Component, Path, PathBuf};
+use std::path::PathBuf;
 
 pub struct WorldEngine {
     root_path: PathBuf,
@@ -10,13 +10,7 @@ pub struct WorldEngine {
 
 impl WorldEngine {
     pub fn new() -> Self {
-        // 1. Locate the User's Home Directory safely
-        let user_dirs = UserDirs::new().expect("Critical: Could not find User Home.");
-        let home_dir = user_dirs.home_dir();
-
-        // 2. Target "~/Construct"
-        // This works cross-platform (C:\Users\Name\Construct or /home/name/Construct)
-        let root = home_dir.join("Construct");
+        let root = default_construct_root().expect("Critical: Could not find User Home.");
 
         WorldEngine { root_path: root }
     }
@@ -143,22 +137,7 @@ impl WorldEngine {
     ///
     /// This keeps setup actions inside ~/Construct.
     fn safe_path(&self, relative_path: &str) -> Option<PathBuf> {
-        let path = Path::new(relative_path);
-
-        if relative_path.trim().is_empty() || path.is_absolute() {
-            return None;
-        }
-
-        if path.components().any(|component| {
-            matches!(
-                component,
-                Component::ParentDir | Component::Prefix(_) | Component::RootDir
-            )
-        }) {
-            return None;
-        }
-
-        Some(self.root_path.join(path))
+        resolve_construct_path(&self.root_path, relative_path)
     }
 }
 

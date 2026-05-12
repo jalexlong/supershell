@@ -1,11 +1,11 @@
 use crate::actions::SetupAction;
+use crate::construct::{default_construct_root, resolve_construct_path};
 use crate::state::GameState;
-use directories::UserDirs;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
@@ -206,22 +206,7 @@ pub struct Condition {
 
 impl Condition {
     fn get_sandbox_path(path: &str) -> Option<PathBuf> {
-        let relative_path = Path::new(path);
-
-        if path.trim().is_empty() || relative_path.is_absolute() {
-            return None;
-        }
-
-        if relative_path.components().any(|component| {
-            matches!(
-                component,
-                Component::ParentDir | Component::Prefix(_) | Component::RootDir
-            )
-        }) {
-            return None;
-        }
-
-        UserDirs::new().map(|user_dirs| user_dirs.home_dir().join("Construct").join(relative_path))
+        default_construct_root().and_then(|root| resolve_construct_path(&root, path))
     }
 
     pub fn check(&self, user_command: &str, state: &GameState) -> ValidationResult {

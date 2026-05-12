@@ -1,11 +1,12 @@
 pub mod actions;
+mod construct;
 mod engine;
 mod paths;
 mod quest;
 mod shell;
 mod state;
 mod ui;
-mod world; // <--- The new module
+mod world;
 
 use anyhow::{Context, Result};
 use clap::Parser;
