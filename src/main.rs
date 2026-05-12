@@ -34,16 +34,25 @@ static DEFAULT_LIBRARY: Dir = include_dir!("$CARGO_MANIFEST_DIR/library");
 struct Cli {
     #[arg(short, long)]
     check: Option<String>,
+
     #[arg(long)]
     cwd: Option<PathBuf>,
+
+    #[arg(long)]
+    command_status: Option<i32>,
+
     #[arg(long)]
     reset: bool,
+
     #[arg(long)]
     validate: Option<String>,
+
     #[arg(long)]
     menu: bool,
+
     #[arg(long)]
     status: bool,
+
     #[arg(long)]
     refresh: bool,
 }
@@ -137,10 +146,13 @@ fn run() -> Result<()> {
 
     // 6. RUN GAME LOOP
     let check_cwd = args.cwd.clone();
+    let command_status = args.command_status;
+
     if let Some(cmd) = args.check {
         let outcome = handle_check_command(
             &cmd,
             check_cwd.as_deref(),
+            command_status,
             &mut game,
             &course,
             &ctx.save_path,
@@ -304,6 +316,7 @@ fn handle_status_display(game: &GameState, course: &Course) {
 fn handle_check_command(
     user_cmd: &str,
     cwd_override: Option<&Path>,
+    command_status: Option<i32>,
     game: &mut GameState,
     course: &Course,
     save_path: &Path,
@@ -328,6 +341,10 @@ fn handle_check_command(
         // --- PASS 1: RELEVANCE (Permissive) ---
         // If it doesn't match the regex, allow it to run silently (Exit 0)
         if !is_command_relevant(&user_cmd, task, game) {
+            return CheckCommandOutcome::NoChange;
+        }
+
+        if command_status.is_some_and(|status| status != 0) {
             return CheckCommandOutcome::NoChange;
         }
 
