@@ -328,6 +328,68 @@ fn menu_selection_persists_for_status() {
         .success();
 }
 
+// ── M4 tests (HistoryContains) ────────────────────────────────────────────────
+
+/// Sets up the history quest fixture pointing at chapter 1, task 1 and writes
+/// a fake bash history file. Returns the path to the history file so the test
+/// can set HISTFILE in the environment.
+fn setup_history_quest(temp: &TempDir, history_content: &str) -> std::path::PathBuf {
+    let lib_dir = temp.path().join("supershell").join("library");
+    fs::create_dir_all(&lib_dir).expect("failed to create library dir");
+    fs::copy(
+        concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/fixtures/history_quest.yaml"
+        ),
+        lib_dir.join("history_quest.yaml"),
+    )
+    .expect("failed to copy history_quest.yaml fixture");
+
+    fs::write(
+        temp.path().join("supershell").join("save.json"),
+        r#"{"current_course":"history_quest.yaml","course_version":"0.1.0","current_quest_id":"history_test","current_chapter_index":0,"current_task_index":0,"flags":{},"variables":{},"is_finished":false}"#,
+    )
+    .expect("failed to write save.json");
+
+    let histfile = temp.path().join("bash_history");
+    fs::write(&histfile, history_content).expect("failed to write history file");
+    histfile
+}
+
+/// HistoryContains must pass (exit 2) when the history file contains the
+/// required pattern before the trigger command is checked.
+#[test]
+fn history_contains_passes_when_pattern_found() {
+    let temp = TempDir::new().expect("failed to create temp dir");
+    let histfile = setup_history_quest(&temp, "echo alpha\nls -la\n");
+
+    let mut cmd = supershell();
+    test_env(&mut cmd, &temp)
+        .env("HISTFILE", &histfile)
+        .arg("--check")
+        .arg("echo trigger")
+        .assert()
+        .code(2)
+        .stdout(predicates::str::contains("History verified"));
+}
+
+/// HistoryContains must fail (exit 1) when the history file does not contain
+/// the required pattern.
+#[test]
+fn history_contains_fails_when_pattern_absent() {
+    let temp = TempDir::new().expect("failed to create temp dir");
+    let histfile = setup_history_quest(&temp, "ls\npwd\n");
+
+    let mut cmd = supershell();
+    test_env(&mut cmd, &temp)
+        .env("HISTFILE", &histfile)
+        .arg("--check")
+        .arg("echo trigger")
+        .assert()
+        .code(1)
+        .stdout(predicates::str::contains("Run 'echo alpha' first"));
+}
+
 /// SetFlag rewards must persist and enable logic-gated tasks in a later
 /// invocation. Without the reward the gated task fails; after the reward it
 /// succeeds.

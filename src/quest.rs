@@ -243,11 +243,24 @@ impl Condition {
                     return ValidationResult::SyntaxError;
                 }
             },
-            ConditionType::HistoryContains { .. } => {
-                eprintln!(
-                    ">> [WARN] HistoryContains condition is not yet implemented; this task will never complete via this condition"
-                );
-                false
+            ConditionType::HistoryContains { pattern } => {
+                let histfile = std::env::var("HISTFILE").unwrap_or_else(|_| {
+                    std::env::var("HOME")
+                        .map(|home| format!("{home}/.bash_history"))
+                        .unwrap_or_default()
+                });
+                if histfile.is_empty() {
+                    false
+                } else {
+                    match (fs::read_to_string(&histfile), Regex::new(pattern)) {
+                        (Ok(content), Ok(re)) => re.is_match(&content),
+                        (_, Err(_)) => {
+                            eprintln!(">> [WARN] Invalid regex in HistoryContains: '{pattern}'");
+                            false
+                        }
+                        _ => false,
+                    }
+                }
             }
             // --- SANDBOXED CHECKS ---
             ConditionType::PathExists { path } => Self::get_sandbox_path(path)

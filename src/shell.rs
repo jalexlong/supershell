@@ -23,6 +23,7 @@ export PS1="\[\e[1;37m\][ \[\e[1;36m\]user\[\e[1;37m\]::\[\e[1;36m\]construct\[\
 
 # 2. PATH SETUP
 export PATH=$PATH:/bin:/usr/bin:/usr/local/bin
+export HISTFILE
 
 # 3. THE GUARD (INTERCEPTOR)
 # Usage: _g <command> <args>
@@ -34,6 +35,9 @@ function _g() {
     # A. Run the User's Command FIRST
     # We let the command run directly so the user sees standard output (e.g., file lists)
     command "$cmd" "$@"
+
+    # Flush in-memory history so HistoryContains can read the current command
+    history -a
 
     # B. Run the Game Check (Directly to Terminal)
     # We do NOT capture output. This allows Rust to handle input/output interactively.
@@ -67,6 +71,7 @@ function help() {
 alias ls='_g ls'
 alias cd='_g cd'
 alias cat='_g cat'
+alias chmod='_g chmod'
 alias grep='_g grep'
 alias ssh='_g ssh'
 alias nano='_g nano'
