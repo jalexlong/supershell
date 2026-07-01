@@ -43,15 +43,16 @@ command string
 
 ## 3. Major Components
 
-### 3.1 CLI Entry Point
+### 3.1 CLI Entry Point and Application Logic
 
-File:
+Files:
 
 ```text
-src/main.rs
+src/main.rs   — arg parsing, path setup, dispatch
+src/app.rs    — gameplay handlers (handle_check_command, handle_status_display, handle_refresh_sequence, perform_validation)
 ```
 
-Responsibilities:
+`main.rs` responsibilities:
 
 - parse CLI arguments
 - construct application paths
@@ -59,6 +60,14 @@ Responsibilities:
 - load or reset save state
 - resolve the active course
 - dispatch to status, menu, refresh, validation, check, or shell-launch behavior
+
+`app.rs` responsibilities:
+
+- two-pass command evaluation (relevance → logic)
+- failure-count tracking and hint surfacing
+- world-destruction detection and auto-restore
+- progression state transitions
+- save/reset helpers
 
 Current CLI flags include:
 
@@ -215,13 +224,13 @@ The project should optimize for:
 
 Before adding more features, the project should focus on:
 
-- expanding CLI workflow tests — **In Progress** (5 tests exist; multi-chapter, state-persistence, and failure-path cases missing)
-- making state persistence return `Result` instead of panicking — **In Progress** (`save()` returns `Result`; `load()` silently swallows parse errors; `WorldEngine::new()` and `shell.rs` still panic)
+- expanding CLI workflow tests — **Done** (39 tests: 22 unit + 17 integration; coverage added M2–M5)
+- making state persistence return `Result` instead of panicking — **Done** (M1: all `expect`/`unwrap` in I/O paths removed; `anyhow::Result` throughout)
 - separating command evaluation from UI rendering — **Done** (`engine.rs` is pure logic; `ui.rs` is rendering; no cross-dependency)
-- reducing `main.rs` orchestration complexity — **Not Started** (planned split into `src/app.rs` in M6)
+- reducing `main.rs` orchestration complexity — **Done** (M6: gameplay handlers moved to `src/app.rs`; `main.rs` is arg-parsing + dispatch only)
 - documenting the YAML schema — **Done** (schema reference in `CLAUDE.md`)
 - validating Construct path safety — **Done** (`construct.rs` fully implemented and tested)
-- preserving fail-open behavior in shell-adjacent paths — **In Progress** (`ui.rs` constrained-terminal fallback exists; raw-mode `unwrap()` calls remain)
+- preserving fail-open behavior in shell-adjacent paths — **Done** (M1: `ui.rs` constrained-terminal fallback; raw-mode errors handled with `.ok()`)
 
 ## 7. Future Architecture Direction
 
@@ -240,6 +249,6 @@ The GDD (`design/GDD.md`) was written before the transient shell architecture an
 | GDD claim | Current reality | Status |
 |---|---|---|
 | "The engine hooks the shell command implicitly" | Alias-based `_g` interceptor in the temp RC file; `--check` is an implementation detail invisible to the player | Resolved — UX is identical to intent |
-| "Glitch" visual effect (text corruption on failure) | Structured failure card (`print_fail`) | Planned — M6 |
-| Hint injection on repeated failure ("Corrupted Data Fragment") | Hint field exists on `Task` but is not surfaced | Planned — M5 |
-| "World Reset on destruction" (auto-restore if `~/Construct` deleted) | Not implemented | Planned — M6 |
+| "Glitch" visual effect (text corruption on failure) | `glitch_text()` in `ui.rs` applies U+0336 combining strikethrough to the failure message; suppressed in test mode | Done — M6 |
+| Hint injection on repeated failure ("Corrupted Data Fragment") | `failure_count` in `GameState`; hint shown after 3 consecutive failures; resets on success | Done — M5 |
+| "World Reset on destruction" (auto-restore if `~/Construct` deleted) | `world.is_intact()` checked at the start of every `--check` call; auto-restores via chapter setup actions | Done — M6 |
