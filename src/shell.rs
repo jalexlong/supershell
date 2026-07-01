@@ -42,15 +42,17 @@ function _g() {
     # B. Run the Game Check (Directly to Terminal)
     # We do NOT capture output. This allows Rust to handle input/output interactively.
     "__BINARY_PATH__" --check "$cmd $*" --cwd "$PWD"
+    local _game_signal=$?
 
-    # C. Check the Signal
-    # We check the exit code ($?) of the binary.
-    # 2 means "State Updated - Please Refresh"
-    if [ $? -eq 2 ]; then
-        # The game has already handled the "Success" message and the pause.
-        # We just need to clear and refresh.
+    # C. Handle the Signal
+    # 2 = task complete → clear and show the next objective
+    # 0 = command irrelevant → re-show the current objective so the player knows what to do
+    if [ $_game_signal -eq 2 ]; then
         clear
         "__BINARY_PATH__" --refresh
+    elif [ $_game_signal -eq 0 ]; then
+        echo ""
+        "__BINARY_PATH__" --status
     fi
 }
 
