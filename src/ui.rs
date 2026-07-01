@@ -60,8 +60,19 @@ pub fn print_success(msg: &str) {
     .ok();
 }
 
+/// Apply Unicode combining strikethrough (U+0336) to every character,
+/// producing the "Glitch" text-corruption effect from the GDD.
+/// Returns the string unchanged in test mode so test assertions stay readable.
+pub fn glitch_text(s: &str) -> String {
+    if env::var("SUPERSHELL_TEST_MODE").is_ok() {
+        return s.to_string();
+    }
+    s.chars().flat_map(|c| [c, '\u{0336}']).collect()
+}
+
 pub fn print_fail(error: &str, hint: &str) {
     let mut stdout = stdout();
+    let glitched = glitch_text(error);
 
     execute!(
         stdout,
@@ -71,7 +82,7 @@ pub fn print_fail(error: &str, hint: &str) {
         SetForegroundColor(Color::Red),
         Print("[-] EXECUTION......... FAIL\n"),
         Print("    └── "),
-        Print(error),
+        Print(&glitched),
         Print("\n\n"),
     )
     .ok();

@@ -16,6 +16,11 @@ impl WorldEngine {
         Ok(WorldEngine { root_path: root })
     }
 
+    /// Returns true if the Construct root directory still exists on disk.
+    pub fn is_intact(&self) -> bool {
+        self.root_path.exists()
+    }
+
     /// Run this once on startup to ensure the "Construct" folder exists
     pub fn initialize(&self) -> anyhow::Result<()> {
         if !self.root_path.exists() {
