@@ -17,6 +17,10 @@ pub struct GameState {
     #[serde(default)]
     pub variables: HashMap<String, i32>,
     pub is_finished: bool,
+    /// How many times the player has failed the current task in a row.
+    /// Resets to 0 on success. Persisted so restarts don't wipe the count.
+    #[serde(default)]
+    pub failure_count: usize,
 }
 
 impl GameState {
@@ -31,6 +35,7 @@ impl GameState {
             flags: HashMap::new(),
             variables: HashMap::new(),
             is_finished: false,
+            failure_count: 0,
         }
     }
 

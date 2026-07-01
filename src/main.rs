@@ -324,7 +324,14 @@ fn handle_check_command(
         // --- PASS 2: LOGIC (Strict) ---
         // It matches regex. If logic fails (wrong permissions), BLOCK it (Exit 1).
         if let Err(msg) = validate_task_logic(&user_cmd, task, game, cwd_override) {
-            ui::print_fail(&msg, "Review system requirements.");
+            game.failure_count += 1;
+            save_game_state(game, save_path);
+            let hint = if game.failure_count >= 3 && !task.hint.is_empty() {
+                task.hint.as_str()
+            } else {
+                ""
+            };
+            ui::print_fail(&msg, hint);
             return CheckCommandOutcome::LogicFailure;
         }
 
@@ -332,8 +339,8 @@ fn handle_check_command(
         println!("\r\n");
         ui::print_success(&task.success_msg);
 
-        // Rewards
         apply_rewards(game, &task.rewards);
+        game.failure_count = 0;
 
         let progression = advance_progress(game, chapter.tasks.len(), quest.chapters.len());
 
