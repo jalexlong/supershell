@@ -12,27 +12,18 @@ use std::time::Duration;
 use textwrap::fill;
 
 // --- VISUAL CONSTANTS ---
-// We use simple white on black for maximum readability and high contrast.
 const BORDER_COLOR: Color = Color::White;
 const TITLE_COLOR: Color = Color::White;
 const TEXT_COLOR: Color = Color::White;
 
-// We cap the width to prevent the text from stretching too wide on large monitors,
-// which makes it hard to read (the "measure" or line length principle).
 const MAX_WIDTH: u16 = 80;
 
 // --- PUBLIC API ---
 
-/// Plays a "Cutscene" style modal.
-/// This renders the box, then types the text out character-by-character.
-/// It pauses at the end, requiring the user to press ENTER to continue.
 pub fn play_cutscene(text: &str) {
-    // We wrap the text in a Vec because render_inline_card expects a list of lines.
     render_inline_card("MISSION BRIEF", vec![text.to_string()], true);
 }
 
-/// Draws the "HUD" (Heads Up Display).
-/// This renders instantly (no typing effect) and does not pause the game.
 pub fn draw_status_card(
     title: &str,
     chapter: &str,
@@ -41,57 +32,49 @@ pub fn draw_status_card(
     current: usize,
     total: usize,
 ) {
-    // Construct the list of lines to display inside the box.
     let content = vec![
         format!("📂 {}", chapter),
-        String::from(""), // Empty line for visual spacing
+        String::from(""),
         format!("🎯 OBJECTIVE: {}", objective),
         String::from(""),
         format!("💡 HINT: {}", instruction),
         String::from(""),
         format!("[Progress: {}/{}]", current, total),
     ];
-    // Pass 'false' to use_typewriter so it draws instantly.
     render_inline_card(title, content, false);
 }
 
-/// Prints a standard Success message (green/cyan text).
 pub fn print_success(msg: &str) {
     let mut stdout = stdout();
     execute!(
         stdout,
         SetForegroundColor(Color::Cyan),
         SetAttribute(Attribute::Bold),
-        Print("\r\n>> [SUCCESS] "), // \r ensures we start at the beginning of the line
+        Print("\r\n>> [SUCCESS] "),
         SetAttribute(Attribute::Reset),
         SetForegroundColor(Color::White),
         Print(msg),
         Print("\n\n")
     )
-    .unwrap();
+    .ok();
 }
 
-/// Prints a structured Failure message with a "System Check" style.
-/// This helps the user feel like they are debugging a system, not just failing a test.
 pub fn print_fail(error: &str, hint: &str) {
     let mut stdout = stdout();
 
-    // 1. System Integrity Check (Flavor text to build immersion)
     execute!(
         stdout,
         SetForegroundColor(Color::Cyan),
         Print("[+] SYSTEM_INTEGRITY.. OK\n"),
         Print("[+] SYNTAX_VALIDATION. OK\n"),
-        // 2. The Error (Red for visibility)
         SetForegroundColor(Color::Red),
         Print("[-] EXECUTION......... FAIL\n"),
         Print("    └── "),
         Print(error),
         Print("\n\n"),
     )
-    .unwrap();
+    .ok();
 
-    // 3. The Hint (Yellow is standard for warnings/tips)
     if !hint.is_empty() {
         execute!(
             stdout,
@@ -102,57 +85,39 @@ pub fn print_fail(error: &str, hint: &str) {
             SetAttribute(Attribute::Reset),
             Print("\n"),
         )
-        .unwrap();
+        .ok();
     }
-    execute!(stdout, ResetColor).unwrap();
+    execute!(stdout, ResetColor).ok();
 }
 
 // --- CORE RENDERING ENGINE ---
 
-/// This is the heart of the UI. It handles the "Draw, Rewind, Type" effect.
-///
-/// ALGORITHM EXPLANATION:
-/// 1. PRE-CALCULATE: We wrap all text *before* printing to know exactly how tall the box is.
-/// 2. DRAW SKELETON: We print the Top Border, empty "Wall" lines, and Bottom Border.
-/// 3. REWIND: We move the cursor UP back to the top of the box.
-/// 4. TYPEWRITER: We print text inside the existing walls, careful not to overwrite borders.
 fn render_inline_card(title: &str, raw_lines: Vec<String>, use_typewriter: bool) {
-    // 0. BYPASS FOR TESTING
-    // If we are running in a CI/CD environment or automated test,
-    // we don't want to mess with Raw Mode or delays. Just print simple text.
+    // Bypass for test environments.
     if env::var("SUPERSHELL_TEST_MODE").is_ok() {
         render_plain_card(title, &raw_lines, false);
         return;
     }
 
-    // 1. ENTER RAW MODE
-    // Standard terminal mode ("Cooked Mode") buffers input until Enter is pressed.
-    // "Raw Mode" gives us byte-level control over the terminal, which we need
-    // to detect keypresses instantly (to skip the typing animation).
-    enable_raw_mode().unwrap();
+    // Enter raw mode; fall back to plain renderer if unavailable.
+    if enable_raw_mode().is_err() {
+        render_plain_card(title, &raw_lines, use_typewriter);
+        return;
+    }
     let mut stdout = stdout();
 
-    // 2. GEOMETRY CALCULATION
-    // Get terminal size (cols, rows). Default to 80x24 if it fails.
     let (term_cols, term_rows) = size().unwrap_or((80, 24));
 
-    // If the terminal is too constrained, use a plain renderer.
-    // This avoids cursor-rewind bugs when bordered cards scroll in short panes,
-    // such as embedded editor terminals.
+    // Fall back to plain renderer for constrained terminals.
     if term_cols < 50 || term_rows < 16 {
         disable_raw_mode().ok();
         render_plain_card(title, &raw_lines, use_typewriter);
         return;
     }
 
-    // Calculate box width:
-    // - At most MAX_WIDTH so wide monitors stay readable.
-    // - At most the terminal width so we never draw past the edge.
     let width = std::cmp::min(term_cols, MAX_WIDTH);
     let content_width = (width as usize).saturating_sub(4);
 
-    // Wrap text logically before we draw a single pixel.
-    // We use the `textwrap` crate to ensure words don't get cut in half.
     let mut final_lines = Vec::new();
     for raw_line in raw_lines {
         if raw_line.is_empty() {
@@ -167,96 +132,79 @@ fn render_inline_card(title: &str, raw_lines: Vec<String>, use_typewriter: bool)
 
     let height = final_lines.len();
 
-    // 3. DRAW SKELETON (Instant Render)
-    // We draw the empty box first so the user sees the "container" immediately.
+    // Draw skeleton.
     print_top_border(width, title);
 
-    execute!(stdout, SetForegroundColor(BORDER_COLOR)).unwrap();
+    execute!(stdout, SetForegroundColor(BORDER_COLOR)).ok();
     for _ in 0..height {
         print!("│");
-        // Print empty space to clear any debris/background
         print!("{}", " ".repeat(content_width + 2));
-        // Jump to the right edge to draw the closing wall
-        execute!(stdout, MoveToColumn(width - 1)).unwrap();
+        execute!(stdout, MoveToColumn(width - 1)).ok();
         print!("│\r\n");
     }
     print_bottom_border(width);
 
-    // 4. THE REWIND
-    // We are currently below the bottom border.
-    // We move UP past (Bottom Border + All Content Lines).
-    // This places the cursor right back at the top-left (start of content).
-    execute!(stdout, MoveUp((height + 1) as u16)).unwrap();
+    // Rewind to top of content area.
+    execute!(stdout, MoveUp((height + 1) as u16)).ok();
 
-    // 5. CONTENT FILL
+    // Fill content.
     let mut skipped = false;
 
     for line in final_lines {
-        // Move cursor to inside the left border (Column 2, 0-indexed)
-        execute!(stdout, MoveToColumn(2)).unwrap();
-        execute!(stdout, SetForegroundColor(TEXT_COLOR)).unwrap();
+        execute!(stdout, MoveToColumn(2)).ok();
+        execute!(stdout, SetForegroundColor(TEXT_COLOR)).ok();
 
         if use_typewriter {
             for char in line.chars() {
                 print!("{}", char);
-                // Flush is required because in Raw Mode, the buffer might not
-                // send the character to the screen immediately otherwise.
-                stdout.flush().unwrap();
+                stdout.flush().ok();
 
-                // HANDLE SKIP LOGIC (Polling)
-                // We check if the user pressed any key. If so, we "skip" the delay.
                 if !skipped {
-                    // Poll for 0 seconds (instant check)
-                    if poll(Duration::from_secs(0)).unwrap() {
-                        if let Event::Key(key) = read().unwrap() {
+                    if poll(Duration::from_secs(0)).unwrap_or(false) {
+                        if let Ok(Event::Key(key)) = read() {
                             if key.kind == KeyEventKind::Press && key.code == KeyCode::Enter {
                                 skipped = true;
                             }
                         }
                     }
                     if !skipped {
-                        // The "Typewriter" delay (15ms is a good "fast typing" speed)
                         thread::sleep(Duration::from_millis(15));
                     }
                 }
             }
         } else {
-            // Instant render for HUD (no delay)
             print!("{}", line);
         }
 
-        // Move down to the next row (keeping horizontal position reset in next loop)
-        execute!(stdout, MoveDown(1)).unwrap();
+        execute!(stdout, MoveDown(1)).ok();
     }
 
-    // 6. CLEANUP / EXIT
-    // We are now on the Bottom Border line. Move down 1 to clear the box.
-    execute!(stdout, MoveDown(1)).unwrap();
-    execute!(stdout, MoveToColumn(0), ResetColor).unwrap();
+    // Move past the bottom border.
+    execute!(stdout, MoveDown(1)).ok();
+    execute!(stdout, MoveToColumn(0), ResetColor).ok();
 
-    // If it was a cutscene, pause for user confirmation
     if use_typewriter {
         print!("\r\n>> PRESS [ENTER] TO CONTINUE...");
-        stdout.flush().unwrap();
+        stdout.flush().ok();
 
-        // Blocking loop: Wait until Enter is pressed
         loop {
-            if let Event::Key(key) = read().unwrap() {
-                if key.kind == KeyEventKind::Press && key.code == KeyCode::Enter {
+            match read() {
+                Ok(Event::Key(key))
+                    if key.kind == KeyEventKind::Press && key.code == KeyCode::Enter =>
+                {
                     break;
                 }
+                Err(_) => break,
+                _ => {}
             }
         }
-        // Add breathing room after the modal closes
         print!("\r\n");
     } else {
-        // Just a small gap for HUD
         print!("\r\n");
     }
 
-    // CRITICAL: Always disable raw mode before exiting,
-    // otherwise the user's terminal will be stuck in a weird state.
-    disable_raw_mode().unwrap();
+    // CRITICAL: always restore the terminal before returning.
+    disable_raw_mode().ok();
 }
 
 fn render_plain_card(title: &str, raw_lines: &[String], use_pause: bool) {
@@ -268,7 +216,6 @@ fn render_plain_card(title: &str, raw_lines: &[String], use_pause: bool) {
             println!();
             continue;
         }
-
         println!("{}", raw_line);
     }
 
@@ -286,40 +233,37 @@ fn render_plain_card(title: &str, raw_lines: &[String], use_pause: bool) {
 
 fn print_top_border(width: u16, title: &str) {
     let mut stdout = stdout();
-    execute!(stdout, SetForegroundColor(BORDER_COLOR)).unwrap();
+    execute!(stdout, SetForegroundColor(BORDER_COLOR)).ok();
     print!("┌──");
 
-    // Print Title in Bold
     execute!(
         stdout,
         SetForegroundColor(TITLE_COLOR),
         SetAttribute(Attribute::Bold)
     )
-    .unwrap();
+    .ok();
     print!(" {} ", title);
 
-    // Resume Border Line
     execute!(
         stdout,
         SetForegroundColor(BORDER_COLOR),
         SetAttribute(Attribute::Reset)
     )
-    .unwrap();
+    .ok();
 
-    // Calculate how much "dash" line is needed to fill the width
-    let used_len = 3 + 1 + title.chars().count() + 1; // "┌──" + " " + TITLE + " "
-    let remaining = (width as usize).saturating_sub(used_len + 1); // +1 for corner
+    let used_len = 3 + 1 + title.chars().count() + 1;
+    let remaining = (width as usize).saturating_sub(used_len + 1);
 
     print!("{}", "─".repeat(remaining));
-    execute!(stdout, MoveToColumn(width - 1)).unwrap();
+    execute!(stdout, MoveToColumn(width - 1)).ok();
     print!("┐\r\n");
 }
 
 fn print_bottom_border(width: u16) {
     let mut stdout = stdout();
-    execute!(stdout, SetForegroundColor(BORDER_COLOR)).unwrap();
+    execute!(stdout, SetForegroundColor(BORDER_COLOR)).ok();
     print!("└{}", "─".repeat((width as usize).saturating_sub(2)));
-    execute!(stdout, MoveToColumn(width - 1)).unwrap();
+    execute!(stdout, MoveToColumn(width - 1)).ok();
     print!("┘\r\n");
-    execute!(stdout, ResetColor).unwrap();
+    execute!(stdout, ResetColor).ok();
 }

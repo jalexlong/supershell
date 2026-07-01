@@ -96,8 +96,7 @@ fn run() -> Result<()> {
             game.current_chapter_index = 0;
             game.current_task_index = 0;
             game.is_finished = false;
-            game.save(ctx.save_path.to_str().unwrap())
-                .expect("Failed to save game state");
+            save_game_state(&game, &ctx.save_path);
         }
     }
 
@@ -115,23 +114,21 @@ fn run() -> Result<()> {
         return Ok(());
     }
 
-    let course = Course::load(&course_path);
+    let course = Course::load(&course_path).context("Failed to load course")?;
 
     // Version Sync
     if game.course_version != course.version {
         game.course_version = course.version.clone();
-        game.save(ctx.save_path.to_str().unwrap())
-            .expect("Failed to save game state");
+        save_game_state(&game, &ctx.save_path);
     }
 
-    let world = WorldEngine::new();
-    world.initialize();
+    let world = WorldEngine::new()?;
+    world.initialize()?;
 
     if game.current_quest_id.is_empty() {
         if let Some(first_quest) = course.quests.first() {
             game.current_quest_id = first_quest.id.clone();
-            game.save(ctx.save_path.to_str().unwrap())
-                .expect("Failed to save game state");
+            save_game_state(&game, &ctx.save_path);
         }
     }
 
@@ -153,7 +150,7 @@ fn run() -> Result<()> {
         handle_refresh_sequence(&game, &course);
     } else {
         // DEFAULT: Launch the Infection
-        shell::launch_infected_session();
+        shell::launch_infected_session()?;
     }
     Ok(())
 }

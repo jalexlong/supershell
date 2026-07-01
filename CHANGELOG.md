@@ -2,6 +2,30 @@
 
 ## 📜 Release History
 
+## v0.5.0 — The Transient Shell Update
+
+**Architecture:**
+Replaced persistent shell hook installation with a transient bash session launched directly by the `supershell` binary. The session uses a generated temporary RC file containing a `_g` alias interceptor. The user's normal shell is untouched; the Construct is a separate sandboxed environment the user enters and exits voluntarily.
+
+**Security:**
+Sandbox path safety added to both `WorldEngine` (setup actions) and condition evaluation (all filesystem conditions). All YAML-specified paths are constrained to `~/Construct` via `resolve_construct_path`, which rejects `..` traversal, absolute paths, Windows-style prefixes, and empty input.
+
+**Engine:**
+Two-pass validation engine: a relevance pass (`CommandMatches` conditions) determines whether the command applies to the current task without any visible feedback; a logic pass (all remaining conditions) runs only if the relevance pass succeeds and blocks the task with a failure message if anything fails. Exit code contract: 0 = irrelevant, 1 = logic failure, 2 = task complete (bash should refresh UI).
+
+**Persistence:**
+Atomic save via `.tmp` write then POSIX rename. Test isolation via `SUPERSHELL_TEST_MODE=1` + `XDG_DATA_HOME` env vars so automated tests never touch real user state.
+
+**DX:**
+- `--validate <path>` — check YAML syntax and print course metadata without launching a session
+- `CONSTRUCT_UPLINK=1` guard — prevents nested Construct sessions
+- Constrained-terminal fallback — narrow or short terminal panes fall back to a plain-text renderer instead of the animated box UI
+
+**Content:**
+Introductory module rewritten to canonical 4-chapter structure: System Boot (`ls`), Motor Functions (`cd`), The Labyrinth (navigation), Data Processing (`cat`). All chapters use YAML-driven `setup_actions` to build the scenario in `~/Construct`.
+
+---
+
 # v0.4.1: The "Self-Extracting" Update
 
 **Summary:**

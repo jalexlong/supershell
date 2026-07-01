@@ -1,5 +1,6 @@
 use crate::actions::SetupAction;
 use crate::construct::{default_construct_root, resolve_construct_path};
+use anyhow::Context;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
@@ -9,18 +10,19 @@ pub struct WorldEngine {
 }
 
 impl WorldEngine {
-    pub fn new() -> Self {
-        let root = default_construct_root().expect("Critical: Could not find User Home.");
-
-        WorldEngine { root_path: root }
+    pub fn new() -> anyhow::Result<Self> {
+        let root =
+            default_construct_root().context("Critical: Could not find user home directory")?;
+        Ok(WorldEngine { root_path: root })
     }
 
     /// Run this once on startup to ensure the "Construct" folder exists
-    pub fn initialize(&self) {
+    pub fn initialize(&self) -> anyhow::Result<()> {
         if !self.root_path.exists() {
             println!(">> [WORLD] Initializing Construct at {:?}", self.root_path);
-            fs::create_dir_all(&self.root_path).expect("Failed to create world root.");
+            fs::create_dir_all(&self.root_path).context("Failed to create world root")?;
         }
+        Ok(())
     }
 
     /// The Main Loop: Reads YAML instructions and executes them

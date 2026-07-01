@@ -34,13 +34,29 @@ impl GameState {
         }
     }
 
-    /// Loads the save file or initializes a new one if missing
+    /// Loads the save file or initializes a new one if missing.
+    /// Warns and backs up a corrupted save rather than silently discarding it.
     pub fn load(path: &str) -> Self {
-        if Path::new(path).exists() {
-            let content = fs::read_to_string(path).unwrap_or_default();
-            serde_json::from_str(&content).unwrap_or_else(|_| Self::new())
-        } else {
-            Self::new()
+        if !Path::new(path).exists() {
+            return Self::new();
+        }
+        let content = match fs::read_to_string(path) {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!(">> [WARN] Could not read save file: {e}. Starting fresh.");
+                return Self::new();
+            }
+        };
+        match serde_json::from_str::<Self>(&content) {
+            Ok(state) => state,
+            Err(e) => {
+                let backup = format!("{}.bak", path);
+                eprintln!(
+                    ">> [WARN] Save file corrupted ({e}). Backing up to {backup} and starting fresh."
+                );
+                let _ = fs::rename(path, &backup);
+                Self::new()
+            }
         }
     }
 

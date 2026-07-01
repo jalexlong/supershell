@@ -1,6 +1,7 @@
 use crate::actions::SetupAction;
 use crate::construct::{default_construct_root, resolve_construct_path};
 use crate::state::GameState;
+use anyhow::Context;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -27,13 +28,19 @@ impl Library {
                 let path = entry.path();
                 if let Some(ext) = path.extension() {
                     if ext == "yaml" || ext == "yml" {
-                        let course = Course::load(&path);
-                        let display_name = if course.title == "Untitled Course" {
-                            path.file_stem().unwrap().to_string_lossy().to_string()
-                        } else {
-                            course.title
-                        };
-                        courses.push((path, display_name));
+                        match Course::load(&path) {
+                            Ok(course) => {
+                                let display_name = if course.title == "Untitled Course" {
+                                    path.file_stem().unwrap().to_string_lossy().to_string()
+                                } else {
+                                    course.title
+                                };
+                                courses.push((path, display_name));
+                            }
+                            Err(e) => {
+                                eprintln!(">> [WARN] Skipping {:?}: {e}", path);
+                            }
+                        }
                     }
                 }
             }
@@ -65,36 +72,39 @@ fn default_version() -> String {
 }
 
 impl Course {
-    pub fn load(path: &Path) -> Self {
+    pub fn load(path: &Path) -> anyhow::Result<Self> {
         if !path.exists() {
-            return Course {
+            return Ok(Course {
                 title: default_title(),
                 author: default_author(),
                 version: default_version(),
                 quests: vec![],
-            };
+            });
         }
-        let content = fs::read_to_string(path).unwrap_or_default();
-        match serde_yml::from_str::<Course>(&content) {
-            Ok(course) => course,
-            Err(_) => match serde_yml::from_str::<Vec<Quest>>(&content) {
-                Ok(quests) => Course {
-                    title: default_title(),
-                    author: default_author(),
-                    version: default_version(),
-                    quests,
-                },
-                Err(_) => match serde_yml::from_str::<Quest>(&content) {
-                    Ok(quest) => Course {
-                        title: default_title(),
-                        author: default_author(),
-                        version: default_version(),
-                        quests: vec![quest],
-                    },
-                    Err(e) => panic!("YAML Error: {}", e),
-                },
-            },
+        let content =
+            fs::read_to_string(path).with_context(|| format!("Failed to read {path:?}"))?;
+        if let Ok(course) = serde_yml::from_str::<Course>(&content) {
+            return Ok(course);
         }
+        if let Ok(quests) = serde_yml::from_str::<Vec<Quest>>(&content) {
+            return Ok(Course {
+                title: default_title(),
+                author: default_author(),
+                version: default_version(),
+                quests,
+            });
+        }
+        if let Ok(quest) = serde_yml::from_str::<Quest>(&content) {
+            return Ok(Course {
+                title: default_title(),
+                author: default_author(),
+                version: default_version(),
+                quests: vec![quest],
+            });
+        }
+        Err(anyhow::anyhow!(
+            "Failed to parse {path:?} as Course, Vec<Quest>, or Quest"
+        ))
     }
 
     pub fn get_active_content(
@@ -220,18 +230,24 @@ impl Condition {
         cwd_override: Option<&Path>,
     ) -> ValidationResult {
         let is_valid = match &self.condition_type {
-            ConditionType::CommandMatches { pattern } => {
-                let re = Regex::new(pattern).unwrap_or_else(|_| Regex::new("").unwrap());
-                if re.is_match(user_command) {
-                    true
-                } else {
+            ConditionType::CommandMatches { pattern } => match Regex::new(pattern) {
+                Ok(re) => {
+                    if re.is_match(user_command) {
+                        true
+                    } else {
+                        return ValidationResult::SyntaxError;
+                    }
+                }
+                Err(_) => {
+                    eprintln!(">> [WARN] Invalid regex pattern in quest YAML: '{pattern}'");
                     return ValidationResult::SyntaxError;
                 }
-            }
-            ConditionType::HistoryContains { pattern } => {
-                // Simplified for brevity - assumes logic works
-                let re = Regex::new(pattern).unwrap_or_else(|_| Regex::new("").unwrap());
-                re.is_match("TODO_IMPLEMENT_HISTORY_READ")
+            },
+            ConditionType::HistoryContains { .. } => {
+                eprintln!(
+                    ">> [WARN] HistoryContains condition is not yet implemented; this task will never complete via this condition"
+                );
+                false
             }
             // --- SANDBOXED CHECKS ---
             ConditionType::PathExists { path } => Self::get_sandbox_path(path)
@@ -322,8 +338,6 @@ impl Condition {
         if is_valid {
             ValidationResult::Valid
         } else {
-            // It failed. Was it syntax (already handled) or logic?
-            // If we are here, it's a Logic Error.
             let msg = self
                 .failure_message
                 .clone()

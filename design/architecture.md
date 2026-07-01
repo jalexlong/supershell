@@ -215,13 +215,13 @@ The project should optimize for:
 
 Before adding more features, the project should focus on:
 
-- expanding CLI workflow tests
-- making state persistence return `Result` instead of panicking
-- separating command evaluation from UI rendering
-- reducing `main.rs` orchestration complexity
-- documenting the YAML schema
-- validating Construct path safety
-- preserving fail-open behavior in shell-adjacent paths
+- expanding CLI workflow tests — **In Progress** (5 tests exist; multi-chapter, state-persistence, and failure-path cases missing)
+- making state persistence return `Result` instead of panicking — **In Progress** (`save()` returns `Result`; `load()` silently swallows parse errors; `WorldEngine::new()` and `shell.rs` still panic)
+- separating command evaluation from UI rendering — **Done** (`engine.rs` is pure logic; `ui.rs` is rendering; no cross-dependency)
+- reducing `main.rs` orchestration complexity — **Not Started** (planned split into `src/app.rs` in M6)
+- documenting the YAML schema — **Done** (schema reference in `CLAUDE.md`)
+- validating Construct path safety — **Done** (`construct.rs` fully implemented and tested)
+- preserving fail-open behavior in shell-adjacent paths — **In Progress** (`ui.rs` constrained-terminal fallback exists; raw-mode `unwrap()` calls remain)
 
 ## 7. Future Architecture Direction
 
@@ -232,3 +232,14 @@ Event + GameState + Course -> Actions + Updated GameState
 ```
 
 That would allow Supershell to keep a flexible content system while making the Rust core smaller and easier to test.
+
+## 8. Known Divergences from GDD
+
+The GDD (`design/GDD.md`) was written before the transient shell architecture and describes several things that differ from the current implementation:
+
+| GDD claim | Current reality | Status |
+|---|---|---|
+| "The engine hooks the shell command implicitly" | Alias-based `_g` interceptor in the temp RC file; `--check` is an implementation detail invisible to the player | Resolved — UX is identical to intent |
+| "Glitch" visual effect (text corruption on failure) | Structured failure card (`print_fail`) | Planned — M6 |
+| Hint injection on repeated failure ("Corrupted Data Fragment") | Hint field exists on `Task` but is not surfaced | Planned — M5 |
+| "World Reset on destruction" (auto-restore if `~/Construct` deleted) | Not implemented | Planned — M6 |
