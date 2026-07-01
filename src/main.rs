@@ -89,7 +89,7 @@ fn run() -> Result<()> {
     let mut active_course_path = resolve_course_path(&game, &lib);
 
     if args.menu {
-        active_course_path = show_menu(&lib);
+        active_course_path = ui::show_module_menu(lib.list_available_courses());
         if let Some(ref path) = active_course_path {
             game.current_course = path.file_name().unwrap().to_string_lossy().to_string();
             game.current_quest_id = String::new();
@@ -97,7 +97,17 @@ fn run() -> Result<()> {
             game.current_task_index = 0;
             game.is_finished = false;
             save_game_state(&game, &ctx.save_path);
+
+            if std::env::var("CONSTRUCT_UPLINK").is_ok() {
+                println!("\n>> [SYSTEM] Module selection saved.");
+                println!(
+                    ">> [SYSTEM] Type 'exit' to leave the Construct, then run 'supershell' to play your selection."
+                );
+            } else {
+                println!("\n>> [SYSTEM] Module selected. Run 'supershell' to begin.");
+            }
         }
+        return Ok(());
     }
 
     // 5. VALIDATE & LOAD COURSE
@@ -186,23 +196,6 @@ fn resolve_course_path(game: &GameState, lib: &Library) -> Option<std::path::Pat
         return Some(intro);
     }
     None
-}
-
-fn show_menu(lib: &Library) -> Option<std::path::PathBuf> {
-    let courses = lib.list_available_courses();
-    if courses.is_empty() {
-        println!(">> No modules found in {:?}", lib.root_dir);
-        return None;
-    }
-
-    println!("\n>> AVAILABLE MODULES:");
-    for (i, (_, name)) in courses.iter().enumerate() {
-        println!("   [{}] {}", i + 1, name);
-    }
-
-    // Simple selection logic for now
-    println!("\n>> Selecting module 1 by default (Menu UI WIP)");
-    courses.first().map(|(path, _)| path.clone())
 }
 
 fn reset_game(save_path: &Path) -> GameState {

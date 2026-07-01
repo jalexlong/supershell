@@ -288,6 +288,46 @@ fn chapter_transition_triggers_setup() {
         .stdout(predicates::str::contains("Gamma acknowledged"));
 }
 
+// ── M3 tests (interactive menu) ──────────────────────────────────────────────
+
+/// With a single module available --menu must auto-select it without blocking
+/// on interactive input and must print a confirmation before exiting cleanly.
+#[test]
+fn menu_auto_selects_single_module() {
+    let temp = TempDir::new().expect("failed to create temp dir");
+
+    let mut reset = supershell();
+    test_env(&mut reset, &temp)
+        .arg("--reset")
+        .arg("--status")
+        .assert()
+        .success();
+
+    let mut menu = supershell();
+    test_env(&mut menu, &temp)
+        .arg("--menu")
+        .assert()
+        .success()
+        .stdout(predicates::str::contains("Auto-selected"))
+        .stdout(predicates::str::contains("Module selected"));
+}
+
+/// After --menu saves a selection, --status must succeed without requiring
+/// the user to run --reset again (regression guard: menu must persist state).
+#[test]
+fn menu_selection_persists_for_status() {
+    let temp = TempDir::new().expect("failed to create temp dir");
+
+    let mut menu = supershell();
+    test_env(&mut menu, &temp).arg("--menu").assert().success();
+
+    let mut status = supershell();
+    test_env(&mut status, &temp)
+        .arg("--status")
+        .assert()
+        .success();
+}
+
 /// SetFlag rewards must persist and enable logic-gated tasks in a later
 /// invocation. Without the reward the gated task fails; after the reward it
 /// succeeds.
