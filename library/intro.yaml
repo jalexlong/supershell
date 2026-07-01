@@ -50,6 +50,7 @@ quests:
             description: "Use `ls` to scan your surroundings."
             instruction: "Run the `ls` command to see files."
             success_msg: "Sensors Online. Environment visible."
+            hint: "The command is two letters: ls. Type it and press Enter."
             conditions:
               - type: CommandMatches
                 pattern: '^ls(\s.*)?$'
@@ -78,6 +79,7 @@ quests:
             description: "Move into the Memory_Bank folder."
             instruction: "Type `cd Memory_Bank` to enter the folder."
             success_msg: "Transfer complete. You are inside the Memory Bank."
+            hint: "cd = change directory. Type: cd Memory_Bank (capital M and B, underscore between them)"
             conditions:
               - type: CommandMatches
                 pattern: '^cd\s+Memory_Bank\s*$'
@@ -105,6 +107,7 @@ quests:
             description: "Run `ls` to find the next sector."
             instruction: "Use `ls` to see what is in this folder."
             success_msg: "Sub-directory `Sector_A` located."
+            hint: "Same command as before: ls — it works in any directory."
             conditions:
               - type: CommandMatches
                 pattern: '^ls(\s.*)?$'
@@ -113,6 +116,7 @@ quests:
             description: "Enter `Sector_A`."
             instruction: "Use `cd Sector_A` to go deeper."
             success_msg: "Entered Sector_A."
+            hint: "Type: cd Sector_A (capital S and A, underscore in the middle)"
             conditions:
               - type: CommandMatches
                 pattern: '^cd\s+Sector_A\s*$'
@@ -142,6 +146,7 @@ quests:
             description: "Read the file using `cat welcome_packet.txt`."
             instruction: "Type `cat welcome_packet.txt` to read it."
             success_msg: "Data Packet Decoded."
+            hint: "Type exactly: cat welcome_packet.txt (including the .txt extension)"
             conditions:
               - type: CommandMatches
                 pattern: '^cat\s+welcome_packet\.txt\s*$'
