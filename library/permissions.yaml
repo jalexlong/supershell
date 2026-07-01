@@ -1,0 +1,123 @@
+title: "Access Control"
+author: "Supershell"
+version: "1.0.0"
+
+quests:
+  - id: "permissions"
+    title: "File Permissions"
+    construct: true
+
+    chapters:
+      - title: "Read the Access Matrix"
+        intro: |
+          System alert: unauthorized access detected in the Memory Bank.
+          Your mission: audit the file access matrix before the breach spreads.
+          Every file in the Construct carries a permission signature: who can read it,
+          write it, execute it. Learn to read those signatures.
+        outro: |
+          Access matrix decoded. The log confirms it — someone has been watching.
+          You have the intelligence you need. Proceed to the next phase.
+        setup_actions:
+          - type: CreateDir
+            path: "mission_files"
+          - type: CreateFile
+            path: "mission_files/access.log"
+            content: "ACCESS GRANTED: root\nACCESS DENIED: user\nACCESS DENIED: guest\n"
+          - type: CreateFile
+            path: "mission_files/manifest.txt"
+            content: "MANIFEST\nClassification: RESTRICTED\nClearance: OMEGA\n"
+        tasks:
+          - objective: "Survey file permissions in mission_files"
+            description: |
+              Use ls -la to view the long listing of mission_files.
+              The permission string at the left of each line tells you exactly who can
+              read (r), write (w), and execute (x) each file.
+            instruction: "Run: ls -la mission_files"
+            success_msg: "Access matrix retrieved. Permission strings visible."
+            hint: "Combine -l (long format) and -a (show hidden) into one flag: ls -la mission_files"
+            conditions:
+              - type: CommandMatches
+                pattern: '^ls\s+(-la|-al)\s+mission_files\s*$'
+            rewards:
+              - type: SetFlag
+                key: matrix_read
+                value: true
+
+          - objective: "Read the access log"
+            description: |
+              The access.log records every authentication attempt.
+              Inspect it to find the unauthorized entries.
+            instruction: "Run: cat mission_files/access.log"
+            success_msg: "Log retrieved. ACCESS DENIED entries confirmed."
+            hint: "You have seen the permissions. Now read the file: cat mission_files/access.log"
+            conditions:
+              - type: CommandMatches
+                pattern: '^cat\s+mission_files/access\.log\s*$'
+              - type: FlagIsTrue
+                key: matrix_read
+                failure_message: "Survey the directory first. Run: ls -la mission_files"
+              - type: FileContains
+                path: "mission_files/access.log"
+                pattern: "ACCESS"
+                failure_message: "The access log appears to be missing or corrupted."
+            rewards:
+              - type: SetFlag
+                key: log_read
+                value: true
+
+      - title: "Control Access"
+        intro: |
+          Intelligence gathered. Now you must act.
+          The deploy script has been stripped of its execute permission — it cannot run.
+          Restore it. Then lock down the private key so only the owner can read it.
+          chmod is the command that changes file permissions. Master it.
+        outro: |
+          Access control restored. The Construct is secured.
+          You speak the language of Unix permissions: symbolic flags and octal notation.
+          Remember: every file is a door. You decide who holds the key.
+        setup_actions:
+          - type: CreateFile
+            path: "deploy.sh"
+            content: "#!/bin/bash\necho 'DEPLOYING CONSTRUCT PATCH...'\n"
+          - type: CreateFile
+            path: "private.key"
+            content: "-----BEGIN PRIVATE KEY-----\nMOCK_KEY_DATA_REDACTED\n-----END PRIVATE KEY-----\n"
+        tasks:
+          - objective: "Make deploy.sh executable"
+            description: |
+              The deploy script exists but cannot run — execute permission was revoked.
+              chmod +x adds the execute bit for the owner, group, and others.
+            instruction: "Run: chmod +x deploy.sh"
+            success_msg: "Execute permission granted. deploy.sh is ready to run."
+            hint: "chmod +x grants execute permission. The target file is: deploy.sh"
+            conditions:
+              - type: CommandMatches
+                pattern: '^chmod\s+\+x\s+deploy\.sh\s*$'
+              - type: IsExecutable
+                path: "deploy.sh"
+                failure_message: "deploy.sh is still not executable. Check your chmod syntax."
+            rewards:
+              - type: SetFlag
+                key: exec_granted
+                value: true
+
+          - objective: "Restrict private.key to owner-only access (mode 600)"
+            description: |
+              Private keys must never be world-readable. Mode 600 means:
+                owner: read + write (4+2 = 6)
+                group: no access (0)
+                others: no access (0)
+              Use octal notation to enforce it.
+            instruction: "Run: chmod 600 private.key"
+            success_msg: "private.key locked. Mode 600: owner read/write only."
+            hint: "6 = read(4) + write(2). chmod 600 private.key"
+            conditions:
+              - type: CommandMatches
+                pattern: '^chmod\s+600\s+private\.key\s*$'
+              - type: FlagIsTrue
+                key: exec_granted
+                failure_message: "Make deploy.sh executable first. Run: chmod +x deploy.sh"
+            rewards:
+              - type: SetFlag
+                key: key_secured
+                value: true
