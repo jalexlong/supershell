@@ -130,6 +130,23 @@ pub fn handle_status_display(game: &GameState, course: &Course) {
     }
 }
 
+/// Strip trailing slashes from each token in a shell command so that
+/// tab-completed paths (e.g. `cd Sector_A/`) match patterns written
+/// without the slash (e.g. `^cd\s+Sector_A\s*$`).
+/// A lone `/` token is preserved.
+fn normalize_cmd(cmd: &str) -> String {
+    cmd.split_whitespace()
+        .map(|t| {
+            if t.len() > 1 {
+                t.trim_end_matches('/')
+            } else {
+                t
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 pub fn handle_check_command(
     user_cmd: &str,
     cwd_override: Option<&Path>,
@@ -138,6 +155,8 @@ pub fn handle_check_command(
     save_path: &Path,
     world: &WorldEngine,
 ) -> CheckCommandOutcome {
+    let user_cmd = &normalize_cmd(user_cmd);
+
     // Auto-restore if the Construct was destroyed (e.g. `rm -rf ~/Construct`)
     let construct_destroyed = !world.is_intact();
     if construct_destroyed {
