@@ -44,15 +44,11 @@ function _g() {
     "__BINARY_PATH__" --check "$cmd $*" --cwd "$PWD"
     local _game_signal=$?
 
-    # C. Handle the Signal
+    # C. Check the Signal
     # 2 = task complete → clear and show the next objective
-    # 0 = command irrelevant → re-show the current objective so the player knows what to do
     if [ $_game_signal -eq 2 ]; then
         clear
         "__BINARY_PATH__" --refresh
-    elif [ $_game_signal -eq 0 ]; then
-        echo ""
-        "__BINARY_PATH__" --status
     fi
 }
 
