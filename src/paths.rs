@@ -2,7 +2,6 @@ use directories::ProjectDirs;
 use std::path::PathBuf;
 
 pub struct AppContext {
-    pub _data_dir: PathBuf,
     pub library_path: PathBuf,
     pub save_path: PathBuf,
 }
@@ -21,7 +20,6 @@ pub fn build_app_context() -> AppContext {
     };
 
     AppContext {
-        _data_dir: data_dir.clone(),
         library_path: data_dir.join("library"),
         save_path: data_dir.join("save.json"),
     }
