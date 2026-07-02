@@ -15,19 +15,19 @@ Compile and appear functional but have incomplete or edge-case behavior.
 
 ## Feature Backlog
 
-### M8 — Third Module: Navigation (v0.8.0)
+### M8 — Third Module: Navigation (v0.5.8)
 A third content module teaching file search and text processing:
 - `find` — locate files by name, type, and depth
 - `grep` — pattern search within files
 - `|` pipe — chain commands together
 - Exercises: `IsFile`, `FileContains`, multi-condition tasks, pipe-composed commands
 
-### M9 — Score & Replay (v0.8.1)
+### M9 — Score & Replay (v0.5.9)
 - Track per-task completion time and failure count in `GameState`
 - `--score` flag: render a summary card after module completion
 - Allow replaying completed modules from `--menu` (currently `is_finished = true` blocks replays)
 
-### M10 — Persistent Daemon Mode (v0.9.0)
+### M10 — Persistent Daemon Mode (v0.6.0)
 - Replace the transient shell + alias approach with a background daemon that the shell RC sources on every prompt via `PROMPT_COMMAND`
 - Enables: history-flush before check, per-prompt state sync, richer shell instrumentation
 - Breaking change to the shell integration model; requires careful migration path

@@ -2,13 +2,13 @@
 
 ## 📜 Release History
 
-## v0.7.1 — Housekeeping
+## v0.5.7 — Housekeeping
 
 - Removed unused `_data_dir` field from `AppContext` in `paths.rs`
 - Rewrote `TODO.md` to reflect completed milestones and new backlog (M8–M10)
 - Updated `docs/playtesting.md` with permissions module walkthrough, failure-path tests, and world-destruction recovery steps
 
-## v0.7.0 — GDD Alignment
+## v0.5.6 — GDD Alignment
 
 - **Glitch effect:** logic failure messages now render with Unicode combining strikethrough (U+0336) on every character, producing the text-corruption visual described in the GDD; suppressed in test mode to keep assertions readable (`ui::glitch_text`)
 - **World-destruction recovery:** `WorldEngine::is_intact()` checked at the start of every `--check` call; if `~/Construct` is missing the engine auto-restores the directory and re-runs the current chapter's setup actions
@@ -16,7 +16,7 @@
 - Updated `design/GDD.md` to accurately describe alias-based interception and mark Glitch, Hint, and World Reset as implemented
 - Updated `design/architecture.md` Section 6 (all stabilization goals Done) and Section 8 divergences table
 
-## v0.6.1 — Hint System
+## v0.5.5 — Hint System
 
 - Added `failure_count: usize` to `GameState` with `#[serde(default)]` for backward compatibility
 - `failure_count` increments on logic failure, resets to 0 on success, persisted to disk
@@ -24,7 +24,7 @@
 - Added `hint:` fields to all tasks in `library/intro.yaml` and `tests/fixtures/mock_quest.yaml`
 - New integration tests: `hint_shown_after_three_failures`, `hint_resets_on_task_success`
 
-## v0.6.0 — HistoryContains + Access Control Module
+## v0.5.4 — HistoryContains + Access Control Module
 
 - **`HistoryContains` implemented:** reads `$HISTFILE` (falls back to `~/.bash_history`); regex match; warns on invalid pattern
 - **`history -a` flush** in `_g` alias so current command is visible to the next check
