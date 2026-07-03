@@ -23,6 +23,7 @@ cargo run -- --menu                # open module selector
 cargo run -- --reset --status      # wipe save data and show fresh status
 cargo run -- --validate library/intro.yaml   # validate a YAML module file
 cargo run -- --check "ls"          # simulate a command check (dev only)
+cargo run -- --check "ls" --command-status 0   # simulate with explicit exit code (0 = success, non-zero skips validation)
 ```
 
 ### Running a single test
@@ -38,7 +39,7 @@ cargo test --test cli_workflow     # run only the integration test file
 cargo run → main.rs → shell::launch_infected_session()
   → spawns bash with a temp RC file containing hooked aliases
   → user types "ls" → alias calls `_g ls`
-  → _g runs ls, then calls: supershell --check "ls" --cwd "$PWD"
+  → _g runs ls, captures $?, then calls: supershell --check "ls" --cwd "$PWD" --command-status $?
   → Rust binary: relevance check → logic check → state update → save → exit 2
   → bash sees exit code 2 → calls: supershell --refresh (clears screen, shows new task)
 ```
@@ -66,6 +67,8 @@ cargo run → main.rs → shell::launch_infected_session()
 - `0` — command irrelevant to current task (silent pass-through)
 - `1` — logic failure (wrong context; Rust prints the failure message)
 - `2` — task completed; bash should clear and call `--refresh`
+
+The `--command-status <int>` flag carries the real exit code of the intercepted command. If non-zero, the engine skips Pass 2 validation entirely (the command already failed; no need to evaluate logic). Pass 1 relevance still runs so the failure count is not incremented on a botched typo.
 
 ### Test isolation
 Integration tests in `tests/cli_workflow.rs` set `SUPERSHELL_TEST_MODE=1` and `XDG_DATA_HOME=<TempDir>` so they never touch real user save data. Always set both env vars when writing new integration tests.
