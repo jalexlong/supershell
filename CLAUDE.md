@@ -57,7 +57,10 @@ cargo run → main.rs → shell::launch_infected_session()
 | `src/actions.rs` | `SetupAction` enum: `CreateDir`, `CreateFile`, `RemovePath`, `ResetWorld` |
 | `src/ui.rs` | Terminal rendering (status card, success/fail messages, cutscenes) |
 | `src/construct.rs` | Sandbox path safety — rejects `..` traversal and absolute paths |
-| `library/intro.yaml` | Bundled into the binary via `include_dir!`; extracted to data dir on every run |
+| `src/app.rs` | Gameplay handlers: `handle_check_command`, `handle_status_display`, `handle_refresh_sequence` |
+| `library/intro.yaml` | Guided orientation arc (`ls`, `cd`, `cat`) — bundled via `include_dir!` |
+| `library/permissions.yaml` | Access control arc (`ls -la`, `chmod`) — bundled via `include_dir!` |
+| `library/tutorial.yaml` | Narrative cold open (`ls`, `cd` discovered organically) — bundled via `include_dir!` |
 
 ### Exit code contract (`--check`)
 - `0` — command irrelevant to current task (silent pass-through)
@@ -92,20 +95,15 @@ All filesystem conditions in quest YAML are sandboxed to `~/Construct`. Absolute
 ### Reward types
 `SetFlag { key, value }`, `SetVar { key, value }`, `AddVar { key, amount }`
 
-## Known Stubs
+## Known Quirks
 
-These exist in the codebase and need attention before being used in quest content:
-
-- **`HistoryContains` condition** (`src/quest.rs:231`) — always returns `false`; the history-read is not implemented. Emits a `stderr` warning after M1. Do not use in quest YAML until M4.
-- **`show_menu()`** (`src/main.rs:194`) — always selects the first course and prints "Selecting module 1 by default (Menu UI WIP)". Real arrow-key selection is M3.
-- **`_data_dir` field** on `AppContext` (`src/paths.rs`) — constructed but never read; the underscore suppresses the unused-field warning. Either wire it up or delete it.
+- **`HistoryContains` timing** — the `_g` alias flushes history with `history -a` *after* the command runs, so the checked command is not visible until the *next* invocation. Design tasks that use `HistoryContains` so the pattern is checked on a follow-up command, not the command being matched itself.
 
 ## Error Handling Conventions
 
-- Functions that perform I/O or access system resources return `anyhow::Result<T>`. The `anyhow` crate is already in `Cargo.toml` and `run()` in `main.rs` already uses it.
+- Functions that perform I/O or access system resources return `anyhow::Result<T>`.
 - UI functions (`ui.rs`) degrade gracefully on terminal errors — they do not propagate errors to callers. A failed `enable_raw_mode` falls back to `render_plain_card`.
 - `.unwrap()` is permitted only in test code and in compile-time / `const` contexts.
-- Current violations (all targeted in M1): `quest.rs:94` panics on bad YAML; `ui.rs:259` `disable_raw_mode().unwrap()` can corrupt the terminal; `shell.rs` has six `.expect()` calls; `world.rs:13,22` panics on missing home dir.
 
 ## `CONSTRUCT_UPLINK` Behavior
 
@@ -138,16 +136,33 @@ The mock quest fixture at `tests/fixtures/mock_quest.yaml` (added in M2) covers 
 
 ## Milestone Roadmap
 
-| Milestone | Target | Theme |
-|---|---|---|
-| M1 | v0.5.1 | Panic hardening — remove all crash-or-corrupt `unwrap`/`expect`/`panic!` |
-| M2 | v0.5.2 | Test coverage — mock quest fixture + 6 new integration tests |
-| M3 | v0.5.3 | Interactive menu — arrow-key selection, single-module auto-select |
-| M4 | v0.6.0 | `HistoryContains` implementation + `library/permissions.yaml` module |
-| M5 | v0.6.1 | Hint system — `failure_count` in state, `task.hint` surfaced after 3 fails |
-| M6 | v0.7.0 | GDD alignment — Glitch effect, world-destruction detection, GDD reconciliation |
+### Engine milestones (complete)
 
-See `TODO.md` for the full backlog.
+| Milestone | Version | Theme |
+|---|---|---|
+| M1 | v0.5.1 | Panic hardening — `anyhow::Result` throughout all I/O paths |
+| M2 | v0.5.2 | Test coverage — mock quest fixture + integration tests |
+| M3 | v0.5.3 | Interactive menu — arrow-key selection, single-module auto-select |
+| M4 | v0.5.4 | `HistoryContains` + permissions module |
+| M5 | v0.5.5 | Hint system — `failure_count`, `task.hint` after 3 fails |
+| M6 | v0.5.6 | Glitch effect, world-destruction recovery, `main.rs → app.rs` split |
+| M7 | v0.5.7 | Housekeeping — remove `_data_dir`, rewrite TODO/CHANGELOG |
+| M8 | v0.5.8 | Tutorial module, NPC manifest format, tab-complete fix |
+
+### Content roadmap
+
+Each content milestone is a patch bump (0.5.x) unless it introduces a breaking schema or CLI change.
+
+| Milestone | Content |
+|---|---|
+| Act 1 | Stonehaven arc — `cat`, `pwd`, `less`, `head`, `tail`; NPC quest board; quest prerequisites |
+| Act 2a | Hammerstone/Deepwood — `mkdir`, `touch`, `cp`, `mv`, `rm` |
+| Act 2b | RoyalLibrary — `grep`, `find`, pipes, redirection |
+| Act 2c | Greyspire — `ls -la`, `chmod`, `sudo`; hidden areas; hash corruption mechanic |
+| Act 3 | TheShatter — confrontation with The Glitch |
+| v1.0.0 | Full game complete + quest editor GUI for educators |
+
+See `TODO.md` for the engine feature backlog and `design/narrative.md` for the story design document.
 
 ## Design Priorities
 

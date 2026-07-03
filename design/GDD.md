@@ -1,51 +1,129 @@
 # Supershell: Game Design Document
 
+This document describes the intended player experience and design constraints.
+For narrative details (world, characters, story arc) see `design/narrative.md`.
+For technical implementation see `design/architecture.md`.
+
+---
+
 ## 1. High Concept
-* **The Pitch:** A silent, narrative layer that sits on top of your real terminal. It transforms a standard learning session into a Cyberpunk mystery without taking over the screen.
-* **Target Audience:** Absolute beginners to CLI, CS students, and developers wanting to sharpen regex/piping skills.
-* **Core Loop:**
-    1.  **Briefing:** User sees a minimal, inline mission card (e.g., "Objective: Locate the inhibitor.").
-    2.  **Action:** User performs *real* shell tasks (e.g., `ls`, `rm memory_block.dat`).
-    3.  **Validation:** The shell session uses a `_g` alias interceptor (transparent to the player — identical UX to implicit hooking). Every relevant command is piped through `supershell --check` automatically.
-    4.  **Reaction:**
-        * *Success:* Instant Green Status Card with the next objective.
-        * *Failure:* A "Glitch" effect triggers: the error message is rendered with Unicode combining strikethrough (U+0336), giving a text-corruption visual. After three consecutive failures the player receives a hint.
-        * *Neutral:* If the command is valid but unrelated (e.g., `whoami`), the game remains silent.
 
-## 2. Gameplay Mechanics
+**Supershell** is a terminal-based narrative RPG for middle schoolers with no prior
+CLI experience. The player learns real bash commands by using them to solve problems
+inside a fantasy kingdom called the Construct.
 
-### 2.1 Knowledge-Gated Progression
-* **No Unlocks:** The player starts with full root permissions (conceptually) and all tools (`grep`, `awk`, `ssh`) available.
-* **The Challenge:** The "game" is the player realizing they *need* a specific tool. The narrative provides the *why*, the player must deduce the *how*.
-* **Hint System:** If the player fails the same task three times in a row, the game injects the task's `hint` field into the failure output as a "Corrupted Data Fragment". The failure count persists across restarts; it resets when the task is completed. *(Implemented: M5)*
+The game never names a command for the player. Instead, the narrative creates a
+situation where the action is obvious — and the player discovers the command themselves.
 
-### 2.2 Failure State: "The Glitch"
-* **No Health Bars:** The user cannot "die."
-* **Visual Feedback:** Failure is indicated by text corruption — the error message is rendered with Unicode strikethrough combining characters, producing the `E̶R̶R̶O̶R̶:̶ ̶A̶C̶C̶E̶S̶S̶ ̶D̶E̶N̶I̶E̶D̶` effect from the GDD. In test mode the combining characters are suppressed to keep test assertions readable. *(Implemented: M6)*
-* **World Reset:** If the user destroys the environment (e.g., `rm -rf ~/Construct`), the World Engine detects the missing root on the next command check and performs an instant "System Restore," re-creating the directory and re-running the current chapter's setup actions. *(Implemented: M6)*
+**Target audience:** Middle school students, no technical background assumed.
 
-### 2.3 The Sandbox
-* **Location:** The entire game takes place inside `~/Construct`.
-* **Safety:** The engine actively discourages leaving this directory via narrative warnings, but does not technically prevent it (teaching responsibility).
+**Core design rule:** The technical serves the narrative. A lesson that requires an
+awkward story beats the story every time.
 
-## 3. Narrative & Level Design
+---
 
-### Chapter 1: The Awakening
-* **Theme:** Identity & Orientation.
-* **Setting:** A digital quarantine zone (`~/Construct`).
-* **Plot:** The user wakes up as an AI construct with fragmented memory. A mysterious "Operator" is trying to guide them out before the "Purge Protocol" runs.
-* **Objective Sequence:**
-    1.  **Orient:** User types `ls` to see where they are.
-    2.  **Navigate:** User types `cd Memory_Bank` to enter the memory store.
-    3.  **Search:** User types `ls` inside the Memory Bank.
-    4.  **Read:** User types `cat welcome_packet.txt` to receive their first instruction.
+## 2. Core Loop
 
-*(The original GDD listed `rm inhibitor.dat` and `mkdir escape_tunnel` as objectives. These were replaced in the current intro module with navigation-focused tasks that better serve absolute beginners. They remain as candidates for a future "Advanced Awakening" quest.)*
+```
+1. Briefing   — quest card shows the objective (no command named)
+2. Action     — player types a real bash command in the live session
+3. Validation — alias interceptor pipes the command to supershell --check
+4. Reaction:
+     Success  — green status card, next objective
+     Failure  — glitch effect on the error message; hint after 3 failures
+     Neutral  — unrelated commands pass through silently
+```
 
-## 4. UI/UX Constraints
-* **No HUD:** The player relies on their standard terminal prompt.
-* **Notifications:** Only inline text inside the standard scrollback. Clearing the screen is used only at chapter transitions.
-* **Visual Style:**
-    * **Success:** Clean, White/Green, Box Drawing Characters.
-    * **Glitch:** Red, Unicode combining strikethrough on the failure message.
-    * **Hint:** Yellow, surfaced after three consecutive failures on the same task.
+The player's normal terminal behavior is preserved throughout. The game is a layer,
+not a replacement.
+
+---
+
+## 3. Mechanics
+
+### 3.1 Knowledge-Gated Progression
+
+There are no stat unlocks. Every tool is available from the start. The game's
+challenge is the player realizing they *need* a specific tool — the narrative
+provides the why, the player figures out the how.
+
+Skills unlock the *world*: `ls -a` reveals hidden areas, `chmod` makes NPCs
+executable (marking available quests). Nothing is gated behind levels or points.
+
+### 3.2 Failure: The Glitch Effect
+
+The player cannot die or lose progress. Failure is visual: error messages render
+with Unicode combining strikethrough (U+0336), producing the text-corruption look.
+
+After three consecutive failures on the same task, the task's `hint` field surfaces
+as a "Corrupted Data Fragment." The failure count resets on success and persists
+across restarts. *(Implemented: M5)*
+
+### 3.3 World Destruction Recovery
+
+If the player destroys the Construct (e.g., `rm -rf ~/Construct`), the engine
+detects the missing root on the next command and performs an instant "System
+Restore" — recreating the directory and rerunning the current chapter's setup
+actions. *(Implemented: M6)*
+
+### 3.4 NPC System
+
+NPCs are files inside the Construct. Reading one with `less` shows:
+
+- The NPC's voice (first person, direct address — what they'd say to the reader)
+- A bare hex hash on the final line — no label, no explanation
+
+The hash is each NPC's identity fingerprint. When the Glitch corrupts an NPC, the
+hash changes. The player is never told this explicitly — they discover it by noticing.
+
+An NPC with a quest available is marked executable, visible only via `ls -la`. This
+makes reading permissions a skill that literally opens the world.
+
+### 3.5 Quest Structure
+
+```
+Lesson Quest          introduces a new command through narrative walkthrough
+  Mandatory Drill 1   less guidance; hints available after 3 failures
+  Mandatory Drill 2
+  [Optional] Quest A  labeled optional; lore-heavy or silly; safe to skip
+  [Optional] Quest B
+Next Lesson Quest
+```
+
+---
+
+## 4. UI Constraints
+
+- **No HUD.** The player uses their standard terminal prompt.
+- **No clearing the screen** except at chapter transitions.
+- **Success:** clean white/green box-drawing card.
+- **Failure:** red glitch effect on the error message.
+- **Hint:** yellow, after three consecutive failures.
+- **Irrelevant commands:** completely silent — no game output, no card.
+
+The UI must degrade gracefully in constrained terminals (narrow width, no raw mode).
+A failed render should never make the shell unusable.
+
+---
+
+## 5. Implemented vs. Planned
+
+| Feature | Status |
+|---------|--------|
+| Transient bash session with alias interceptor | Done |
+| Two-pass command validation (relevance → logic) | Done |
+| YAML quest schema (`Course → Quest → Chapter → Task`) | Done |
+| Save/load with atomic write | Done |
+| Glitch effect on failure | Done (M6) |
+| Hint system after 3 failures | Done (M5) |
+| World-destruction auto-restore | Done (M6) |
+| Interactive module menu | Done (M3) |
+| `HistoryContains` condition | Done (M4) |
+| Constrained-terminal fallback | Done |
+| Tutorial module | Done (v0.5.8) |
+| NPC manifest system (`less NPC`) | Content only — no engine changes needed |
+| Executable-bit NPC quest markers | Planned (v0.6.0) |
+| Quest prerequisites | Planned (v0.6.0) |
+| Optional quest flag | Planned (v0.6.0) |
+| Hash corruption detection | Planned (v0.8.0 — Act 2c) |
+| Quest editor GUI | Planned (v1.0.0) |

@@ -1,153 +1,112 @@
 # Supershell
 
-**Supershell** is a terminal-based learning RPG that teaches command-line skills through real shell interaction, quests, objectives, rewards, and narrative feedback.
+A narrative RPG that runs in your terminal and teaches real shell skills through story.
 
-The current v0.5 architecture launches a transient guided shell session instead of relying on legacy shell startup hooks. The goal is to preserve the user's real shell behavior while letting Supershell observe relevant commands, validate objectives, and refresh the mission display when progress changes.
+You wake up at the edge of the Construct with no memory. A companion named Bit finds
+you — slightly out of breath, clearly worried — and pulls you toward Stonehaven.
+Something is rewriting the world from the inside. You're the Operator. You're the
+only one who can do anything about it.
 
-## Current Status
+Every action you take is a real bash command. The game watches, validates, and responds.
+You learn `ls`, `cd`, `cat`, `grep`, `chmod` not from a tutorial — from needing them.
 
-Supershell is in active development.
+---
 
-The current stabilization target is:
+## Current Content
 
-- reliable local development workflow
-- deterministic quest loading
-- safe save-state handling
-- YAML-driven lesson content
-- transient shell session support
-- regression tests for reset, status, and command-check behavior
+Supershell is in active development. The current release includes:
 
-## How to Run
+- **Tutorial** — narrative cold open; `ls` and `cd` discovered organically through story
+- **Intro module** — guided orientation arc; `ls`, `cd`, `cat`
+- **Permissions module** — access control arc; `ls -la`, `chmod +x`, octal permissions
+- Save persistence, hint system after 3 failures, glitch failure effect, auto world-restore
 
-From the repository root:
+The game is playable end-to-end for the content covered so far. The full three-act
+story is in active development — see the roadmap below.
 
-```bash
-cargo run
-```
+---
 
-This launches the guided Supershell session.
-
-To view the current mission status directly:
-
-```bash
-cargo run -- --status
-```
-
-To open the module selector:
+## Install
 
 ```bash
-cargo run -- --menu
+cargo install supershell
 ```
 
-To reset progress:
+## Running
 
 ```bash
-cargo run -- --reset --status
+supershell           # launch the Construct
+supershell --status  # show current objective
+supershell --menu    # switch modules
+supershell --reset   # wipe save and start over
 ```
 
-To validate a quest YAML file:
+---
+
+## How It Works
+
+Supershell launches a transient bash session with a lightweight alias interceptor.
+Every command you type is validated against the current quest objective in the Rust
+binary. Your real shell is untouched — the session is temporary and exits cleanly.
+
+Progress saves automatically. Exit anytime with `exit`.
+
+---
+
+## The World
+
+The game takes place inside `~/Construct` — a fantasy kingdom with clearly digital bones.
+
+```
+~/Construct/
+├── Stonehaven/       home base; market, inn, tavern
+├── RoyalLibrary/     the great archive
+├── Hammerstone/      craftsmen's quarter
+├── Deepwood/         the wild forest
+├── Greyspire/        seat of power
+├── .Misthollow/      hidden — requires ls -a
+└── TheShatter/       Act 3: corrupted territory
+```
+
+NPCs are files. Reading one with `less` shows their current state — their voice,
+what they need, and an unexplained hex string at the bottom. When that string
+changes, something has gone wrong.
+
+Hidden areas (prefixed with `.`) are only visible once you know to look for them.
+
+---
+
+## Roadmap
+
+| Milestone | Content |
+|-----------|---------|
+| Current (v0.5.8) | Tutorial, intro, and permissions modules; engine stabilization complete |
+| Act 1 | Stonehaven arc — `cat`, `pwd`, `less`, `head`, `tail`; full NPC quest board |
+| Act 2a | Hammerstone/Deepwood — `mkdir`, `touch`, `cp`, `mv`, `rm` |
+| Act 2b | RoyalLibrary — `grep`, `find`, pipes, redirection |
+| Act 2c | Greyspire — `ls -la`, `chmod`, `sudo`; hidden areas; hash corruption mechanic |
+| Act 3 | TheShatter — confrontation with The Glitch |
+| v1.0.0 | Full game complete + quest editor GUI for educators |
+
+---
+
+## Developing
 
 ```bash
-cargo run -- --validate library/intro.yaml
+cargo fmt --check && cargo check && cargo test
 ```
 
-To simulate a command check during development:
+Quest content lives in `library/*.yaml`. Validate a module with:
 
 ```bash
-cargo run -- --check "ls"
+supershell --validate library/yourmodule.yaml
 ```
 
-## Development Commands
+See [`CLAUDE.md`](CLAUDE.md) for architecture and schema reference.
+See [`design/narrative.md`](design/narrative.md) for the story design document.
 
-Run the standard local quality gate before committing:
-
-```bash
-cargo fmt --check
-cargo check
-cargo test
-```
-
-During active editing, you can allow formatting to update files:
-
-```bash
-cargo fmt
-cargo check
-cargo test
-```
-
-## Core Concepts
-
-Supershell is built around a small loop:
-
-```text
-User command -> Supershell check -> Quest conditions -> State update -> UI refresh
-```
-
-The major pieces are:
-
-- `src/main.rs` — CLI entry point and application flow
-- `src/shell.rs` — transient shell session support
-- `src/quest.rs` — YAML quest model and condition validation
-- `src/state.rs` — persistent save data
-- `src/ui.rs` — terminal rendering and feedback
-- `src/world.rs` — Construct setup and scenario-building
-- `library/intro.yaml` — bundled introductory quest content
-
-## Quest Content
-
-Quest content is YAML-driven. Lessons are organized as:
-
-```text
-Course -> Quests -> Chapters -> Tasks
-```
-
-Tasks use conditions to determine whether the user has completed an objective.
-
-Example:
-
-```yaml
-tasks:
-  - objective: "List the files in the current directory."
-    instruction: "Use ls to scan the room."
-    success_msg: "Sensors Online."
-    conditions:
-      - type: CommandMatches
-        pattern: "^ls(\\s.*)?$"
-```
-
-## Save Data
-
-Supershell stores progress in the operating system's standard application data directory.
-
-During tests, Supershell uses an isolated test data directory so test runs do not touch real user save data.
-
-## The Construct
-
-Many missions take place inside a generated sandbox directory called **The Construct**:
-
-```text
-~/Construct
-```
-
-The world engine can create files, folders, and puzzle scenarios inside this directory based on YAML setup actions.
-
-## Playtesting
-
-Manual playtesting instructions are available in [`docs/playtesting.md`](docs/playtesting.md).
-
-Run the playtest after changing quest content, shell behavior, UI rendering, or progression logic.
-
-## Project Direction
-
-The long-term goal is a stable, classroom-ready cybersecurity education tool that:
-
-- teaches real command-line skills
-- keeps lesson content data-driven
-- avoids breaking the user's normal shell
-- fails safely when something goes wrong
-- supports narrative-driven learning
-- remains maintainable for educators and contributors
+---
 
 ## License
 
-This project is licensed under the MIT License. See `LICENSE` for details.
+MIT

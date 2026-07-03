@@ -186,10 +186,12 @@ Responsibilities:
 - serve as the default lesson library
 - get embedded into the Rust binary and extracted at runtime
 
-The current introductory module is:
+Current bundled modules:
 
 ```text
-library/intro.yaml
+library/tutorial.yaml     — narrative cold open; ls and cd
+library/intro.yaml        — guided orientation arc; ls, cd, cat
+library/permissions.yaml  — access control arc; ls -la, chmod
 ```
 
 ## 4. Persistence Model

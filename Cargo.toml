@@ -1,6 +1,6 @@
 [package]
 name = "supershell"
-version = "0.5.7"
+version = "0.5.8"
 edition = "2024"
 authors = ["J. Alex Long <jalexlong@proton.me"]
 description = "A terminal-based RPG that teaches command line skills and cybersecurity concepts."

@@ -2,6 +2,15 @@
 
 ## 📜 Release History
 
+## v0.5.8 — Tutorial Module and NPC Design
+
+- **Tutorial module** (`library/tutorial.yaml`) — two-chapter narrative cold open. The Operator wakes at the edge of the Construct, meets Bit, and discovers `ls` and `cd` through story. Ends with the first hint of corruption in the RoyalLibrary.
+- **NPC manifest format locked** — `Name:` speaker label on the first line, dialogue in first person, bare hex hash on the final line (no label). Reads like a JRPG dialogue box in a text file.
+- **Tab-complete fix** — trailing slashes stripped from all command tokens in `normalize_cmd()` before pattern matching, so `cd Stonehaven/` matches the same patterns as `cd Stonehaven`. Quest authors no longer need to account for the slash in YAML.
+- **Narrative design document** (`design/narrative.md`) — full story, world, characters, and interaction model locked. Source of truth for all content work going forward.
+- **GDD rewrite** — `design/GDD.md` updated to match current narrative vision and implementation state.
+- **Documentation sweep** — README, CLAUDE.md, TODO.md updated to reflect completed milestones and the content roadmap.
+
 ## v0.5.7 — Housekeeping
 
 - Removed unused `_data_dir` field from `AppContext` in `paths.rs`
