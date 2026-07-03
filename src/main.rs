@@ -35,6 +35,8 @@ struct Cli {
     #[arg(long)]
     cwd: Option<PathBuf>,
     #[arg(long)]
+    command_status: Option<i32>,
+    #[arg(long)]
     reset: bool,
     #[arg(long)]
     validate: Option<String>,
@@ -132,10 +134,12 @@ fn run() -> Result<()> {
     }
 
     let check_cwd = args.cwd.clone();
+    let command_status = args.command_status;
     if let Some(cmd) = args.check {
         let outcome = app::handle_check_command(
             &cmd,
             check_cwd.as_deref(),
+            command_status,
             &mut game,
             &course,
             &ctx.save_path,

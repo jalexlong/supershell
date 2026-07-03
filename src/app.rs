@@ -150,6 +150,7 @@ fn normalize_cmd(cmd: &str) -> String {
 pub fn handle_check_command(
     user_cmd: &str,
     cwd_override: Option<&Path>,
+    command_status: Option<i32>,
     game: &mut GameState,
     course: &Course,
     save_path: &Path,
@@ -185,6 +186,12 @@ pub fn handle_check_command(
     ) {
         // --- PASS 1: RELEVANCE (Permissive) ---
         if !is_command_relevant(user_cmd, task, game) {
+            return CheckCommandOutcome::NoChange;
+        }
+
+        // If the command itself failed (non-zero exit), don't validate logic —
+        // the shell already told the user something went wrong.
+        if command_status.is_some_and(|s| s != 0) {
             return CheckCommandOutcome::NoChange;
         }
 

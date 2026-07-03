@@ -145,12 +145,55 @@ fn cd_task_uses_explicit_cwd() {
     let mut complete_cd_task = supershell();
     test_env(&mut complete_cd_task, &temp)
         .arg("--check")
-        .arg("cd Memory_Bank")
+        .arg("cd Memory_Bank/")
         .arg("--cwd")
         .arg(memory_bank_cwd)
+        .arg("--command-status")
+        .arg("0")
         .assert()
         .code(2)
         .stdout(predicates::str::contains("Transfer complete"));
+}
+
+#[test]
+fn failed_cd_command_does_not_complete_task() {
+    let temp = TempDir::new().expect("failed to create temp dir");
+
+    let mut reset = supershell();
+    test_env(&mut reset, &temp)
+        .arg("--reset")
+        .arg("--status")
+        .assert()
+        .success();
+
+    let mut complete_first_task = supershell();
+    test_env(&mut complete_first_task, &temp)
+        .arg("--check")
+        .arg("ls")
+        .assert()
+        .code(2)
+        .stdout(predicates::str::contains("Sensors Online"));
+
+    let memory_bank_cwd = temp.path().join("Construct").join("Memory_Bank");
+
+    let mut failed_cd_task = supershell();
+    test_env(&mut failed_cd_task, &temp)
+        .arg("--check")
+        .arg("cd Memory_Bank")
+        .arg("--cwd")
+        .arg(memory_bank_cwd)
+        .arg("--command-status")
+        .arg("1")
+        .assert()
+        .success()
+        .stdout(predicates::str::is_empty());
+
+    let mut status = supershell();
+    test_env(&mut status, &temp)
+        .arg("--status")
+        .assert()
+        .success()
+        .stdout(predicates::str::contains("Enter the Memory Bank"));
 }
 
 // ── M2 tests (mock quest fixture) ────────────────────────────────────────────

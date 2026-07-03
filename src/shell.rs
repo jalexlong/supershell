@@ -32,24 +32,22 @@ function _g() {
     local cmd=$1
     shift
 
-    # A. Run the User's Command FIRST
-    # We let the command run directly so the user sees standard output (e.g., file lists)
     command "$cmd" "$@"
+    local real_status=$?
+    local post_cwd="$PWD"
 
     # Flush in-memory history so HistoryContains can read the current command
     history -a
 
-    # B. Run the Game Check (Directly to Terminal)
-    # We do NOT capture output. This allows Rust to handle input/output interactively.
-    "__BINARY_PATH__" --check "$cmd $*" --cwd "$PWD"
-    local _game_signal=$?
+    "__BINARY_PATH__" --check "$cmd $*" --cwd "$post_cwd" --command-status "$real_status"
+    local check_status=$?
 
-    # C. Check the Signal
-    # 2 = task complete → clear and show the next objective
-    if [ $_game_signal -eq 2 ]; then
+    if [ "$check_status" -eq 2 ]; then
         clear
         "__BINARY_PATH__" --refresh
     fi
+
+    return "$real_status"
 }
 
 # 4. GAME ALIASES
