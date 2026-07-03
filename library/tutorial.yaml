@@ -143,13 +143,11 @@ quests:
           - type: CreateFile
             path: "Stonehaven/Inn/Bit"
             content: |
-              Oh. You found me. That means you already figured out less —
+              Bit: Oh. You found me. That means you already figured out less —
               I had a feeling you would.
 
               There's still something I need to show you. Come find me
               in the square when you're ready.
-
-              — Bit
 
               a3f8c2e17b9d4a6f0e3c1b8d5a2f9e6c3b0a7d4e1f8b5c2d9a6f3e0c7b4a1d8
 
