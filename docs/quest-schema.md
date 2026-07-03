@@ -20,7 +20,7 @@ real shell behavior first, game overlay second
 
 Content should teach the real shell. The story layer should reinforce shell concepts, not replace them.
 
-For the Derelict Data Ark theme:
+The story layer should reinforce shell concepts through a consistent in-world metaphor:
 
 ```text
 Directories are places.
@@ -31,37 +31,37 @@ Commands are actions.
 ## Minimal Course Example
 
 ```yaml
-title: "Module 1: Reactivation"
+title: "Example Module"
 author: "Supershell Team"
 version: "1.0.0"
 
 quests:
-  - id: "reactivation"
-    title: "Cold Start"
+  - id: "intro"
+    title: "Introduction"
     construct: true
 
     chapters:
-      - title: "Emergency Light"
+      - title: "Getting Started"
         intro: |
-          Operator, your console is active.
-          Use `ls` to scan the current place.
+          You are standing in an unfamiliar place.
+          Look around to see what is here.
 
         setup_actions:
           - type: ResetWorld
           - type: CreateDir
-            path: "Memory_Bank"
+            path: "Stonehaven"
 
         tasks:
-          - objective: "Scan the Training Area"
-            description: "Use `ls` to scan your current place."
-            instruction: "Run `ls`."
-            success_msg: "Scan complete."
+          - objective: "Look around"
+            description: "Use `ls` to see what is here."
+            instruction: "Look around."
+            success_msg: "You can see what is here."
             conditions:
               - type: CommandMatches
                 pattern: '^ls(\s.*)?$'
 
         outro: |
-          Scan complete. A new place is visible.
+          The area is now visible.
 ```
 
 ## Course Fields
@@ -78,7 +78,7 @@ Top-level course fields:
 Recommended:
 
 ```yaml
-title: "Module 1: Reactivation"
+title: "Example Module"
 author: "Supershell Team"
 version: "1.0.0"
 quests: []
@@ -115,8 +115,8 @@ Example:
 
 ```yaml
 quests:
-  - id: "reactivation"
-    title: "Cold Start"
+  - id: "intro"
+    title: "Introduction"
     construct: true
     chapters: []
 ```
@@ -126,9 +126,9 @@ quests:
 Use short, stable, lowercase identifiers:
 
 ```yaml
-id: "reactivation"
-id: "maintenance_deck"
-id: "archive_recovery"
+id: "intro"
+id: "navigation"
+id: "permissions"
 ```
 
 Avoid changing quest IDs after release because saved progress may depend on them.
@@ -149,27 +149,27 @@ Example:
 
 ```yaml
 chapters:
-  - title: "Emergency Light"
+  - title: "Arrival"
     intro: |
-      Operator, your console is active.
-      Use `ls` to scan the current place.
+      You are standing in an unfamiliar place.
+      Look around to see what is here.
 
     setup_actions:
       - type: ResetWorld
       - type: CreateDir
-        path: "Memory_Bank"
+        path: "Stonehaven"
 
     tasks:
-      - objective: "Scan the Training Area"
-        description: "Use `ls` to scan your current place."
-        instruction: "Run `ls`."
-        success_msg: "Scan complete."
+      - objective: "Look around"
+        description: "Use `ls` to see what is in this place."
+        instruction: "Look around."
+        success_msg: "You can see what is here."
         conditions:
           - type: CommandMatches
             pattern: '^ls(\s.*)?$'
 
     outro: |
-      Scan complete. A new place is visible.
+      The area is now visible.
 ```
 
 ## Task Fields
@@ -539,12 +539,12 @@ Nested directories are allowed:
 
 ```yaml
 - type: CreateFile
-  path: "Memory_Bank/Sector_A/welcome_packet.txt"
+  path: "Stonehaven/Inn/notice.txt"
   content: |
-    ARK WELCOME PACKET
-    ------------------
+    A notice pinned to the wall.
 
-    Operator, your console is responding.
+    Something has changed here recently.
+    Look carefully before moving on.
 ```
 
 Creates a file and writes content.
@@ -781,8 +781,8 @@ Better:
 
 ```yaml
 intro: |
-  Operator, your console is active.
-  Use `ls` to scan the current place.
+  You are here. Something is nearby.
+  Look around to find out what.
 ```
 
 The first few lessons should be short, clear, and interactive.
