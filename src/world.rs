@@ -1,5 +1,6 @@
 use crate::actions::SetupAction;
-use directories::UserDirs;
+use crate::construct::{default_construct_root, resolve_construct_path};
+use anyhow::Context;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
@@ -9,24 +10,24 @@ pub struct WorldEngine {
 }
 
 impl WorldEngine {
-    pub fn new() -> Self {
-        // 1. Locate the User's Home Directory safely
-        let user_dirs = UserDirs::new().expect("Critical: Could not find User Home.");
-        let home_dir = user_dirs.home_dir();
+    pub fn new() -> anyhow::Result<Self> {
+        let root =
+            default_construct_root().context("Critical: Could not find user home directory")?;
+        Ok(WorldEngine { root_path: root })
+    }
 
-        // 2. Target "~/Construct"
-        // This works cross-platform (C:\Users\Name\Construct or /home/name/Construct)
-        let root = home_dir.join("Construct");
-
-        WorldEngine { root_path: root }
+    /// Returns true if the Construct root directory still exists on disk.
+    pub fn is_intact(&self) -> bool {
+        self.root_path.exists()
     }
 
     /// Run this once on startup to ensure the "Construct" folder exists
-    pub fn initialize(&self) {
+    pub fn initialize(&self) -> anyhow::Result<()> {
         if !self.root_path.exists() {
             println!(">> [WORLD] Initializing Construct at {:?}", self.root_path);
-            fs::create_dir_all(&self.root_path).expect("Failed to create world root.");
+            fs::create_dir_all(&self.root_path).context("Failed to create world root")?;
         }
+        Ok(())
     }
 
     /// The Main Loop: Reads YAML instructions and executes them
@@ -34,25 +35,43 @@ impl WorldEngine {
         for action in actions {
             match action {
                 SetupAction::CreateDir { path } => {
-                    let target = self.safe_path(path);
+                    let Some(target) = self.safe_path(path) else {
+                        eprintln!(">> [WORLD] Refusing unsafe directory path: {path}");
+                        continue;
+                    };
+
                     fs::create_dir_all(target).unwrap_or_else(|e| {
                         eprintln!("Failed to create dir: {}", e);
                     });
                 }
                 SetupAction::CreateFile { path, content } => {
-                    let target = self.safe_path(path);
+                    let Some(target) = self.safe_path(path) else {
+                        eprintln!(">> [WORLD] Refusing unsafe file path: {path}");
+                        continue;
+                    };
 
-                    // Ensure parent directory exists first!
+                    // Ensure parent directory exists first.
                     if let Some(parent) = target.parent() {
                         fs::create_dir_all(parent).ok();
                     }
 
-                    let mut file = fs::File::create(target).expect("Failed to create file");
-                    file.write_all(content.as_bytes())
-                        .expect("Failed to write content");
+                    match fs::File::create(&target) {
+                        Ok(mut file) => {
+                            if let Err(err) = file.write_all(content.as_bytes()) {
+                                eprintln!("Failed to write content to {:?}: {}", target, err);
+                            }
+                        }
+                        Err(err) => {
+                            eprintln!("Failed to create file {:?}: {}", target, err);
+                        }
+                    }
                 }
                 SetupAction::RemovePath { path } => {
-                    let target = self.safe_path(path);
+                    let Some(target) = self.safe_path(path) else {
+                        eprintln!(">> [WORLD] Refusing unsafe removal path: {path}");
+                        continue;
+                    };
+
                     if target.exists() {
                         if target.is_dir() {
                             fs::remove_dir_all(target).ok();
@@ -62,27 +81,115 @@ impl WorldEngine {
                     }
                 }
                 SetupAction::ResetWorld => {
-                    if self.root_path.ends_with("Construct") && self.root_path.exists() {
-                        for entry in fs::read_dir(&self.root_path).unwrap() {
-                            let entry = entry.unwrap();
-                            let path = entry.path();
-                            if path.is_dir() {
-                                fs::remove_dir_all(path).ok();
-                            } else {
-                                fs::remove_file(path).ok();
-                            }
-                        }
-                    }
+                    self.reset_world();
                 }
             }
         }
     }
 
-    /// SAFETY: Joins the user input to ~/Construct
-    /// Prevents users from writing "setup_action: ../../System32"
-    fn safe_path(&self, relative_path: &str) -> PathBuf {
-        // A real production app needs ".." sanitization here.
-        // For now, we trust the YAML writer (you).
-        self.root_path.join(relative_path)
+    fn reset_world(&self) {
+        if !self.root_path.ends_with("Construct") {
+            eprintln!(
+                ">> [WORLD] Refusing to reset suspicious world root: {:?}",
+                self.root_path
+            );
+            return;
+        }
+
+        if !self.root_path.exists() {
+            return;
+        }
+
+        let entries = match fs::read_dir(&self.root_path) {
+            Ok(entries) => entries,
+            Err(err) => {
+                eprintln!(
+                    ">> [WORLD] Failed to read Construct directory {:?}: {}",
+                    self.root_path, err
+                );
+                return;
+            }
+        };
+
+        for entry in entries {
+            let entry = match entry {
+                Ok(entry) => entry,
+                Err(err) => {
+                    eprintln!(">> [WORLD] Failed to inspect Construct entry: {err}");
+                    continue;
+                }
+            };
+
+            let path = entry.path();
+
+            let result = if path.is_dir() {
+                fs::remove_dir_all(&path)
+            } else {
+                fs::remove_file(&path)
+            };
+
+            if let Err(err) = result {
+                eprintln!(">> [WORLD] Failed to remove {:?}: {}", path, err);
+            }
+        }
+    }
+
+    /// Safely joins a YAML-provided relative path to the Construct root.
+    ///
+    /// Rejects:
+    /// - empty paths
+    /// - absolute paths
+    /// - Windows path prefixes
+    /// - parent directory traversal using `..`
+    ///
+    /// This keeps setup actions inside ~/Construct.
+    fn safe_path(&self, relative_path: &str) -> Option<PathBuf> {
+        resolve_construct_path(&self.root_path, relative_path)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_world() -> WorldEngine {
+        WorldEngine {
+            root_path: PathBuf::from("/tmp/supershell-test-construct"),
+        }
+    }
+
+    #[test]
+    fn safe_path_allows_normal_relative_paths() {
+        let world = test_world();
+
+        assert_eq!(
+            world.safe_path("Memory_Bank/welcome.txt"),
+            Some(PathBuf::from(
+                "/tmp/supershell-test-construct/Memory_Bank/welcome.txt"
+            ))
+        );
+    }
+
+    #[test]
+    fn safe_path_rejects_parent_directory_traversal() {
+        let world = test_world();
+
+        assert_eq!(world.safe_path("../outside.txt"), None);
+        assert_eq!(world.safe_path("Memory_Bank/../../outside.txt"), None);
+    }
+
+    #[test]
+    fn safe_path_rejects_absolute_paths() {
+        let world = test_world();
+
+        assert_eq!(world.safe_path("/tmp/outside.txt"), None);
+    }
+
+    #[test]
+    fn safe_path_rejects_empty_paths() {
+        let world = test_world();
+
+        assert_eq!(world.safe_path(""), None);
+        assert_eq!(world.safe_path("   "), None);
     }
 }

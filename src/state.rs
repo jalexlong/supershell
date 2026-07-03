@@ -17,6 +17,10 @@ pub struct GameState {
     #[serde(default)]
     pub variables: HashMap<String, i32>,
     pub is_finished: bool,
+    /// How many times the player has failed the current task in a row.
+    /// Resets to 0 on success. Persisted so restarts don't wipe the count.
+    #[serde(default)]
+    pub failure_count: usize,
 }
 
 impl GameState {
@@ -31,34 +35,58 @@ impl GameState {
             flags: HashMap::new(),
             variables: HashMap::new(),
             is_finished: false,
+            failure_count: 0,
         }
     }
 
-    /// Loads the save file or initializes a new one if missing
+    /// Loads the save file or initializes a new one if missing.
+    /// Warns and backs up a corrupted save rather than silently discarding it.
     pub fn load(path: &str) -> Self {
-        if Path::new(path).exists() {
-            let content = fs::read_to_string(path).unwrap_or_default();
-            serde_json::from_str(&content).unwrap_or_else(|_| Self::new())
-        } else {
-            Self::new()
+        if !Path::new(path).exists() {
+            return Self::new();
+        }
+        let content = match fs::read_to_string(path) {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!(">> [WARN] Could not read save file: {e}. Starting fresh.");
+                return Self::new();
+            }
+        };
+        match serde_json::from_str::<Self>(&content) {
+            Ok(state) => state,
+            Err(e) => {
+                let backup = format!("{}.bak", path);
+                eprintln!(
+                    ">> [WARN] Save file corrupted ({e}). Backing up to {backup} and starting fresh."
+                );
+                let _ = fs::rename(path, &backup);
+                Self::new()
+            }
         }
     }
 
-    pub fn save(&self, path: &str) {
-        // 1. Create a temporary path
+    pub fn save(&self, path: &str) -> std::io::Result<()> {
+        // 1. Ensure the save directory exists.
+        // This matters after --reset, in fresh installs, and in test environments.
+        if let Some(parent) = std::path::Path::new(path).parent() {
+            fs::create_dir_all(parent)?;
+        }
+
+        // 2. Create a temporary path.
         let tmp_path = format!("{}.tmp", path);
 
-        // 2. Serialize to string (Memory check)
-        let json = serde_json::to_string_pretty(self).expect("Failed to serialize");
+        // 3. Serialize to string.
+        let json = serde_json::to_string_pretty(self).map_err(std::io::Error::other)?;
 
-        // 3. Write to the temporary file (The dangerous part)
+        // 4. Write to the temporary file.
         // If we crash here, only the .tmp file is broken.
-        fs::write(&tmp_path, json).expect("Failed to write tmp file");
+        fs::write(&tmp_path, json)?;
 
-        // 4. Rename (The Atomic Swap)
-        // On POSIX systems (Linux/Mac), this operation is atomic.
-        // It instantly swaps the file pointer. It either happens fully, or not at all.
-        fs::rename(tmp_path, path).expect("Failed to commit save");
+        // 5. Rename into place.
+        // On POSIX systems, this operation is atomic.
+        fs::rename(tmp_path, path)?;
+
+        Ok(())
     }
 
     /// Increments the checkpoint index

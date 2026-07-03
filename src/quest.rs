@@ -1,6 +1,7 @@
 use crate::actions::SetupAction;
+use crate::construct::{default_construct_root, resolve_construct_path};
 use crate::state::GameState;
-use directories::UserDirs;
+use anyhow::Context;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -27,13 +28,19 @@ impl Library {
                 let path = entry.path();
                 if let Some(ext) = path.extension() {
                     if ext == "yaml" || ext == "yml" {
-                        let course = Course::load(&path);
-                        let display_name = if course.title == "Untitled Course" {
-                            path.file_stem().unwrap().to_string_lossy().to_string()
-                        } else {
-                            course.title
-                        };
-                        courses.push((path, display_name));
+                        match Course::load(&path) {
+                            Ok(course) => {
+                                let display_name = if course.title == "Untitled Course" {
+                                    path.file_stem().unwrap().to_string_lossy().to_string()
+                                } else {
+                                    course.title
+                                };
+                                courses.push((path, display_name));
+                            }
+                            Err(e) => {
+                                eprintln!(">> [WARN] Skipping {:?}: {e}", path);
+                            }
+                        }
                     }
                 }
             }
@@ -65,36 +72,39 @@ fn default_version() -> String {
 }
 
 impl Course {
-    pub fn load(path: &Path) -> Self {
+    pub fn load(path: &Path) -> anyhow::Result<Self> {
         if !path.exists() {
-            return Course {
+            return Ok(Course {
                 title: default_title(),
                 author: default_author(),
                 version: default_version(),
                 quests: vec![],
-            };
+            });
         }
-        let content = fs::read_to_string(path).unwrap_or_default();
-        match serde_yml::from_str::<Course>(&content) {
-            Ok(course) => course,
-            Err(_) => match serde_yml::from_str::<Vec<Quest>>(&content) {
-                Ok(quests) => Course {
-                    title: default_title(),
-                    author: default_author(),
-                    version: default_version(),
-                    quests,
-                },
-                Err(_) => match serde_yml::from_str::<Quest>(&content) {
-                    Ok(quest) => Course {
-                        title: default_title(),
-                        author: default_author(),
-                        version: default_version(),
-                        quests: vec![quest],
-                    },
-                    Err(e) => panic!("YAML Error: {}", e),
-                },
-            },
+        let content =
+            fs::read_to_string(path).with_context(|| format!("Failed to read {path:?}"))?;
+        if let Ok(course) = serde_yml::from_str::<Course>(&content) {
+            return Ok(course);
         }
+        if let Ok(quests) = serde_yml::from_str::<Vec<Quest>>(&content) {
+            return Ok(Course {
+                title: default_title(),
+                author: default_author(),
+                version: default_version(),
+                quests,
+            });
+        }
+        if let Ok(quest) = serde_yml::from_str::<Quest>(&content) {
+            return Ok(Course {
+                title: default_title(),
+                author: default_author(),
+                version: default_version(),
+                quests: vec![quest],
+            });
+        }
+        Err(anyhow::anyhow!(
+            "Failed to parse {path:?} as Course, Vec<Quest>, or Quest"
+        ))
     }
 
     pub fn get_active_content(
@@ -205,42 +215,78 @@ pub struct Condition {
 }
 
 impl Condition {
-    fn get_sandbox_path(path: &str) -> PathBuf {
-        if let Some(user_dirs) = UserDirs::new() {
-            user_dirs.home_dir().join("Construct").join(path)
-        } else {
-            PathBuf::from(path)
-        }
+    fn get_sandbox_path(path: &str) -> Option<PathBuf> {
+        default_construct_root().and_then(|root| resolve_construct_path(&root, path))
     }
 
     pub fn check(&self, user_command: &str, state: &GameState) -> ValidationResult {
+        self.check_with_cwd(user_command, state, None)
+    }
+
+    pub fn check_with_cwd(
+        &self,
+        user_command: &str,
+        state: &GameState,
+        cwd_override: Option<&Path>,
+    ) -> ValidationResult {
         let is_valid = match &self.condition_type {
-            ConditionType::CommandMatches { pattern } => {
-                let re = Regex::new(pattern).unwrap_or_else(|_| Regex::new("").unwrap());
-                if re.is_match(user_command) {
-                    true
-                } else {
+            ConditionType::CommandMatches { pattern } => match Regex::new(pattern) {
+                Ok(re) => {
+                    if re.is_match(user_command) {
+                        true
+                    } else {
+                        return ValidationResult::SyntaxError;
+                    }
+                }
+                Err(_) => {
+                    eprintln!(">> [WARN] Invalid regex pattern in quest YAML: '{pattern}'");
                     return ValidationResult::SyntaxError;
                 }
-            }
+            },
             ConditionType::HistoryContains { pattern } => {
-                // Simplified for brevity - assumes logic works
-                let re = Regex::new(pattern).unwrap_or_else(|_| Regex::new("").unwrap());
-                re.is_match("TODO_IMPLEMENT_HISTORY_READ")
+                let histfile = std::env::var("HISTFILE").unwrap_or_else(|_| {
+                    std::env::var("HOME")
+                        .map(|home| format!("{home}/.bash_history"))
+                        .unwrap_or_default()
+                });
+                if histfile.is_empty() {
+                    false
+                } else {
+                    match (fs::read_to_string(&histfile), Regex::new(pattern)) {
+                        (Ok(content), Ok(re)) => re.is_match(&content),
+                        (_, Err(_)) => {
+                            eprintln!(">> [WARN] Invalid regex in HistoryContains: '{pattern}'");
+                            false
+                        }
+                        _ => false,
+                    }
+                }
             }
             // --- SANDBOXED CHECKS ---
-            ConditionType::PathExists { path } => Self::get_sandbox_path(path).exists(),
-            ConditionType::PathMissing { path } => !Self::get_sandbox_path(path).exists(),
-            ConditionType::IsDirectory { path } => Self::get_sandbox_path(path).is_dir(),
-            ConditionType::IsFile { path } => Self::get_sandbox_path(path).is_file(),
+            ConditionType::PathExists { path } => Self::get_sandbox_path(path)
+                .map(|sandbox_path| sandbox_path.exists())
+                .unwrap_or(false),
+            ConditionType::PathMissing { path } => Self::get_sandbox_path(path)
+                .map(|sandbox_path| !sandbox_path.exists())
+                .unwrap_or(false),
+            ConditionType::IsDirectory { path } => Self::get_sandbox_path(path)
+                .map(|sandbox_path| sandbox_path.is_dir())
+                .unwrap_or(false),
+            ConditionType::IsFile { path } => Self::get_sandbox_path(path)
+                .map(|sandbox_path| sandbox_path.is_file())
+                .unwrap_or(false),
             ConditionType::IsExecutable { path } => {
-                if let Ok(metadata) = fs::metadata(Self::get_sandbox_path(path)) {
-                    #[cfg(unix)]
-                    {
-                        metadata.permissions().mode() & 0o111 != 0
-                    }
-                    #[cfg(not(unix))]
-                    {
+                if let Some(sandbox_path) = Self::get_sandbox_path(path) {
+                    if let Ok(metadata) = fs::metadata(sandbox_path) {
+                        #[cfg(unix)]
+                        {
+                            metadata.permissions().mode() & 0o111 != 0
+                        }
+                        #[cfg(not(unix))]
+                        {
+                            false
+                        }
+                    } else {
                         false
                     }
                 } else {
@@ -248,32 +294,45 @@ impl Condition {
                 }
             }
             ConditionType::FileContains { path, pattern } => {
-                if let Ok(content) = fs::read_to_string(Self::get_sandbox_path(path)) {
-                    Regex::new(pattern)
-                        .map(|re| re.is_match(&content))
-                        .unwrap_or(false)
+                if let Some(sandbox_path) = Self::get_sandbox_path(path) {
+                    if let Ok(content) = fs::read_to_string(sandbox_path) {
+                        Regex::new(pattern)
+                            .map(|re| re.is_match(&content))
+                            .unwrap_or(false)
+                    } else {
+                        false
+                    }
                 } else {
                     false
                 }
             }
             ConditionType::FileNotContains { path, pattern } => {
-                if let Ok(content) = fs::read_to_string(Self::get_sandbox_path(path)) {
-                    Regex::new(pattern)
-                        .map(|re| !re.is_match(&content))
-                        .unwrap_or(true)
+                if let Some(sandbox_path) = Self::get_sandbox_path(path) {
+                    if let Ok(content) = fs::read_to_string(sandbox_path) {
+                        Regex::new(pattern)
+                            .map(|re| !re.is_match(&content))
+                            .unwrap_or(true)
+                    } else {
+                        true
+                    }
                 } else {
-                    true
+                    false
                 }
             }
-            ConditionType::FileEmpty { path } => fs::metadata(Self::get_sandbox_path(path))
-                .map(|m| m.len() == 0)
+            ConditionType::FileEmpty { path } => Self::get_sandbox_path(path)
+                .and_then(|sandbox_path| fs::metadata(sandbox_path).ok())
+                .map(|metadata| metadata.len() == 0)
                 .unwrap_or(false),
+
             // --- ENV CHECKS ---
             ConditionType::WorkingDir { path } => {
-                let current = env::current_dir()
+                let current = cwd_override
+                    .map(|cwd| cwd.to_path_buf())
+                    .or_else(|| env::current_dir().ok())
                     .unwrap_or_default()
                     .to_string_lossy()
                     .to_string();
+
                 Regex::new(path)
                     .map(|re| re.is_match(&current))
                     .unwrap_or(false)
@@ -292,13 +351,65 @@ impl Condition {
         if is_valid {
             ValidationResult::Valid
         } else {
-            // It failed. Was it syntax (already handled) or logic?
-            // If we are here, it's a Logic Error.
             let msg = self
                 .failure_message
                 .clone()
                 .unwrap_or_else(|| "Condition not met.".to_string());
             ValidationResult::LogicError(msg)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sandbox_path_allows_normal_relative_paths() {
+        let path = Condition::get_sandbox_path("Memory_Bank/welcome.txt")
+            .expect("expected safe relative path");
+
+        assert!(
+            path.ends_with(
+                Path::new("Construct")
+                    .join("Memory_Bank")
+                    .join("welcome.txt")
+            )
+        );
+    }
+
+    #[test]
+    fn sandbox_path_rejects_parent_directory_traversal() {
+        assert_eq!(Condition::get_sandbox_path("../outside.txt"), None);
+        assert_eq!(
+            Condition::get_sandbox_path("Memory_Bank/../../outside.txt"),
+            None
+        );
+    }
+
+    #[test]
+    fn sandbox_path_rejects_absolute_paths() {
+        assert_eq!(Condition::get_sandbox_path("/tmp/outside.txt"), None);
+    }
+
+    #[test]
+    fn sandbox_path_rejects_empty_paths() {
+        assert_eq!(Condition::get_sandbox_path(""), None);
+        assert_eq!(Condition::get_sandbox_path("   "), None);
+    }
+
+    #[test]
+    fn invalid_path_conditions_fail_closed() {
+        let condition = Condition {
+            condition_type: ConditionType::PathMissing {
+                path: "../outside.txt".to_string(),
+            },
+            failure_message: None,
+        };
+
+        assert_eq!(
+            condition.check("", &GameState::new()),
+            ValidationResult::LogicError("Condition not met.".to_string())
+        );
     }
 }

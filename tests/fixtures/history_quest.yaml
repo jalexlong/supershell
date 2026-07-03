@@ -1,0 +1,26 @@
+title: "History Quest (Testing Fixture)"
+author: "Supershell Test Suite"
+version: "0.1.0"
+
+quests:
+  - id: "history_test"
+    title: "History Test Quest"
+    construct: false
+
+    chapters:
+      - title: "History Chapter"
+        intro: "Testing HistoryContains."
+        outro: "HistoryContains test complete."
+        setup_actions: []
+        tasks:
+          - objective: "Trigger task after history check"
+            description: "Completes only when the history file contains the target pattern."
+            instruction: "Run the trigger command"
+            success_msg: "History verified."
+            hint: "The history file must contain the required pattern."
+            conditions:
+              - type: CommandMatches
+                pattern: '^echo trigger$'
+              - type: HistoryContains
+                pattern: 'echo alpha'
+                failure_message: "Run 'echo alpha' first — it must appear in your history."

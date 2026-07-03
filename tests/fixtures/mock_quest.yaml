@@ -1,0 +1,61 @@
+title: "Mock Quest (Testing Fixture)"
+author: "Supershell Test Suite"
+version: "0.1.0"
+
+quests:
+  - id: "mock"
+    title: "Mock Quest"
+    construct: true
+
+    chapters:
+      - title: "Alpha"
+        intro: "Alpha chapter begins."
+        outro: "Alpha chapter complete."
+        setup_actions: []
+        tasks:
+          - objective: "Run echo alpha"
+            description: "Echo the first code word."
+            instruction: "Type: echo alpha"
+            success_msg: "Alpha acknowledged."
+            hint: "Type exactly: echo alpha"
+            conditions:
+              - type: CommandMatches
+                pattern: '^echo alpha$'
+            rewards:
+              - type: SetFlag
+                key: alpha_done
+                value: true
+
+          - objective: "Run echo beta"
+            description: "Echo the second code word after alpha."
+            instruction: "Type: echo beta"
+            success_msg: "Beta acknowledged."
+            hint: "Complete alpha first, then type: echo beta"
+            conditions:
+              - type: CommandMatches
+                pattern: '^echo beta$'
+              - type: FlagIsTrue
+                key: alpha_done
+                failure_message: "Alpha must be completed first."
+
+      - title: "Beta"
+        intro: "Beta chapter begins."
+        outro: "Beta chapter complete."
+        setup_actions:
+          - type: CreateDir
+            path: "mock_verify"
+          - type: CreateFile
+            path: "mock_verify/beacon.txt"
+            content: "BEACON\n"
+        tasks:
+          - objective: "Run echo gamma"
+            description: "Echo the third code word."
+            instruction: "Type: echo gamma"
+            success_msg: "Gamma acknowledged."
+            hint: "The beacon file must exist in mock_verify/"
+            conditions:
+              - type: CommandMatches
+                pattern: '^echo gamma$'
+              - type: PathExists
+                path: "mock_verify/beacon.txt"
+                failure_message: "The beacon file is missing from the Construct."

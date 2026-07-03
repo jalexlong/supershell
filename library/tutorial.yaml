@@ -1,0 +1,193 @@
+title: "Tutorial: The Construct"
+author: "Supershell Team"
+version: "1.0.0"
+
+quests:
+  - id: "tutorial"
+    title: "The Construct"
+    construct: true
+
+    chapters:
+      - title: "The Edge Path"
+        intro: |
+          [Static.]
+          [A path.]
+          [You.]
+
+          The world arrives slowly, in pieces.
+
+          First: a road. Packed dirt, winding toward something that wants very
+          badly to be a forest but isn't entirely sure how trees are supposed
+          to work.
+
+          Then: the sky. A deep grey, like the moment before a storm decides
+          what to do with itself.
+
+          Then: footsteps. Getting closer. Very fast.
+
+          A figure rounds the bend and barely stops in time.
+
+          "Oh. OH. You're awake!"
+
+          They're small, or maybe the world is just big. Hard to tell, from here.
+          They have the look of someone who has been extremely worried for a while
+          and is now experiencing several feelings simultaneously.
+
+          "I'm Bit. I've been looking for you. Or — I knew you'd be HERE
+          specifically, I just didn't know exactly WHEN, and then I got distracted
+          by a merchant selling rocks she described as 'spiritually loaded,' and—"
+
+          Bit takes a breath.
+
+          "You know what, that's not important. You're awake. That's the
+          important thing. The IMPORTANT thing is that something is very wrong
+          with the system, and you are the only one who can do anything about it.
+
+          You're the Operator. I'll explain what that means later.
+
+          For now — the basics. The Construct responds to what you type.
+          There's a language for it. The first two words you'll need:
+
+              ls    shows you what's in the place you're standing.
+              cd    takes you somewhere — you say cd, then the name.
+
+          That's it. That's enough to start.
+
+          Can you look around? Tell me what's here."
+
+        setup_actions:
+          - type: ResetWorld
+          - type: CreateFile
+            path: "WornPath"
+            content: |
+              A dirt path worn flat by years of use.
+
+              At the far end, past where the trees thin out, you can see
+              rooftops. Chimney smoke. The kind of place where people live.
+
+              Someone has carved two letters into a nearby post. You don't
+              know what they mean yet.
+          - type: CreateDir
+            path: "Stonehaven"
+          - type: CreateDir
+            path: "Stonehaven/Inn"
+          - type: CreateDir
+            path: "Stonehaven/Market"
+          - type: CreateDir
+            path: "Stonehaven/Tavern"
+
+        tasks:
+          - objective: "Get your bearings"
+            description: "Look around using ls to see what's here."
+            instruction: "Bit wants to know what you can see. Look around."
+            success_msg: "WornPath behind you. Stonehaven just ahead. Bit leans in and nods."
+            hint: "The command to see what's around you is two letters: ls"
+            conditions:
+              - type: CommandMatches
+                pattern: '^ls(\s.*)?$'
+
+          - objective: "Enter Stonehaven"
+            description: "Move into Stonehaven using cd."
+            instruction: "Stonehaven is just ahead. Move toward it."
+            success_msg: "Your feet find cobblestones. You're in Stonehaven."
+            hint: "To move somewhere, use cd followed by the place name. Try: cd Stonehaven"
+            conditions:
+              - type: CommandMatches
+                pattern: '^cd\s+Stonehaven\s*$'
+              - type: WorkingDir
+                path: "Stonehaven$"
+
+        outro: |
+          The market square opens up around you.
+
+          Cobblestones. Faded awnings. A stall selling something labeled
+          "NORMAL SAUCE (do not ask)." The merchant catches you looking.
+          You both look away.
+
+          Bit appears at your elbow, slightly out of breath from keeping up.
+
+          "Welcome to Stonehaven. Home base. More or less."
+
+          They gesture at the buildings around the square — an Inn to the
+          left, a Tavern across the way, the Market filling the rest of
+          the space.
+
+          "Good people here. It's been a bit strange lately, but — look.
+          You should get a feel for the place first. Take it in."
+
+          A beat.
+
+          "And then I need to show you something."
+
+      - title: "Stonehaven"
+        intro: |
+          The square hums with the sounds of a town going about its day.
+
+          A blacksmith hammers somewhere nearby. Two children are having
+          a very serious disagreement about something that is probably
+          not serious. An elderly man near the fountain is either
+          meditating or asleep — respectfully, not your business.
+
+          Bit stands beside you with the expression of someone who is
+          trying very hard to seem calm.
+
+          "The Inn is over there — that's where I've been staying.
+          The Tavern is where most people go when they need work or
+          want to talk to someone. The Market is..."
+
+          They glance at the NORMAL SAUCE stall again.
+
+          "...the Market. Anyway. Look around. Get the lay of the land."
+
+        setup_actions:
+          - type: CreateFile
+            path: "Stonehaven/Inn/Bit"
+            content: |
+              Bit: Oh. You found me. That means you already figured out less —
+              I had a feeling you would.
+
+              There's still something I need to show you. Come find me
+              in the square when you're ready.
+
+              a3f8c2e17b9d4a6f0e3c1b8d5a2f9e6c3b0a7d4e1f8b5c2d9a6f3e0c7b4a1d8
+
+        tasks:
+          - objective: "Survey Stonehaven"
+            description: "Use ls to see what areas make up Stonehaven."
+            instruction: "The town is spread before you. Get the lay of the land."
+            success_msg: "Inn. Market. Tavern. The shape of the place becomes clear."
+            hint: "Same command as before — the one you used to look around at the edge. Try: ls"
+            conditions:
+              - type: CommandMatches
+                pattern: '^ls(\s.*)?$'
+
+        outro: |
+          Bit nods at your output.
+
+          "There we go. Inn, Market, Tavern. And you already know how to
+          look around — that's more than most people figure out in their
+          first five minutes, honestly."
+
+          They smile. It's genuine. Then it fades, just slightly.
+
+          "Okay. So. The thing I needed to tell you."
+
+          Bit lowers their voice, though there's no one close enough to hear.
+
+          "I was in the RoyalLibrary this morning — the big archive, east
+          of here. You'll see it. And I found a record that had been...
+          rewritten. Not by a person. Nothing had touched it. But the text
+          was different than it was yesterday."
+
+          A pause.
+
+          "That was the third one this week."
+
+          Somewhere in the square, the blacksmith stops hammering.
+          The silence is larger than it should be.
+
+          "You're the Operator. That means you can actually do something
+          about this. I don't know exactly what yet — but I think we need
+          to find out.
+
+          Come find me at the Inn when you're ready."
