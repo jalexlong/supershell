@@ -39,13 +39,21 @@ quests:
 
           Bit takes a breath.
 
-          "You know what, that's not important. You're awake. That's the important
-          thing. The IMPORTANT thing is that something is very wrong with the
-          system, and you are the only one who can do anything about it.
+          "You know what, that's not important. You're awake. That's the
+          important thing. The IMPORTANT thing is that something is very wrong
+          with the system, and you are the only one who can do anything about it.
 
-          You're the Operator. I'll explain what that means.
+          You're the Operator. I'll explain what that means later.
 
-          First — can you see? Look around. Tell me what's here."
+          For now — the basics. The Construct responds to what you type.
+          There's a language for it. The first two words you'll need:
+
+              ls    shows you what's in the place you're standing.
+              cd    takes you somewhere — you say cd, then the name.
+
+          That's it. That's enough to start.
+
+          Can you look around? Tell me what's here."
 
         setup_actions:
           - type: ResetWorld
@@ -135,12 +143,13 @@ quests:
           - type: CreateFile
             path: "Stonehaven/Inn/Bit"
             content: |
-              A figure who seems to know more about this place than they let on.
+              Oh. You found me. That means you already figured out less —
+              I had a feeling you would.
 
-              Currently sitting at the corner table, nursing something warm,
-              watching the door like they're expecting someone.
+              There's still something I need to show you. Come find me
+              in the square when you're ready.
 
-              (They were expecting you.)
+              — Bit
 
               a3f8c2e17b9d4a6f0e3c1b8d5a2f9e6c3b0a7d4e1f8b5c2d9a6f3e0c7b4a1d8
 
