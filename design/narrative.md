@@ -18,16 +18,14 @@ All decisions recorded here are locked. Future sessions start by reading this fi
 | Learning integrity | Writing must never mislead in favor of entertainment. The lesson is sacred. |
 | NPC representation | NPCs are files. Their manifest (file content) stores personality and memory. Modifying or removing it changes them. Players discover this organically — never stated explicitly. |
 | NPC quest marker | An NPC with an available quest is marked **executable** — visible via `ls -la`. Skills that reveal permissions literally open the world. |
-| NPC interaction | Two-layer: `less NPC_name` reads the manifest (identity, prose description, hash). `talk NPC_name` triggers dialogue (quest offer, personality, jokes). `talk` is an RC alias calling `supershell --talk`. |
-| NPC manifest format | Short in-character prose (personality, a line or two) followed by `Manifest Integrity Hash: [hex string]`. Identity layer only — no quest content. |
-| NPC dialogue layer | Surfaced only via `talk`. Quest offer or current mood. Corrupted NPCs in TheShatter produce garbled dialogue. Non-executable NPCs return a "nothing to say" message. `talk` only works in the same directory as the NPC (enforces `cd` navigation). |
-| NPC quest state | Executable bit = "has something to say." Completing a quest removes the bit. |
-| `talk` lore hook | `talk(1)` is a real historical Unix command for real-time inter-user chat. Natural hook for an optional lore quest about early Unix communication. |
+| NPC interaction | `less NPC_name` reads the NPC file — personality, current situation, quest context (if any), and a bare hex hash at the end. No `talk` command. Everything is in the file. |
+| NPC manifest format | In-character prose (personality, mood, quest hook if the NPC has one), followed by a bare hex hash on its own line at the bottom. No label on the hash. The hash is each NPC's identity fingerprint — when it changes, the NPC has been corrupted. The player is not told this explicitly until they've already witnessed it. |
+| NPC quest state | Executable bit = quest available, visible via `ls -la`. Completing a quest removes the bit. |
 | Skill unlocks world | `ls -a` reveals hidden areas and NPCs. Skills are keys, not stats. |
 | Sudo | Major story plotpoint ~halfway through the curriculum. The Operator gains operator-level power over the system. No sudo in the tutorial. |
 | Player freedom | Multiple valid solutions to a quest are fine as long as the job gets done. The world reacts naturally to player choices without hard moral branches. |
 | Quest structure | Lesson quest → Mandatory drill quests (any order) → Optional drill quests → Next lesson quest |
-| Renaming quest mechanic | A "hide this NPC" quest has the player `mv` the NPC file to a new name in the same directory. The NPC explains why via `talk`. Example: `NotSoHiddenNinja` → `JustABoulder`. Quest completes only once renamed. |
+| Renaming quest mechanic | A "hide this NPC" quest has the player `mv` the NPC file to a new name in the same directory. The NPC explains why in their manifest (`less NPC_name`). Example: `NotSoHiddenNinja` → `JustABoulder`. Quest completes only once renamed. |
 | Design-first rule | The technical serves the narrative. Schema changes follow locked design decisions. |
 
 ---
@@ -229,5 +227,4 @@ Features needed that don't exist yet:
 - **Quest prerequisites** — a quest requires another to be completed before it appears
 - **Optional quest flag** — marked in YAML; player sees it but is not blocked by it
 - **Quest accept/decline** — player chooses to take or skip, not just auto-progress
-- **`talk` command** — RC alias + `supershell --talk NPC_name --cwd "$PWD"` binary flag; reads NPC dialogue layer; checks executable bit; handles corrupted/non-executable cases
 - **Post-sandbox navigation** — current engine sandboxes all filesystem conditions to `~/Construct`; leaving the sandbox requires scoping that constraint
